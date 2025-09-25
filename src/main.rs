@@ -150,7 +150,7 @@ async fn main() {
 
     // Clapでホスト、ポート番号を読み込み
     let cli = Command::new("MarkdownWiki2")
-        .version("1.0.0")
+        .version("1.0.1")
         .author("Itsuki Maru")
         .about("MarkdownWiki2 Backend Server")
         .disable_help_flag(true)
