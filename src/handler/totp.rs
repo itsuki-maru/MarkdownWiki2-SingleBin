@@ -223,21 +223,17 @@ pub async fn token_totp_handler(
     // 3分以内か検証
     if let Some(expiry) = Duration::try_minutes(3) {
         // SQLiteでの文字列から日付型に戻す
-        let is_basic_authed_at = NaiveDateTime::parse_from_str(&user.is_basic_authed_at, "%Y-%m-%d %H:%M:%S");
-        match is_basic_authed_at {
-            Ok(is_basic_authed_naive) => {
-                if Utc::now().naive_utc() - is_basic_authed_naive > expiry {
-                    return Err(custom_error_response(
-                        "Time Over.",
-                        StatusCode::UNAUTHORIZED,
-                    ));
-                }
-            },
-            Err(_e) => {
-                    return Err(custom_error_response(
-                        "Parse Error.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ));
+
+        match parse_naive_datetime(&user.is_basic_authed_at) {
+            Some(next) if Utc::now().naive_utc() - next > expiry => {
+                return Err(custom_error_response(
+                    "Time Over.",
+                    StatusCode::UNAUTHORIZED,
+                ));
+            }
+            Some(_) => {}
+            None => {
+                return Err(custom_error_response("Parse Error.", StatusCode::INTERNAL_SERVER_ERROR));
             }
         }
     }
@@ -369,4 +365,20 @@ pub async fn totp_disable_handler(
             StatusCode::UNAUTHORIZED,
         ))
     }
+}
+
+fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
+    // 小数秒あり/なし、スペース/T 区切りの両方を許容
+    let fmts: [&str; 4] = [
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M:%S",
+    ];
+    for f in fmts {
+        if let Ok(dt) = NaiveDateTime::parse_from_str(s, f) {
+            return Some(dt);
+        }
+    }
+    None
 }
