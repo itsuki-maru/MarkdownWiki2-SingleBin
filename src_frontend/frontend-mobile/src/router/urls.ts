@@ -1,0 +1,31 @@
+import { baseUrl } from "@/setting";
+
+export const getTokenUrl = baseUrl + "/account/token";
+export const getUserUrl = baseUrl + "/account/auth";
+export const getSecretQuestionUrl = baseUrl + "/account/secret-question";
+export const passwordResetUrl = baseUrl + "/account/password_reset";
+export const signupUrl = baseUrl + "/account/signup";
+export const logoutUrl = baseUrl + "/account/logout";
+export const postTestUrl = baseUrl + "/test";
+export const createWikiUrl = baseUrl + "/wiki/add";
+export const updateWikiUrl = baseUrl + "/wiki/modify";
+export const deleteWikiUrl = baseUrl + "/wiki/remove";
+export const wikiDataListUrl = baseUrl + "/wiki/read/all";
+export const wikiDataListQueryUrl = baseUrl + "/wiki/query"
+export const wikiDataListCountUrl = baseUrl + "/wiki/read/all/count/150"
+export const downloadFileUrl = baseUrl + "/wiki/download";
+export const wikiOwnerGetUrl = baseUrl + "/wiki/owner";
+export const imageUploadUrl = baseUrl + "/images/upload";
+export const imageDeleteUrl = baseUrl + "/images/delete";
+export const imageListGetUrl = baseUrl + "/images/eneble-images";
+export const generateOnetimeWikiUrl = baseUrl + "/onetimeurl/generate/";
+export const invalidateOntimeWikiUrl = baseUrl + "/onetimeurl/delete/";
+export const getOnetimeWikiUrl = baseUrl + "/onetimewiki/";
+export const licensesGetUrl = baseUrl + "/licanses";
+export const refreshTokenUrl = baseUrl + "/account/refresh";
+export const getUserInfoUrl = baseUrl + "/account/info";
+export const userPrivacySettingUrl = baseUrl + "/account/privacy";
+export const getTokenFromTotpUrl = baseUrl + "/account/totp/token";
+export const getAppTitleUrl = baseUrl + "/get-app-title";
+export const getAllowCreateUserUrl = baseUrl + "/get-allow-user-create";
+export const getAllowOriginsUrl = baseUrl + "/get-allow-origins";

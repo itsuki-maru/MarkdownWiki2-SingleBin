@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <!-- <link rel="manifest" href="/manifest.json"> -->
+    <!-- クロスオリジン対策でmanifest.jsonを他の静的サーバーにホストする場合 -->
+    <link rel="manifest" href="https://markdown-wiki2-mobile-app.pages.dev/assets/manifest.json">
+    <meta name="theme-color" content="#FFFFFF"/>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <!-- QRCode.JSのライブラリファイルを読み込み -->
+    <script src="/qrcode.min.js"></script>
+    <!-- mermaidライブラリファイルを読み込む -->
+    <script src="/mermaid.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=1.0, user-scalable=no">
+    <title>MarkdownWiki2</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/mainMobile.ts"></script>
+  </body>
+</html>
+
+<style>
+  html, body {
+    background-color: #FFFFFF;
+    padding: 5px;
+  }
+
+  pre[class*="language-"] {
+    margin: 0;
+  }
+  
+  .katex-display {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 5px;
+  }
+</style>

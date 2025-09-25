@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model\n            WHERE (user_id = $1 OR is_public = true)\n            AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')\n            AND (title LIKE $3 ESCAPE '\\' OR body LIKE $3 ESCAPE '\\')\n            ORDER BY id DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "date",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "title",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "body",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "update_at",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_public",
+        "ordinal": 6,
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1eb49a2d53bc7b36503e43ae93ad5cda7473a95ec68536363478e8926eecaaed"
+}

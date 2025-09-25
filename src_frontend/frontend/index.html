@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="https://markdown-wiki2-mobile-app.pages.dev/assets/manifest-tab.json">
+    <meta name="theme-color" content="#F5F5F5"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+    <!-- QRCode.JSのライブラリファイルを読み込み -->
+    <script src="/qrcode.min.js"></script>
+    <!-- diff-match-patchライブラリファイルを読み込む -->
+    <script src="/diff_match_patch.js"></script>
+    <!-- mermaidライブラリファイルを読み込む -->
+    <script src="/mermaid.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownWiki2</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+
+<style>
+  html, body {
+    background-color: whitesmoke;
+    padding: 5px;
+  }
+    /* Mermaid.jsのシンタックスエラーの描画を回避 */
+    .mermaid .error-icon {
+    display: none; /* アイコンを非表示にする */
+  }
+  .mermaid .error-text {
+    display: none;
+  }
+
+  /* 画像プレビューモーダル用 */
+  img#img-preview, video#img-preview {
+    max-height: 80vh;
+  }
+  
+  img, video {
+    max-width: 100%;
+    border: none;
+  }
+
+  pre[class*="language-"] {
+    margin: 0;
+  }
+
+  .katex-display {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    font-size: 1.3em;
+    padding-bottom: 5px;
+  }
+</style>

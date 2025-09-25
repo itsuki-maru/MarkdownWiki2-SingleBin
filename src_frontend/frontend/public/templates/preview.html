@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownWiki2</title>
+    <link rel="icon" href="/assets/favicon.ico">
+    <script src="/assets/mermaid.min.js"></script>
+    <script src="/assets/marked.min.js"></script>
+    <script src="/assets/xss.min.js"></script>
+    <script src="/assets/prism.js"></script>
+    <link rel="stylesheet" href="/assets/prism-okaidia.css">
+    <script src="/assets/prism-typescript.js"></script>
+    <script src="/assets/prism-javascript.js"></script>
+    <script src="/assets/prism-bash.js"></script>
+    <script src="/assets/prism-python.js"></script>
+    <script src="/assets/prism-rust.js"></script>
+    <script src="/assets/prism-markup.js"></script>
+    <script src="/assets/prism-json.js"></script>
+    <script src="/assets/prism-markdown.js"></script>
+    <script src="/assets/prism-powershell.js"></script>
+    <script src="/assets/prism-sql.js"></script>
+    <script src="/assets/prism-toml.js"></script>
+    <script src="/assets/prism-yaml.js"></script>
+    <script src="/assets/prism-uri.js"></script>
+    <script src="/assets/prism-c.js"></script>
+    <script src="/assets/prism-docker.js"></script>
+    <link rel="stylesheet" href="/assets/github.css">
+</head>
+
+<body>
+    <h1 class="head1">{{ markdowntitle }}</h1>
+    <div class="contents-area">
+        <div id="main-content" class="content"></div>
+        <div id="toc" class="toc"></div>
+    </div>
+    <script id="markdown-content" type="text/template">
+        {{ markdownbody | safe }}
+    </script>
+</body>
+<style>
+    html {
+        scroll-behavior: smooth;
+    }
+
+    .contents-area {
+        display: flex;
+        height: 100%;
+    }
+
+    .content {
+        width: 65%;
+    }
+
+    .toc {
+        width: 30%;
+        height: auto;
+        max-height: 70%;
+        margin-top: 5%;
+        margin-left: 65%;
+        margin-right: 4%;
+        position: fixed;
+        overflow: auto;
+        color: #0c2946;
+        font-size: 14px;
+        padding-right: 1%;
+        border: solid 1px black;
+        background-color: whitesmoke;
+    }
+
+    a {
+        color: #1431af;
+        text-decoration: underline;
+    }
+
+    /* 目次のリンク（github.cssを上書き） */
+    .toc a {
+        text-decoration: none;
+        color: black;
+    }
+
+    .toc li {
+        list-style: none;
+        margin-left: -3%;
+    }
+
+    /* ホバー */
+    a:hover {
+        background-color: #c1d1d6;
+        display: inline-block;
+        /* transform を適用するために必要 */
+    }
+
+    .head1 {
+        font-size: 34px;
+        margin-bottom: -1%;
+    }
+
+    .head2 {
+        font-size: 20px;
+        color: black;
+        margin-top: 2%;
+        padding: 0.1em 0.3em;
+        background: #f4f4f4;
+        border-left: solid 5px #daac9e;
+        border-bottom: solid 3px #d7d7d7;
+    }
+
+    .code-container {
+        position: relative;
+        margin-bottom: 1.5em;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #f5f5f5;
+        font-size: 0.9em;
+        line-height: 1.5;
+    }
+
+    .code-container pre {
+        margin: 0;
+        padding: 1em;
+        overflow-x: auto;
+    }
+
+    .copy-btn {
+        position: absolute;
+        top: 0.7em;
+        right: 0.5em;
+        background-color: #5e5e5e;
+        color: white;
+        border: none;
+        padding: 0.3em 0.6em;
+        border-radius: 4px;
+        font-size: 0.75em;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s ease-in-out;
+        z-index: 2;
+    }
+
+    .copy-tooltip {
+        position: absolute;
+        top: 0em;
+        right: 0.5em;
+        background: #57a53f;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.95em;
+        opacity: 1.0;
+        pointer-events: none;
+        z-index: 3;
+        transition: opacity 0.3s ease;
+    }
+
+    pre[class*="language-"] {
+        margin: 0;
+    }
+
+    summary {
+        list-style: none;
+        /* デフォルトの矢印を非表示 */
+        cursor: pointer;
+    }
+
+    summary::-webkit-details-marker {
+        display: none;
+        /* ChromeなどWebkit系ブラウザ対応 */
+    }
+
+    details>summary {
+        position: relative;
+        padding-left: 1.5em;
+    }
+
+    details>summary::before {
+        content: "▶";
+        /* 未展開時のアイコン */
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: rotate(0deg);
+        transition: transform 0.2s ease;
+    }
+
+    details[open]>summary::before {
+        transform: rotate(90deg);
+        /* 展開時に90度矢印を下に変更 */
+    }
+
+    .box.note {
+        border-left: 4px solid #4caf50;
+        background: #e8f5e9;
+        padding: 0.5em;
+        margin: 1em 0;
+    }
+    
+    .box.note summary {
+        font-size: large;
+        border-bottom: 1px solid #cccccc;
+    }
+
+    .box.warning {
+        border-left: 4px solid #f44336;
+        background: #ffebee;
+        padding: 0.5em;
+        margin: 1em 0;
+    }
+
+    .box.warning summary {
+        font-size: large;
+        border-bottom: 1px solid #cccccc;
+    }
+</style>
+<script>
+    const renderer = new marked.Renderer();
+
+    // 画像の横幅を指定できるようにimgタグをカスタム
+    const originalImageRenderer = renderer.image;
+    renderer.image = (tokens) => {
+        let width = "";
+        let href = tokens.href;
+        let text = tokens.text;
+        const match = tokens.href.match(/\s*=(\d+)(x)?$/);
+        if (match) {
+            width = match[1];
+            href  = href.replace(/\s*=.*$/, "");
+        }
+        const widthAttr = width ? ` width="${width}px"` : "";
+        console.log(href, widthAttr);
+        return `<img src="${href}" alt="${text}" ${widthAttr}>`;
+    };
+
+    // codeタグの処理
+    const originalCodeRenderer = renderer.code;
+    renderer.code = (tokens) => {
+        let html = originalCodeRenderer.call(this, tokens);
+        // mermaidの処理
+        if (tokens.lang == "mermaid") {
+            return '<pre class="mermaid">' + escapeHtml(tokens.text) + '\n</pre>';
+
+            // 通常のコードブロック + コピー機能
+        } else {
+            const id = `code-${Math.random().toString(36).substr(2, 9)}`;
+            const lang = tokens.lang;
+            const escapedCode = escapeHtml(tokens.text);
+            return `
+            <div class="code-container" style="position: relative;">
+                <button class="copy-btn" data-target="${id}" style="position: absolute; top: 5px; right: 5px; z-index: 1;">コピー</button>
+                <pre><code id="${id}" class="language-${lang}">${escapedCode}</code></pre>
+            </div>
+            `
+        }
+    }
+
+    // videoカスタムトークンの追加
+    const videoToken = {
+        name: "video",
+        level: "inline",
+        start(src) {
+            return src.match(/\?\[.*\]\(.*\)/)?.index;
+        },
+
+        tokenizer(src, tokens) {
+            const rule = /^\?\[(.*?)\]\((.*?)\)/;
+            const match = rule.exec(src);
+            if (match) {
+                return {
+                    type: "video",
+                    raw: match[0],
+                    text: match[1],
+                    href: match[2],
+                    tokens: this.lexer.inlineTokens(match[1], [])
+                };
+            }
+        },
+        renderer(token) {
+            return `<video controls src="${token.href}">${token.text}</video>`;
+        }
+    }
+
+    // ネスト対応トークナイザの共通関数
+    function createNestedTokenizer(typeName) {
+        const self = this.lexer;
+        return {
+            name: typeName,
+            level: "block",
+            start(src) {
+                const re = new RegExp(`^:::${typeName}\\s`, "m");
+                return src.match(re)?.index;
+            },
+            tokenizer(src, tokens) {
+                if (!src.startsWith(`:::${typeName}`)) return null;
+
+                const lines = src.split(/\r?\n/);
+                let nestLevel = 0;
+                let endIndex = -1;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (/^:::(\w+)/.test(line)) {
+                        nestLevel++;
+                    } else if (/^:::\s*$/.test(line)) {
+                        nestLevel--;
+                        if (nestLevel === 0) {
+                            endIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (endIndex === -1) return null;
+
+                const rawLines = lines.slice(0, endIndex + 1);
+                const raw = rawLines.join("\n");
+
+                const titleMatch = lines[0].match(new RegExp(`^:::${typeName}\\s+(.+)`));
+                const title = titleMatch ? titleMatch[1].trim() : typeName.toUpperCase();
+
+                const content = lines.slice(1, endIndex).join("\n");
+
+                return {
+                    type: typeName,
+                    raw,
+                    title,
+                    tokens: this.lexer.blockTokens(content),
+                };
+            },
+            renderer(token) {
+                const body = marked.parser(token.tokens);
+                if (token.type === "details") {
+                    return `<details>\n<summary>${token.title}</summary>\n${body}\n</details>\n`;
+                } else {
+                    return `<div class="box ${token.type}">\n<summary>${token.title}</summary>\n${body}\n</div>\n`;
+                }
+            },
+        };
+    }
+
+    // それぞれのトークンを生成
+    const detailsToken = createNestedTokenizer("details");
+    const noteToken = createNestedTokenizer("note");
+    const warningToken = createNestedTokenizer("warning");
+
+    marked.use({
+        extensions: [videoToken, detailsToken, noteToken, warningToken]
+    });
+
+    // HTMLエスケープ関数
+    function escapeHtml(html) {
+        return html
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // markedのスラッグ化機能をカスタマイズ
+    let headingIndex = 0; // 見出しのインデックス
+    renderer.heading = function (tokens) {
+        const id = `heading-${headingIndex++}`; // インデックスに基づいてIDを生成
+        return `<h${tokens.depth} id="${id}" class="head${tokens.depth}">${tokens.text}</h${tokens.depth}>\n`; // class属性のCSSはトップレベル（App.vue）で定義
+    };
+
+    // ローカルホスト判定
+    function isLocalhost(url) {
+        try {
+            const parsedUrl = new URL(url);
+            return parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1" || parsedUrl.hostname === "[::1]";
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // 拡張子でPDFファイルか判定する関数
+    function isPDF(filename) {
+        return /\.pdf$/i.test(filename);
+    }
+
+    // [テキスト](URL)で定義された外部リンクを別タブで開かせるカスタムレンダラ設定
+    // 元のlink関数を保存
+    const originalLinkRenderer = renderer.link.bind(renderer);
+    // link関数をオーバーライド
+    renderer.link = (tokens) => {
+        // 外部リンクかどうかをチェック
+        const isExternal = /^https?:\/\//.test(tokens.href);
+        let isLocal = false;
+        let isPDFHref = false;
+        if (tokens.href) {
+            isLocal = isLocalhost(tokens.href);
+            isPDFHref = isPDF(tokens.href);
+        }
+        const html = originalLinkRenderer(tokens);
+        if (isExternal) {
+            if (isLocal && isPDFHref) {
+                return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+            }
+            return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
+        } else {
+            // 内部リンクかつPDFの場合
+            if (isPDFHref) {
+                return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+            }
+            // 内部リンクの場合、元の処理を使用
+            return originalLinkRenderer(tokens);
+        }
+    };
+
+    // markedの設定をカスタマイズ
+    marked.setOptions({
+        renderer,
+        async: false
+    });
+
+    // XSSフィルタのカスタマイズ
+    let xssOptions = {
+        whiteList: {
+            h1: ['id', 'class'], // h1タグのid属性を許可 class属性を許可
+            h2: ['id', 'class'], // h2タグのid属性を許可 class属性を許可
+            h3: ['id'], // h3タグのid属性を許可
+            h4: ['id'], // h4タグのid属性を許可
+            h5: ['id'], // h5タグのid属性を許可
+            h6: ['id'], // h6タグのid属性を許可
+            pre: ['class'],
+            a: ['target', 'rel', 'href', 'title'],
+            button: ['class', 'data-target'],
+            img: ['src', 'alt', 'width'],
+            video: ['src', 'controls'],
+            div: ['class'],
+            p: ['class'],
+            span: [],
+            li: [],
+            strong: [],
+            ul: [],
+            ol: [],
+            li: [],
+            blockquote: [],
+            code: ['id', 'class'],
+            table: [],
+            thead: [],
+            tbody: [],
+            th: [],
+            td: [],
+            tr: [],
+            details: [],
+            summary: [],
+        },
+        stripIgnoreTag: false,
+        stripIgnoreTagBody: ["script"],
+    };
+
+    // 見出しのテキストをIDに変換
+    const createId = (index) => {
+        return `heading-${index}`;
+    };
+    
+    // 1行の中に三重引用符が出現した回数を返す
+    const countBackticksInLine = (line) => {
+        const matches = line.match(/```/g);
+        return matches ? matches.length : 0;
+    };
+    
+    // マークダウンデータから見出しの行を抽出する
+    const getToc = (textBodyData) => {
+        // コードブロック内かどうかを示すフラグ
+        let inCodeBlock = false;
+        // 入力文字列を行に分解
+        const lines = textBodyData.split('\n');
+        // 各行をループして、`#`で始まる行で、かつバッククォートの数が2個以下の行だけをフィルタリング
+        const headings = lines.filter(line => {
+            const lenBackQoute = countBackticksInLine(line);
+            if (lenBackQoute >= 2) {
+                return false;
+            }
+            if (line.trim().startsWith('```')) {
+                // コードブロックの開始または終了を切り替える
+                inCodeBlock = !inCodeBlock;
+                return false;
+            }
+            if (inCodeBlock) {
+                // コードブロック内の行は無視する
+                return false;
+            }
+            const match = line.match(/^#+/);
+            return match;
+        });
+        return headings;
+    };
+
+    // 見出しの配列からマークダウンのリストを作成
+    const createNestedList = (headings) => {
+        let result = "";
+        headings.forEach((heading, index) => {
+            // '#'の数をカウント
+            const level = heading.split(" ").shift().length;
+            // '#'を除去
+            let text = heading.replace(/#/g, "").trim();
+            // '`'を除去
+            text = text.replace(/`/g, '').trim();
+            // インデントを付ける
+            const indents = "  ".repeat(level - 1);
+        
+            const id = createId(index);
+            // 目次のエントリにリンクを追加
+            result += `${indents}- [${text}](#${id})\n`;        
+        });
+        return result;
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const options = { async: false };
+
+        const markdownContent = document.getElementById("markdown-content").textContent.trim();
+        const parsedHtml = marked.parse(markdownContent, options);
+        const cleanHtml = filterXSS(parsedHtml, xssOptions);
+        document.getElementById("main-content").innerHTML = cleanHtml;
+
+        const tocListString = getToc(markdownContent);
+        const mdTocStr = createNestedList(tocListString);
+        const tocHtml = marked.parse(mdTocStr, options);
+        const cleanTocHtml = filterXSS(tocHtml, xssOptions);
+        document.getElementById("toc").innerHTML = cleanTocHtml;
+
+        Prism.highlightAll();
+    });
+
+    document.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target.classList.contains("copy-btn")) {
+            const codeId = target.dataset.target;
+            const codeElem = document.getElementById(codeId || "")
+            if (codeElem) {
+                navigator.clipboard.writeText(codeElem.textContent || "");
+
+                // すでにメッセージがあれば削除
+                const existingTooltip = target.parentElement?.querySelector(".copy-tooltip");
+                if (existingTooltip) existingTooltip.remove();
+
+                // メッセージを作成
+                const tooltip = document.createElement("div");
+                tooltip.textContent = "コピーしました";
+                tooltip.className = "copy-tooltip";
+
+                // ボタンの親要素（code-container）に追加
+                target.parentElement?.appendChild(tooltip);
+
+                // 一定時間後に非表示
+                setTimeout(() => {
+                    tooltip.style.opacity = "0";
+                    setTimeout(() => tooltip.remove(), 300);
+                }, 1000);
+            }
+        }
+    });
+    Prism.highlightAll();
+</script>
+
+</html>

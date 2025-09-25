@@ -1,0 +1,32 @@
+{
+    "name": "MarkdownWiki2",
+    "short_name": "MarkdownWiki2",
+    "icons": [
+        {
+            "src": "/assets/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/screenshot-desktop.png",
+            "sizes": "1280x625",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "/screenshots/screenshot-mobile.png",
+            "sizes": "706x1334",
+            "type": "image/png"
+        }
+    ],
+    "start_url": "https://www.markdown-wiki2.com/",
+    "theme_color": "#F5F5F5",
+    "display": "standalone"
+}
