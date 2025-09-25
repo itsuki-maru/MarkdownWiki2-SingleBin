@@ -2,7 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use dirs::home_dir;
 use std::fs;
-use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -29,11 +28,10 @@ pub fn get_application_user_setup_path() -> PathBuf {
 pub fn read_or_create_json_env(setup_file_dir: PathBuf) -> ApplicationInitSetup {
     let setup_recover_path = setup_file_dir.clone();
     let env_json_path = setup_file_dir.join("markdown-wiki2-single.env.json");
-    let current_path = get_aplication_exec_path();
 
     // JSONデータが存在しない場合の処理
     if !env_json_path.exists() {
-        let default_env = create_default_env(setup_file_dir, current_path);
+        let default_env = create_default_env(setup_file_dir);
         let _ = write_to_json_file(env_json_path.clone(), &default_env.clone());
     }
 
@@ -53,7 +51,6 @@ pub fn read_or_create_json_env(setup_file_dir: PathBuf) -> ApplicationInitSetup 
 
 pub fn create_default_env(
     application_user_setting_dir: PathBuf,
-    application_exec_path: PathBuf,
 ) -> ApplicationInitSetup {
     // ユーザー入力から取得
     let app_title = prompt("Enter application title", "MarkdownWiki2-SingleBin");
@@ -62,7 +59,6 @@ pub fn create_default_env(
     let image_file_path = application_user_setting_dir.join("images");
     let upload_file_path = application_user_setting_dir.join("images");
     let html_template_path = application_user_setting_dir.join("dist");
-    let tera_path = application_exec_path.join("dist").join("templates").join("**").join("*");
     let failed_account_lock = prompt("Enter failed account lock", "15");
     let next_challenge_minutes = prompt("Enter next challenge minutes", "5");
     let challenge_limit_time_failed_count = prompt("Enter challenge limit time failed count", "5");
@@ -81,7 +77,6 @@ pub fn create_default_env(
         image_file_path: image_file_path.to_string_lossy().into_owned(),
         upload_file_path: upload_file_path.to_string_lossy().into_owned(),
         html_template_path: html_template_path.to_string_lossy().into_owned(),
-        tera_template_path: tera_path.to_string_lossy().into_owned(),
         failed_account_lock: failed_account_lock,
         next_challenge_minutes: next_challenge_minutes,
         challenge_limit_time_failed_count: challenge_limit_time_failed_count,
@@ -96,11 +91,6 @@ pub fn create_default_env(
         allow_user_create_account: allow_user_create_account,
         allow_origins: format!("http://localhost:3080,http://localhost:5173"),
     }
-}
-
-fn get_aplication_exec_path() -> PathBuf {
-    let current_dir = env::current_dir().expect("App exec current dir get error.");
-    current_dir
 }
 
 fn write_to_json_file<T: Serialize>(file_path: PathBuf, data: &T) -> io::Result<()> {

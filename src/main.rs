@@ -105,6 +105,10 @@ use config::CONFIG;
 #[folder = "dist/"]
 struct Asset;
 
+#[derive(RustEmbed)]
+#[folder = "dist/templates/"]
+struct Templates;
+
 #[tokio::main]
 async fn main() {
     // 初期化処理
@@ -121,7 +125,6 @@ async fn main() {
         env::set_var("HTML_TEMPLATE_PATH", default_env.html_template_path);
         env::set_var("IMAGE_FILES_PATH", default_env.image_file_path);
         env::set_var("UPLOAD_FILE_PATH", default_env.upload_file_path);
-        env::set_var("TERA_TEMPLATE_PATH", default_env.tera_template_path);
         env::set_var("FAILED_ACCOUNT_LOCK", default_env.failed_account_lock);
         env::set_var("NEXT_CHALLENGE_MINUTES", default_env.next_challenge_minutes);
         env::set_var("CHALLENGE_LIMIT_TIME_FAILEDCOUNT", default_env.challenge_limit_time_failed_count);
@@ -198,7 +201,7 @@ async fn main() {
     check_and_insert_initial_data(&pool).await.unwrap();
 
     // Teraの設定
-    let tera = Tera::new(&CONFIG.tera_path).unwrap();
+    let tera = build_tera_from_embed().unwrap();
     let tera = Arc::new(Mutex::new(tera));
 
     // CORSの設定例
@@ -391,4 +394,18 @@ async fn get_allow_create_user_handler(_: Request<Body>) -> Json<AllowCreateUser
     Json(
         AllowCreateUsers { is_allow: CONFIG.allow_user_create_account.clone() }
     )
+}
+
+fn build_tera_from_embed() -> anyhow::Result<Tera> {
+    let mut tera = Tera::default();
+
+    // RustEmbedに入っている全テンプレートを登録
+    for path in Templates::iter() {
+        let path_str = path.as_ref();
+        if let Some(file) = Templates::get(path_str) {
+            let content = std::str::from_utf8(file.data.as_ref())?; // UTF-8前提
+            tera.add_raw_template(path_str, content)?;
+        }
+    }
+    Ok(tera)
 }

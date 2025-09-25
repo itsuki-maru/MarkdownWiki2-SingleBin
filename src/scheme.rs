@@ -19,7 +19,6 @@ pub struct ApplicationInitSetup {
     pub admin_passwotd: String,
     pub image_file_path: String,
     pub upload_file_path: String,
-    pub tera_template_path: String,
     pub failed_account_lock: String,
     pub next_challenge_minutes: String,
     pub challenge_limit_time_failed_count: String,
