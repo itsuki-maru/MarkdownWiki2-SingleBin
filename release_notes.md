@@ -1,5 +1,12 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.3
+
+### バグ修正
+
+- 共有URLにおいて画像リソースなどがサーバーエラーとなる問題を修正
+    - Cookie検証において、アカウント不要でも通す使用であったが、ダミーのIDがUuid型のままであったため、Stringに修正。
+
 ## Version 1.0.2
 
 ### バグ修正
