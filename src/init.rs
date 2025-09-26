@@ -89,7 +89,7 @@ pub fn create_default_env(
         service_name: app_title,
         rust_log: rust_log,
         allow_user_create_account: allow_user_create_account,
-        allow_origins: format!("http://localhost:3080,http://localhost:5173"),
+        allow_origins: format!("http://localhost:5173"),
     }
 }
 

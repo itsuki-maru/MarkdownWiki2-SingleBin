@@ -111,44 +111,7 @@ struct Templates;
 
 #[tokio::main]
 async fn main() {
-    // 初期化処理
-    let app_setup_path = get_application_user_setup_path();
-    let default_env = read_or_create_json_env(app_setup_path);
-
-    // 環境変数設定
-    // Rustの2024エディション以降、env::set_varはunsafe fnに変更されたため、unsafeを使用。アプリケーションの初期化に限る。
-    unsafe {
-        env::set_var("APP_TITLE", default_env.app_title);
-        env::set_var("CREATEDATABASE_PATH", default_env.sqlite_database_path);
-        env::set_var("DATABASE_URL", default_env.database_url);
-        env::set_var("SECRET_KEY", default_env.secret_key);
-        env::set_var("HTML_TEMPLATE_PATH", default_env.html_template_path);
-        env::set_var("IMAGE_FILES_PATH", default_env.image_file_path);
-        env::set_var("UPLOAD_FILE_PATH", default_env.upload_file_path);
-        env::set_var("FAILED_ACCOUNT_LOCK", default_env.failed_account_lock);
-        env::set_var("NEXT_CHALLENGE_MINUTES", default_env.next_challenge_minutes);
-        env::set_var("CHALLENGE_LIMIT_TIME_FAILEDCOUNT", default_env.challenge_limit_time_failed_count);
-        env::set_var("ADMIN_USERNAME", default_env.admin_username);
-        env::set_var("ADMIN_PASSWORD", default_env.admin_passwotd);
-        env::set_var("ACCESS_TOKEN_EXP_MINUTUES", default_env.access_token_exp_minutes);
-        env::set_var("REFRESH_TOKEN_EXP_MINUTUES", default_env.refresh_token_exp_minutes);
-        env::set_var("CACHE_CONTROL", default_env.cache_control);
-        env::set_var("SERVICE_NAME", default_env.service_name);
-        env::set_var("RUST_LOG", default_env.rust_log);
-        env::set_var("VITE_ALLOW_USER_CREATE_ACCOUNT", default_env.allow_user_create_account);
-        env::set_var("VITE_ALLOW_ORIGINS", default_env.allow_origins);
-    }
-
-    // ログ設定
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_e| "Middleware Debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    // Clapでホスト、ポート番号を読み込み
+    // CLI定義
     let cli = Command::new("MarkdownWiki2")
         .version("1.0.1")
         .author("Itsuki Maru")
@@ -185,6 +148,46 @@ async fn main() {
         host_ip_address = hostname.to_string();
         host_port = port.to_string();
     }
+
+    // 起動ソケット
+    let addr = format!("{}:{}", host_ip_address, host_port);
+
+    // 初期化処理
+    let app_setup_path = get_application_user_setup_path();
+    let default_env = read_or_create_json_env(app_setup_path);
+
+    // 環境変数設定
+    // Rustの2024エディション以降、env::set_varはunsafe fnに変更されたため、unsafeを使用。アプリケーションの初期化に限る。
+    unsafe {
+        env::set_var("APP_TITLE", default_env.app_title);
+        env::set_var("CREATEDATABASE_PATH", default_env.sqlite_database_path);
+        env::set_var("DATABASE_URL", default_env.database_url);
+        env::set_var("SECRET_KEY", default_env.secret_key);
+        env::set_var("HTML_TEMPLATE_PATH", default_env.html_template_path);
+        env::set_var("IMAGE_FILES_PATH", default_env.image_file_path);
+        env::set_var("UPLOAD_FILE_PATH", default_env.upload_file_path);
+        env::set_var("FAILED_ACCOUNT_LOCK", default_env.failed_account_lock);
+        env::set_var("NEXT_CHALLENGE_MINUTES", default_env.next_challenge_minutes);
+        env::set_var("CHALLENGE_LIMIT_TIME_FAILEDCOUNT", default_env.challenge_limit_time_failed_count);
+        env::set_var("ADMIN_USERNAME", default_env.admin_username);
+        env::set_var("ADMIN_PASSWORD", default_env.admin_passwotd);
+        env::set_var("ACCESS_TOKEN_EXP_MINUTUES", default_env.access_token_exp_minutes);
+        env::set_var("REFRESH_TOKEN_EXP_MINUTUES", default_env.refresh_token_exp_minutes);
+        env::set_var("CACHE_CONTROL", default_env.cache_control);
+        env::set_var("SERVICE_NAME", default_env.service_name);
+        env::set_var("RUST_LOG", default_env.rust_log);
+        env::set_var("VITE_ALLOW_USER_CREATE_ACCOUNT", default_env.allow_user_create_account);
+        env::set_var("VITE_ALLOW_ORIGINS", format!("{},http://{}", default_env.allow_origins, &addr));
+    }
+
+    // ログ設定
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_e| "Middleware Debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     tracing::info!("==================== Server Startup ====================");
 
@@ -294,13 +297,11 @@ async fn main() {
         .layer(Extension(tera))
         .fallback(custom_not_found_handler);
 
-    // サーバー起動
-    let addr = format!("{}:{}", host_ip_address, host_port);
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap();
 
-    tracing::info!("========== Listening on http://{} ==========", addr);
+    tracing::info!("========== Listening on {} ==========", addr);
     axum::serve(listener, app).await.unwrap();
 }
 
