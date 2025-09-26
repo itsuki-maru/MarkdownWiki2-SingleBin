@@ -78,7 +78,7 @@ impl <S, B> Service<Request<B>> for FlexibleCookieValidatorMiddleware<S>
                 // 検証失敗時（トークンなし）もダミーのUUID作成してExtensionとしてセット
                 Err(_) => {
                     let mut req = req;
-                    let dummy_user_id = Uuid::now_v7();
+                    let dummy_user_id = Uuid::now_v7().to_string();
                     req.extensions_mut().insert(dummy_user_id);
                     return inner.call(req).await;
                 }
