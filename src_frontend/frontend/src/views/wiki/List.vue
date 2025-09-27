@@ -455,7 +455,6 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
               <td v-if="isExpired(onetimewiki.expiration)" :id="id" class="expired">{{ getFullOnetimeUrl(onetimewiki.url) }}</td>
               <td v-else="isExpired(onetimewiki.expiration)" v-on:click="selectTextOrClipboardCopy(id)" :id="id">{{ getFullOnetimeUrl(onetimewiki.url) }}</td>
 
-              <td v-on:click="selectTextOrClipboardCopy(id)" :id=id>{{ onetimewiki.url }}</td>
               <td v-if="isExpired(onetimewiki.expiration)"><button v-on:click="invalidShareUrl(id, onetimewiki.title)" class="btn-onetimewiki-stop-share">削除</button></td>
               <td v-else="isExpired(onetimewiki.expiration)"><button v-on:click="invalidShareUrl(id, onetimewiki.title)" class="btn-onetimewiki-stop-share">共有停止</button></td>
             </tr>
