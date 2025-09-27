@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.4
+
+- HTTPプロトコル時に共有Wikiの一覧テーブルの表示が乱れていた問題を修正。
+
 ## Version 1.0.3
 
 ### バグ修正
