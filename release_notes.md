@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.5
+
+- サーバ起動時のメッセージを修正（httpプロトコルを追加）
+    - `========== Listening on localhost:3080 ==========` => `========== Listening on http://localhost:3080 ==========`
+
 ## Version 1.0.4
 
 - HTTPプロトコル時に共有Wikiの一覧テーブルの表示が乱れていた問題を修正。
