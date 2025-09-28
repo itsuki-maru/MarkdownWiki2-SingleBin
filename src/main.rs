@@ -301,7 +301,7 @@ async fn main() {
         .await
         .unwrap();
 
-    tracing::info!("========== Listening on {} ==========", addr);
+    tracing::info!("========== Listening on http://{} ==========", addr);
     axum::serve(listener, app).await.unwrap();
 }
 
