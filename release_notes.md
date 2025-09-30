@@ -1,5 +1,20 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.6
+
+可読性を向上させるため、Katex による数式の配置をセンターから左寄せに変更。
+
+**index.html**
+
+```html
+  .katex-display > .katex {
+    text-align: left;
+    margin-left: 5%;
+  }
+```
+
+モバイルUIでKatex数式の背景が馴染まない問題を修正。
+
 ## Version 1.0.5
 
 - サーバ起動時のメッセージを修正（httpプロトコルを追加）
