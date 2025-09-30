@@ -782,8 +782,8 @@ pre tt {
     height: 10vh;
 }
 
-span .base {
-    background: #ffffff;
+span.base {
+    background: transparent;
 }
 
 .input-katex:focus {
