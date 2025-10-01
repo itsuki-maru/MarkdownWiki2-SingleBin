@@ -26,6 +26,9 @@
     <script src="/assets/prism-uri.js"></script>
     <script src="/assets/prism-c.js"></script>
     <script src="/assets/prism-docker.js"></script>
+    <link rel="stylesheet" href="/assets/katex.min.css">
+    <script src="/assets/katex.min.js"></script>
+    <script src="/assets/auto-render.min.js"></script>
     <link rel="stylesheet" href="/assets/github.css">
 </head>
 
@@ -185,6 +188,18 @@
         font-size: large;
         border-bottom: 1px solid #cccccc;
     }
+
+    .katex-display {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 5px;
+    }
+    
+    .katex-display > .katex {
+        text-align: left;
+        margin-left: 3%;
+    }
 </style>
 <script>
     const renderer = new marked.Renderer();
@@ -316,9 +331,136 @@
     const noteToken = createNestedTokenizer("note");
     const warningToken = createNestedTokenizer("warning");
 
+    // KaTeX対応
+    const mathExtentionToken = {
+        name: "math",
+        level: "inline",
+        start(src) {
+            return src.match(/\$+/)?.index;
+        },
+        tokenizer(src, _tokens) {
+            const blockMath = /^\$\$([^$]+)\$\$/; // $$...$$
+            const inlineMath = /^\$([^$\n]+)\$/;  // $...$
+            const blockMatch = blockMath.exec(src);
+            if (blockMatch) {
+                return {
+                    type: "math",
+                    raw: blockMatch[0],
+                    text: blockMatch[1],
+                    displayMode: true,
+                };
+            }
+            const inlineMatch = inlineMath.exec(src);
+            if (inlineMatch) {
+                return {
+                    type: "math",
+                    raw: inlineMatch[0],
+                    text: inlineMatch[1],
+                    displayMode: false,
+                };
+            }
+            return null;
+        },
+        renderer(token) {
+            try {
+                return katex.renderToString(token.text, {
+                    throwOnError: false,
+                    displayMode: token.displayMode,
+                    output: "html",
+                });
+            } catch (error) {
+                return token.text;
+            }
+        }
+    };
+
+    // YouTube埋め込み対応
+    const youtubeToken = {
+        name: "youtube",
+        level: "inline",
+        start(src) {
+            return src.match(/\?\[.*\]\(.*\)/)?.index;
+        },
+        tokenizer(src, tokens) {
+            const rule = /^\@\[(youtube)\]\((.*?)\)/;
+            const match = rule.exec(src);
+            if (match) {
+                const id = extractYouTubeId(match[2]);
+                if (!id) return null;
+                return {
+                    type: "youtube", // カスタムトークンタイプ
+                    raw: match[0],
+                    text: id,
+                    href: match[2],
+                }
+            }
+            return null;
+        },
+        renderer(token) {
+            // 生iframeではなく、自前テンプレートにする（例：Web Component）
+            return `<app-youtube video-id="${token.text}" data-src="${token.href}"></app-youtube>`;
+        }
+    };
+    // 11文字のYouTube ID検証
+    const ID_RE = /^[\w-]{11}$/;
+    function extractYouTubeId(rawUrl) {
+        try {
+            const url = new URL(rawUrl);
+            const host = url.hostname.toLowerCase();
+            const allowYouTubeList = [
+                "www.youtube.com",
+                "youtube.com",
+                "m.youtube.com",
+                "youtu.be",
+                "www.youtube-nocookie.com"
+            ]
+            if (!allowYouTubeList.includes(host)) return null;
+
+            // shorts / watch / youtu.be に対応
+            if (host === "youtu.be") {
+                const id = url.pathname.slice(1);
+                return ID_RE.test(id) ? id : null;
+            };
+            if (url.pathname.startsWith("/shorts/")) {
+                const id = url.pathname.split("/")[2] ?? "";
+                return ID_RE.test(id) ? id : null;
+            };
+            if (url.pathname === "/watch") {
+                const id = url.searchParams.get("v") ?? "";
+                return ID_RE.test(id) ? id : null;
+            };
+            if (url.pathname.startsWith("/embed/")) {
+                const id = url.pathname.split("/")[2] ?? "";
+                return ID_RE.test(id) ? id : null;
+            };
+            return null;
+        } catch { return null; }
+    }
+    
+    // app-youtubeからiframeに置換
+    function renderIframe(html) {
+        return html.replace(
+            /<app-youtube\s+[^>]*video-id=["']([\w-]{11})["'][^>]*>(?:<\/app-youtube>)?/g,
+            (_, videoId) => {
+                const src = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+                return `
+                <iframe
+                    src="${src}"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                    sandbox="allow-scripts allow-popups allow-same-origin"
+                    width="100%" height="315"
+                    style="border:0;"
+                    ></iframe>
+                `.trim();
+            }
+        );
+    };
 
     marked.use({
-        extensions: [videoToken, detailsToken, noteToken, warningToken]
+        extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken]
     });
 
     // HTMLエスケープ関数
@@ -404,7 +546,6 @@
             video: ['src', 'controls'],
             div: ['class'],
             p: ['class'],
-            span: [],
             li: [],
             strong: [],
             ul: [],
@@ -420,9 +561,26 @@
             tr: [],
             details: [],
             summary: [],
+            span: ['class', 'aria-hidden', 'style'],
+            "app-youtube": ['video-id', 'data-src']
         },
         stripIgnoreTag: false,
         stripIgnoreTagBody: ["script"],
+        // iframeの確認（念のため、iframeはここで不許可）
+        onTag(tag, html) {
+            if (tag === "iframe") return "Not Allow iframe ";
+        },
+        // Katexでサニタイズされてしまうスタイルを再定義
+        css: {
+            whiteList: {
+                height: true,
+                'margin-right': true,
+                top: true,
+                width: true,
+                'margin-left': true,
+                left: true, right: true, bottom: true,
+            }
+        }
     };
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -430,7 +588,8 @@
         const markdownContent = document.getElementById("markdown-content").textContent.trim();
         const parsedHtml = marked.parse(markdownContent, options);
         const cleanHtml = filterXSS(parsedHtml, xssOptions);
-        document.getElementById("main-content").innerHTML = cleanHtml;
+        const renderHtml = renderIframe(cleanHtml);
+        document.getElementById("main-content").innerHTML = renderHtml;
 
         Prism.highlightAll();
     });
