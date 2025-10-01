@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.7
+
+- 一時共有WikiのKaTexとYouTube埋め込みに対応
+
 ## Version 1.0.6
 
 可読性を向上させるため、Katex による数式の配置をセンターから左寄せに変更。

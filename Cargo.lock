@@ -1509,7 +1509,7 @@ dependencies = [
 
 [[package]]
 name = "markdown_wiki2_single"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "anyhow",
  "axum",
