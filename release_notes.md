@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.8
+
+- アプリケーションアイコンを一新。
+
 ## Version 1.0.7
 
 - 一時共有WikiのKaTexとYouTube埋め込みに対応
