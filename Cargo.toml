@@ -36,3 +36,6 @@ rust-embed = "8.5.0"
 anyhow = "1.0"
 rexif = "0.7.5"
 dirs = "5.0"
+
+[build-dependencies]
+embed-resource = "3.0"
