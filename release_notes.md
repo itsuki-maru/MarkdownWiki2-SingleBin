@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.9
+
+[embed-resource](https://github.com/nabijaczleweli/rust-embed-resource) クレートを使用してバイナリにアイコンを設定。
+
 ## Version 1.0.8
 
 - アプリケーションアイコンを一新。
