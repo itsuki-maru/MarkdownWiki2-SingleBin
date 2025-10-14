@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.10
+
+- アイコンの各種サイズを作成
+- icon.ico を更新
+
 ## Version 1.0.9
 
 [embed-resource](https://github.com/nabijaczleweli/rust-embed-resource) クレートを使用してバイナリにアイコンを設定。
