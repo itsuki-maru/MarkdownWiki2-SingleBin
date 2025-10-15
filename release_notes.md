@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.11
+
+- ビルドスクリプトを更新
+- `frontend/public/templates` から `src/templates` へテンプレートファイルを移動
+- licenses.html の返却が過去の設定のままであったため修正
+
 ## Version 1.0.10
 
 - アイコンの各種サイズを作成

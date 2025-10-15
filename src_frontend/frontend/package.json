@@ -1,6 +1,6 @@
 {
   "name": "markdownwiki2",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "scripts": {
     "dev": "vite",
