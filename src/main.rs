@@ -16,8 +16,6 @@ use tracing_subscriber::{
     layer::SubscriberExt,
     util::SubscriberInitExt
 };
-use std::fs;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -338,15 +336,14 @@ async fn index_handler(
     }
 }
 
-// LICENSE HTML RESPONSE
 async fn licenses_get_handler() -> Result<Html<String>, impl IntoResponse> {
-    let mut base_path = PathBuf::from(&CONFIG.html_template_path);
-    base_path.push("licenses.html");
-    let html_content = fs::read_to_string(base_path);
-    match html_content {
-        Ok(html) => Ok(Html(html)),
-        Err(e) => Err((StatusCode::NOT_FOUND, format!("{}", e)).into_response()),
-    }    
+    match Asset::get("licenses.html") {
+        Some(content) => {
+            let html_content = String::from_utf8(content.data.into_owned()).unwrap();
+            Ok(Html(html_content))
+        }
+        None => Err((StatusCode::NOT_FOUND, "Content not foubnd").into_response())
+    }
 }
 
 // 404 HANDLER

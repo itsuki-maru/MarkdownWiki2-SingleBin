@@ -9,7 +9,6 @@ pub struct Config {
     pub access_token_exp_minutes: i64,
     pub refresh_token_exp_minutes: i64,
     pub secret_key: String,
-    pub html_template_path: String,
     pub admin_user_name: String,
     pub admin_user_password: String,
     pub failed_count: String,
@@ -35,7 +34,6 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| Config {
         .expect("REFRESH_TOKEN_EXP_MINUTUES must be set.")
         .parse::<i64>().expect("Failed Count Parse Error."),
     secret_key: env::var("SECRET_KEY").expect("SECRET_KEY must be set."),
-    html_template_path: env::var("HTML_TEMPLATE_PATH").expect("HTML_TEMPLATE_PATH must be set"),
     admin_user_name: env::var("ADMIN_USERNAME").expect("ADMIN_USERNAME must be set."),
     admin_user_password: env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set."),
     failed_count: env::var("FAILED_ACCOUNT_LOCK").expect("FAILED_ACCOUNT_LOCK must be set."),
