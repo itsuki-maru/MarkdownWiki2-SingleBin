@@ -18,7 +18,7 @@ Function CheckExistsPath($checkPath) {
 
 # このPowerShellファイルのディレクトリ
 $scriptDir = $PSScriptRoot
-$projectDir = Split-Path -Path $scriptDir -Parent # プロジェクトルート
+$projectDir = Split-Path -Path $scriptDir -Parent # src_frontend
 
 # 最終的なフロントエンド成果物の配布用ディレクトリ
 $prepareDistributionDir = Split-Path -Path $projectDir -Parent
@@ -35,6 +35,10 @@ $frontendMobileDistDir = Join-Path -Path $frontendMobileDir -ChildPath "dist"
 # frontend-adminディレクトリ
 $frontendAdminDir = Join-Path -Path $projectDir -ChildPath "frontend-admin"
 $frontendAdminDistDir = Join-Path -Path $frontendAdminDir -ChildPath "dist"
+
+# templates ディレクトリ
+$rootDir = Split-Path -Path $projectDir -Parent
+$rustTemplatesDir = Join-Path -Path $rootDir -ChildPath "src/templates"
 
 # mainディレクトリ
 $mainDir = Join-Path -Path $projectDir -ChildPath "main"
@@ -202,3 +206,4 @@ Move-Item -Path $jsonFiles -Destination $movedDir
 New-Item -Type Directory $distributionDir
 Set-Location $mainDistDir
 Copy-Item -Path "./*" -Destination $distributionDir -Recurse -Force
+Copy-Item -Path $rustTemplatesDir -Destination $distributionDir -Recurse -Force

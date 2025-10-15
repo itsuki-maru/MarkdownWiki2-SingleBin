@@ -36,6 +36,12 @@ frontendMobileDistDir="$frontendMobileDir/dist"
 frontendAdminDir="$projectDir/frontend-admin"
 frontendAdminDistDir="$frontendAdminDir/dist"
 
+# templates ディレクトリ
+rustTemplatesDir="$projectRoot/src/templates"
+
+# 過去のビルドファイル
+distributionDirOld="$projectRoot/dist"
+
 # mainディレクトリ
 mainDir="$projectDir/main"
 mainDistDir="$mainDir/dist"
@@ -79,6 +85,12 @@ else
     echo "Directory '$frontendAdminDistDir' does not exist."
 fi
 
+if [ -d "$distributionDirOld" ]; then
+    rm -rf "$distributionDirOld"
+    echo "Directory '$distributionDirOld' has been removed."
+else
+    echo "Directory '$distributionDirOld' does not exist."
+fi
 
 # frontendの処理
 cd $frontendDir
@@ -210,3 +222,4 @@ mv $jsonFiles $mainDistAssetsDir
 # フロントエンド成果物配布用ディレクトリ作成
 cd $mainDistDir
 cp -r $mainDistDir $projectRoot
+cp -r $rustTemplatesDir "$projectRoot/dist"
