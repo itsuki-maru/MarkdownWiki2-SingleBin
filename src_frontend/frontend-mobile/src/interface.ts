@@ -49,9 +49,8 @@ interface ImageData {
 interface ApplicationInit {
     appTitle: string,
     allowUserAccountCreate: boolean,
-    allowOrigins: string, // ex) http://localhost:3000,www.example.com
+    allowOrigins: string, // ex) http://localhost:3080,www.example.com
 };
-
 
 export type {
     LoginUser,

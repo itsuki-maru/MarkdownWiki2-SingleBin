@@ -7,6 +7,7 @@ import { useRouter } from "vue-router";
 import apiClient from "@/axiosClient";
 import { useApplicationInitStore } from "@/stores/appInits";
 
+
 const appInitStore = useApplicationInitStore();
 const isAllowUserCreateAccount = ref(appInitStore.appInitData.allowUserAccountCreate);
 

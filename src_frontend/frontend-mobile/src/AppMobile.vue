@@ -6,7 +6,7 @@ import { assetsUrl } from "@/setting";
 import { useApplicationInitStore } from "./stores/appInits";
 
 const appInitStore = useApplicationInitStore();
-const appTitle = ref(appInitStore.appInitData.appTitle)
+const appTitle = ref(appInitStore.appInitData.appTitle);
 
 // Login User Status Provide.
 const loginUser: LoginUser = {
