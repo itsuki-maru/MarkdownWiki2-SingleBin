@@ -7,4 +7,4 @@ export const unlockUserAccountUrl = baseUrl + "/admin/user/unlock/"
 export const getUserUrl = baseUrl + "/account/auth";
 export const refreshTokenUrl = baseUrl + "/account/refresh";
 export const createUserUrl = baseUrl + "/admin/user/create";
-export const getAppTitleUrl = baseUrl + "/get-app-title";
+export const getAppIniturl = baseUrl + "/app-init";

@@ -2,19 +2,10 @@
 import { reactive, provide, ref } from "vue";
 import type { LoginUser } from "./interface";
 import { useRouter } from "vue-router";
-import axios from "axios";
-import { getAppTitleUrl } from "./router/urls";
+import { useApplicationInitStore } from "./stores/appInits";
 
-const appTitle = ref("")
-const getAppTitle = async (): Promise<void> => {
-  try {
-    const response = await axios.get(getAppTitleUrl);
-    appTitle.value = response.data["app_name"];
-  } catch (error) {
-    console.log("Error.");
-  }
-}
-getAppTitle();
+const appInitStore = useApplicationInitStore();
+const appTitle = ref(appInitStore.appInitData.appTitle);
 
 // Login User Status Provide.
 const loginUser: LoginUser = {
@@ -34,7 +25,7 @@ listRedirect();
 <template>
   <div class="container">
     <header class="parent-header">
-      <h1 class="app-header" id="application-title">{{ appTitle }} -管理者画面-</h1>
+      <h1 class="app-header" id="application-title">{{ appTitle }} -管理者操作-</h1>
     </header>
     <RouterView />
   </div>

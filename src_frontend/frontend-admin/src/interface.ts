@@ -25,4 +25,11 @@ interface UpdateUserData {
     is_superuser: boolean;
 }
 
-export type {LoginUser, UserData, UpdateUserData, LockedUserData}
+// アプリケーションの起動時情報
+interface ApplicationInit {
+    appTitle: string,
+    allowUserAccountCreate: boolean,
+    allowOrigins: string, // ex) http://localhost:3000,www.example.com
+};
+
+export type {LoginUser, UserData, UpdateUserData, LockedUserData, ApplicationInit}
