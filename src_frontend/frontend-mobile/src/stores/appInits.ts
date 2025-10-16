@@ -27,11 +27,7 @@ export const useApplicationInitStore = defineStore({
                 const response = await axios.get(getAppIniturl);
                 if (response) {
                     this.appInitData.appTitle = response.data["app_title"];
-                    if (response.data["allow_user_account_create"] === "true") {
-                        this.appInitData.allowUserAccountCreate = true;
-                    } else {
-                        this.appInitData.allowUserAccountCreate = false;
-                    }
+                    this.appInitData.allowUserAccountCreate = response.data["allow_user_account_create"];
                     this.appInitData.allowOrigins = response.data["allow_origins"];
                 }
             } catch (error) {
