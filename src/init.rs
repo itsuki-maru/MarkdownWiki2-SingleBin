@@ -58,7 +58,6 @@ pub fn create_default_env(
     let database_url = format!("sqlite:{}", &database_path.to_string_lossy());
     let image_file_path = application_user_setting_dir.join("images");
     let upload_file_path = application_user_setting_dir.join("images");
-    let html_template_path = application_user_setting_dir.join("dist");
     let failed_account_lock = prompt("Enter failed account lock", "15");
     let next_challenge_minutes = prompt("Enter next challenge minutes", "5");
     let challenge_limit_time_failed_count = prompt("Enter challenge limit time failed count", "5");
@@ -76,7 +75,6 @@ pub fn create_default_env(
         database_url: database_url,
         image_file_path: image_file_path.to_string_lossy().into_owned(),
         upload_file_path: upload_file_path.to_string_lossy().into_owned(),
-        html_template_path: html_template_path.to_string_lossy().into_owned(),
         failed_account_lock: failed_account_lock,
         next_challenge_minutes: next_challenge_minutes,
         challenge_limit_time_failed_count: challenge_limit_time_failed_count,

@@ -94,7 +94,7 @@ use init::{
     get_application_user_setup_path,
 };
 
-use scheme::{MessageApi, AllowOrigins, AppInit};
+use scheme::{MessageApi, AppInit};
 mod config;
 mod utils;
 use config::CONFIG;
@@ -161,7 +161,6 @@ async fn main() {
         env::set_var("CREATEDATABASE_PATH", default_env.sqlite_database_path);
         env::set_var("DATABASE_URL", default_env.database_url);
         env::set_var("SECRET_KEY", default_env.secret_key);
-        env::set_var("HTML_TEMPLATE_PATH", default_env.html_template_path);
         env::set_var("IMAGE_FILES_PATH", default_env.image_file_path);
         env::set_var("UPLOAD_FILE_PATH", default_env.upload_file_path);
         env::set_var("FAILED_ACCOUNT_LOCK", default_env.failed_account_lock);
@@ -174,8 +173,8 @@ async fn main() {
         env::set_var("CACHE_CONTROL", default_env.cache_control);
         env::set_var("SERVICE_NAME", default_env.service_name);
         env::set_var("RUST_LOG", default_env.rust_log);
-        env::set_var("VITE_ALLOW_USER_CREATE_ACCOUNT", default_env.allow_user_create_account);
-        env::set_var("VITE_ALLOW_ORIGINS", format!("{},http://{}", default_env.allow_origins, &addr));
+        env::set_var("ALLOW_USER_CREATE_ACCOUNT", default_env.allow_user_create_account);
+        env::set_var("ALLOW_ORIGINS", format!("{},http://{}", default_env.allow_origins, &addr));
     }
 
     // ログ設定
@@ -259,7 +258,6 @@ async fn main() {
         .route("/index", get(index_handler))
         .route("/health-check", get(health_check_handler))
         .route("/app-init", get(get_app_init_handler))
-        .route("/get-allow-origins", get(get_allow_origins_handler))
         .route("/favicon.ico", get(serve_favicon))
         .route("/assets/{uri}", get(serve_static_file))
         .route("/account/token", post(token_handler))
@@ -302,9 +300,27 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-// ROOT API
+// ルートへのアクセスは /index にリダイレクト
 async fn root_handler() -> impl IntoResponse {
     Redirect::permanent("/index")
+}
+
+// アプリケーション初期設定情報の取得ハンドラ
+async fn get_app_init_handler(_: Request<Body>) -> Json<AppInit> {
+    Json(
+        AppInit { 
+            app_title: CONFIG.app_title.clone(),
+            allow_user_account_create: CONFIG.allow_user_create_account,
+            allow_origins: CONFIG.allow_origins.clone(),
+        }
+    )
+}
+
+// 死活監視用API
+async fn health_check_handler() -> Json<MessageApi> {
+    Json(MessageApi {
+        message: "Hello, I'm administrator.".to_string(),
+    })
 }
 
 // INDEX HTML GET HANDLER
@@ -365,31 +381,7 @@ async fn serve_favicon() -> Result<Response<Body>, impl IntoResponse> {
     }
 }
 
-// HEALTH CHECK API
-async fn health_check_handler() -> Json<MessageApi> {
-    Json(MessageApi {
-        message: "Hello, I'm administrator.".to_string(),
-    })
-}
-
-// アプリケーションタイトルの取得ハンドラ
-async fn get_app_init_handler(_: Request<Body>) -> Json<AppInit> {
-    Json(
-        AppInit { 
-            app_title: CONFIG.app_title.clone(),
-            allow_user_account_create: CONFIG.allow_user_create_account,
-            allow_origins: CONFIG.allow_origins.clone(),
-        }
-    )
-}
-
-// 許可オリジンの取得ハンドラ
-async fn get_allow_origins_handler(_: Request<Body>) -> Json<AllowOrigins> {
-    Json(
-        AllowOrigins { origins: CONFIG.allow_origins.clone() }
-    )
-}
-
+// Teraにテンプレートファイルを rust_embed から登録する処理
 fn build_tera_from_embed() -> anyhow::Result<Tera> {
     let mut tera = Tera::default();
 

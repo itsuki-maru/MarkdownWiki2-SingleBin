@@ -14,7 +14,6 @@ pub struct ApplicationInitSetup {
     pub access_token_exp_minutes: String,
     pub refresh_token_exp_minutes: String,
     pub secret_key: String,
-    pub html_template_path: String,
     pub admin_username: String,
     pub admin_passwotd: String,
     pub image_file_path: String,
@@ -41,18 +40,12 @@ pub struct ReturningId {
     pub id: String,
 }
 
-// アプリケーションタイトル構造体
+// アプリケーション初期情報構造体
 #[derive(Serialize, Deserialize)]
 pub struct AppInit {
     pub app_title: String,
     pub allow_user_account_create: bool,
     pub allow_origins: String,
-}
-
-// 許可オリジン構造体
-#[derive(Serialize, Deserialize)]
-pub struct AllowOrigins {
-    pub origins: String,
 }
 
 // Account用のユーザー構造体
