@@ -45,4 +45,21 @@ interface ImageData {
     uuid_filename: string;
 }
 
-export type {LoginUser, CreateWikiData, WikiData, UpdateWikiData, deleteWikiData, QueryForm, ImageData}
+// アプリケーションの起動時情報
+interface ApplicationInit {
+    appTitle: string,
+    allowUserAccountCreate: boolean,
+    allowOrigins: string, // ex) http://localhost:3000,www.example.com
+};
+
+
+export type {
+    LoginUser,
+    CreateWikiData,
+    WikiData,
+    UpdateWikiData,
+    deleteWikiData,
+    QueryForm,
+    ImageData,
+    ApplicationInit,
+}

@@ -2,23 +2,13 @@
 import { ref, inject } from "vue";
 import type { Ref } from "vue";
 import { AxiosError } from "axios";
-import { getTokenUrl, licensesGetUrl, getTokenFromTotpUrl, getAllowCreateUserUrl } from "@/router/urls";
+import { getTokenUrl, licensesGetUrl, getTokenFromTotpUrl } from "@/router/urls";
 import { useRouter } from "vue-router";
 import apiClient from "@/axiosClient";
-import axios from "axios";
+import { useApplicationInitStore } from "@/stores/appInits";
 
-const isAllowUserCreateAccount = ref(false);
-const getAllowUserCreate = async (): Promise<void> => {
-  try {
-    const response = await axios.get(getAllowCreateUserUrl);
-    if (response.data["is_allow"] === "true") {
-      isAllowUserCreateAccount.value = true;
-    }
-  } catch (error) {
-    console.log("Error.");
-  }
-}
-getAllowUserCreate();
+const appInitStore = useApplicationInitStore();
+const isAllowUserCreateAccount = ref(appInitStore.appInitData.allowUserAccountCreate);
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
 const isShowMemoIcon = inject("isShowMemoIcon") as Ref<boolean>;

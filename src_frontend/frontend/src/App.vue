@@ -2,25 +2,16 @@
 import { reactive, provide, onMounted, onUnmounted, ref, watch } from "vue";
 import type { LoginUser } from "./interface";
 import { assetsUrl } from "@/setting";
-import { getAppTitleUrl } from "./router/urls";
-import axios from "axios";
 import { useRouter } from "vue-router";
 import ace from "ace-builds";
 import "ace-builds/src-noconflict/ext-searchbox"; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
 import "ace-builds/src-noconflict/mode-markdown"; // Aceでマークダウンを使用するためのモジュール
 import "ace-builds/src-noconflict/theme-monokai"; // Aceのテーマのモジュール
 import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
+import { useApplicationInitStore } from "./stores/appInits";
 
-const appTitle = ref("")
-const getAppTitle = async (): Promise<void> => {
-  try {
-    const response = await axios.get(getAppTitleUrl);
-    appTitle.value = response.data["app_name"];
-  } catch (error) {
-    console.log("Error.");
-  }
-}
-getAppTitle();
+const appInitStore = useApplicationInitStore();
+const appTitle = ref(appInitStore.appInitData.appTitle)
 
 // Login User Status Provide.
 const loginUser: LoginUser = {

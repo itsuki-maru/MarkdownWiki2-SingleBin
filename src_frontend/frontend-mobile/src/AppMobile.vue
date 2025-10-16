@@ -3,19 +3,10 @@ import { reactive, provide, ref, onMounted, watch } from "vue";
 import type { LoginUser } from "./interface";
 import { useRouter } from "vue-router";
 import { assetsUrl } from "@/setting";
-import axios from "axios";
-import { getAppTitleUrl } from "./router/urls";
+import { useApplicationInitStore } from "./stores/appInits";
 
-const appTitle = ref("")
-const getAppTitle = async (): Promise<void> => {
-  try {
-    const response = await axios.get(getAppTitleUrl);
-    appTitle.value = response.data["app_name"];
-  } catch (error) {
-    console.log("Error.");
-  }
-}
-getAppTitle();
+const appInitStore = useApplicationInitStore();
+const appTitle = ref(appInitStore.appInitData.appTitle)
 
 // Login User Status Provide.
 const loginUser: LoginUser = {

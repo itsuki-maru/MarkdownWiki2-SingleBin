@@ -26,6 +26,4 @@ export const refreshTokenUrl = baseUrl + "/account/refresh";
 export const getUserInfoUrl = baseUrl + "/account/info";
 export const userPrivacySettingUrl = baseUrl + "/account/privacy";
 export const getTokenFromTotpUrl = baseUrl + "/account/totp/token";
-export const getAppTitleUrl = baseUrl + "/get-app-title";
-export const getAllowCreateUserUrl = baseUrl + "/get-allow-user-create";
-export const getAllowOriginsUrl = baseUrl + "/get-allow-origins";
+export const getAppIniturl = baseUrl + "/app-init";

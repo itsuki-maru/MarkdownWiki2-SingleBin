@@ -4,15 +4,13 @@ import "./style.css"
 import App from './App.vue'
 import router from './router'
 import { assetsUrl } from "@/setting";
-
+import { useApplicationInitStore } from "./stores/appInits";
 import './assets/github.css'
 
 const app = createApp(App)
-
-app.use(createPinia())
+const pinia = createPinia();
+app.use(pinia);
 app.use(router)
-
-app.mount('#app')
 
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -26,3 +24,10 @@ if ("serviceWorker" in navigator) {
             });
     });
 }
+
+// 初期情報データ取得（非同期）
+useApplicationInitStore(pinia).init().finally(() => {
+    const appInitStore = useApplicationInitStore();
+    appInitStore.init();
+    app.mount("#app");
+});

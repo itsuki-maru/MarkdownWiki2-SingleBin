@@ -29,6 +29,4 @@ export const userTotpSettingUrl = baseUrl + "/account/totp/setup";
 export const userTotpVerifyUrl = baseUrl + "/account/totp/verify";
 export const getTokenFromTotpUrl = baseUrl + "/account/totp/token";
 export const userTotpDisableUrl = baseUrl + "/account/totp/disable";
-export const getAppTitleUrl = baseUrl + "/get-app-title";
-export const getAllowCreateUserUrl = baseUrl + "/get-allow-user-create";
-export const getAllowOriginsUrl = baseUrl + "/get-allow-origins";
+export const getAppIniturl = baseUrl + "/app-init";

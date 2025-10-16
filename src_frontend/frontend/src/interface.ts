@@ -60,6 +60,14 @@ interface LocalStrageItem {
     isPreviewFromLocalStrage: string | null;
 };
 
+// アプリケーションの起動時情報
+interface ApplicationInit {
+    appTitle: string,
+    allowUserAccountCreate: boolean,
+    allowOrigins: string, // ex) http://localhost:3000,www.example.com
+};
+
+
 export type {
     LoginUser,
     CreateWikiData,
@@ -70,4 +78,5 @@ export type {
     ImageData,
     OneTimeWikis,
     LocalStrageItem,
+    ApplicationInit
 }
