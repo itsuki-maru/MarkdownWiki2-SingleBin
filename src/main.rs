@@ -94,7 +94,7 @@ use init::{
     get_application_user_setup_path,
 };
 
-use scheme::{MessageApi, AllowCreateUsers, AllowOrigins, AppTitle};
+use scheme::{MessageApi, AllowOrigins, AppInit};
 mod config;
 mod utils;
 use config::CONFIG;
@@ -258,9 +258,8 @@ async fn main() {
         .route("/", get(root_handler))
         .route("/index", get(index_handler))
         .route("/health-check", get(health_check_handler))
-        .route("/get-app-title", get(get_app_title_handler))
+        .route("/app-init", get(get_app_init_handler))
         .route("/get-allow-origins", get(get_allow_origins_handler))
-        .route("/get-allow-user-create", get(get_allow_create_user_handler))
         .route("/favicon.ico", get(serve_favicon))
         .route("/assets/{uri}", get(serve_static_file))
         .route("/account/token", post(token_handler))
@@ -268,7 +267,7 @@ async fn main() {
         .route("/onetime/{url_id}", get(temporary_wiki_get_handler))
         .route("/licanses", get(licenses_get_handler));
 
-    if CONFIG.allow_user_create_account == "true" {
+    if CONFIG.allow_user_create_account {
         not_secure_routes = not_secure_routes.route("/account/signup", post(signup_handler));
     }
 
@@ -374,9 +373,13 @@ async fn health_check_handler() -> Json<MessageApi> {
 }
 
 // アプリケーションタイトルの取得ハンドラ
-async fn get_app_title_handler(_: Request<Body>) -> Json<AppTitle> {
+async fn get_app_init_handler(_: Request<Body>) -> Json<AppInit> {
     Json(
-        AppTitle { app_name: CONFIG.app_title.clone() }
+        AppInit { 
+            app_title: CONFIG.app_title.clone(),
+            allow_user_account_create: CONFIG.allow_user_create_account,
+            allow_origins: CONFIG.allow_origins.clone(),
+        }
     )
 }
 
@@ -384,13 +387,6 @@ async fn get_app_title_handler(_: Request<Body>) -> Json<AppTitle> {
 async fn get_allow_origins_handler(_: Request<Body>) -> Json<AllowOrigins> {
     Json(
         AllowOrigins { origins: CONFIG.allow_origins.clone() }
-    )
-}
-
-// ユーザ作成許可情報の取得ハンドラ
-async fn get_allow_create_user_handler(_: Request<Body>) -> Json<AllowCreateUsers> {
-    Json(
-        AllowCreateUsers { is_allow: CONFIG.allow_user_create_account.clone() }
     )
 }
 

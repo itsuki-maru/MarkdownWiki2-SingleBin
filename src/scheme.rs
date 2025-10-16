@@ -43,20 +43,16 @@ pub struct ReturningId {
 
 // アプリケーションタイトル構造体
 #[derive(Serialize, Deserialize)]
-pub struct AppTitle {
-    pub app_name: String,
+pub struct AppInit {
+    pub app_title: String,
+    pub allow_user_account_create: bool,
+    pub allow_origins: String,
 }
 
 // 許可オリジン構造体
 #[derive(Serialize, Deserialize)]
 pub struct AllowOrigins {
     pub origins: String,
-}
-
-// ユーザー作成許可構造体
-#[derive(Serialize, Deserialize)]
-pub struct AllowCreateUsers {
-    pub is_allow: String,
 }
 
 // Account用のユーザー構造体
