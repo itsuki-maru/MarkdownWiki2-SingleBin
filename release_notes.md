@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.12
+
+- アプリケーションタイトルやアカウント作成許可設定、オリジン設定情報等を `/app-init` で取得可能とした。
+    - 不要となったタイトル取得のURLを削除
+
 ## Version 1.0.11
 
 - ビルドスクリプトを更新
