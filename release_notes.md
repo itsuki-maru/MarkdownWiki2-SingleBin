@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.14
+
+- 'VITE_' で始まっていた環境変数を修正
+- 過去の更新で不要となった 'VITE_APP_TITLE' 環境変数を除去
+
 ## Version 1.0.13
 
 - 未使用の変数や構造体を削除
