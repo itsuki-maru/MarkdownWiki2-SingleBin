@@ -43,10 +43,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| Config {
     upload_file_path: env::var("UPLOAD_FILE_PATH").expect("UPLOAD_FILE_PATH must be set"),
     cache_control: get_cache_control_from_env().to_header_value(),
     service_name: env::var("SERVICE_NAME").expect("SERVICE_NAME must be set"),
-    allow_user_create_account: env::var("VITE_ALLOW_USER_CREATE_ACCOUNT")
-        .expect("VITE_ALLOW_USER_CREATE_ACCOUNT must be set")
-        .parse::<bool>().expect("VITE_ALLOW_USER_CREATE_ACCOUNT Parse Error."),
-    allow_origins: env::var("VITE_ALLOW_ORIGINS").expect("VITE_ALLOW_ORIGINS must be set"),
+    allow_user_create_account: env::var("ALLOW_USER_CREATE_ACCOUNT")
+        .expect("ALLOW_USER_CREATE_ACCOUNT must be set")
+        .parse::<bool>().expect("ALLOW_USER_CREATE_ACCOUNT Parse Error."),
+    allow_origins: env::var("ALLOW_ORIGINS").expect("ALLOW_ORIGINS must be set"),
 });
 
 #[derive(Debug)]
