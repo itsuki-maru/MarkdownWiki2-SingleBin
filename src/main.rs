@@ -8,6 +8,7 @@ use axum::{
     {Html, IntoResponse, Redirect},
     routing::{delete, get, post, put}, Json, Router
 };
+use webbrowser;
 use rust_embed::RustEmbed;
 use tera::Tera;
 use clap::{Command, Arg};
@@ -135,16 +136,27 @@ async fn main() {
                 .default_value("3080")
                 .help("ex) -p 3080")
         )
+        .arg(
+            Arg::new("server")
+                .short('s')
+                .long("server")
+                .required(false)
+                .help("ex) -s")
+                .action(clap::ArgAction::SetTrue)
+        )
         .get_matches();
 
     let mut host_ip_address: String = String::new();
     let mut host_port: String = String::new();
-    if let (Some(hostname), Some(port)) = (
+    let mut is_server_only = false;
+    if let (Some(hostname), Some(port), is_server) = (
         cli.get_one::<String>("host"),
         cli.get_one::<String>("port"),
+        cli.get_flag("server"),
     ) {
         host_ip_address = hostname.to_string();
         host_port = port.to_string();
+        is_server_only = is_server;
     }
 
     // 起動ソケット
@@ -295,6 +307,14 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap();
+
+    // サーバーモードでなければブラウザ起動（-sオプションなしの場合）
+    if !is_server_only {
+        let url = format!("http://{}", &addr);
+        if webbrowser::open(&url).is_ok() {
+            tracing::info!("=================== Open Web Browser ===================");
+        }
+    }
 
     tracing::info!("========== Listening on http://{} ==========", addr);
     axum::serve(listener, app).await.unwrap();
