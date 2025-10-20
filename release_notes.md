@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.0.16
+
+- 改行コードを LF に統一
+
 ## Version 1.0.15
 
 - アプリケーション起動時に `webbrowser` クレートを使用してOSのデフォルトブラウザで自動的に開く処理を追加
