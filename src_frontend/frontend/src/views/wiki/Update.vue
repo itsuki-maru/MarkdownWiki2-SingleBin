@@ -3,7 +3,7 @@ import type { UpdateWikiData, WikiData, ImageData, LocalStrageItem } from "@/int
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, nextTick } from "vue";
 import type { Ref } from "vue";
 import { useRouter } from "vue-router";
-import { updateWikiUrl, imageUploadUrl, imageDeleteUrl } from "@/router/urls";
+import { updateWikiUrl, imageUploadUrl, imageDeleteUrl, getUserUrl } from "@/router/urls";
 import { AxiosError } from "axios";
 import { FilterXSS, getDefaultWhiteList } from "xss";
 import type { IFilterXSSOptions } from "xss"
@@ -570,17 +570,24 @@ const updateWiki = async (): Promise<void> => {
   }
 }
 
-// Login Username Draw.
-const showOrNot = computed(
-  (): boolean | string => {
-    let showOrNot = false;
-    const userName = localStorage.getItem("loginUser");
-    if (userName === "" || userName === null) {
-      return showOrNot;
-    }
-    return userName;
+// Login.vueへリダイレクト
+const loginRedirect = (): void => {
+  router.push("/account/login");
+}
+
+// 現在ユーザーの取得
+const currentUser = ref("");
+const getCurrentUser = async (): Promise<void> => {
+  try {
+    const response = await apiClient.get(
+      getUserUrl
+    );
+    currentUser.value = response.data["public_name"];
+  } catch (error) {
+    loginRedirect();
   }
-);
+};
+getCurrentUser();
 
 // マークダウンからHTMLへのコンバート処理
 const markDownConv = computed(
@@ -1796,7 +1803,7 @@ function insertMarkdown(text: string) {
   </div>
 
   <footer>
-    <p v-if="showOrNot" class="login-user">ログインユーザー: {{ showOrNot }}</p>
+    <p class="login-user">ログインユーザー：{{ currentUser }}</p>
   </footer>
 </template>
 

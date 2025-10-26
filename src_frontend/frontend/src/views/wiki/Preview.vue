@@ -3,7 +3,7 @@ import { marked, Renderer } from "marked";
 import type { Tokens, MarkedOptions } from "marked";
 import { computed, ref, onMounted, onUnmounted, nextTick, watch, onBeforeUnmount } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import type { WikiData } from "@/interface";
+import type { WikiData, TypeWikiOwner } from "@/interface";
 import { assetsUrl } from "@/setting";
 import { useWikiStore } from "@/stores/wikis";
 import { downloadFileUrl, wikiOwnerGetUrl, generateOnetimeWikiUrl, invalidateOntimeWikiUrl } from "@/router/urls";
@@ -306,16 +306,22 @@ const bindHtml = ref(renderHtml);
 Prism.highlightAll();
 
 // Wikiデータのオーナー取得
-const wikiOwner = ref("");
+const wikiOwnerInit: TypeWikiOwner = {
+  wikiOwner: "",
+  publicName: "",
+  isOwner: false,
+}
+const wikiOwner = ref(wikiOwnerInit);
 const isOwner = ref(false);
 const getWikiOwner = async (id: string): Promise<void> => {
   try {
     const response = await apiClient.get(
       wikiOwnerGetUrl + `/${id}`,
     );
-    wikiOwner.value = response.data["WikiOwner"];
-    // Wikiオーナーとログインユーザーが一致しているか確認
-    if (localStorage.getItem("loginUser") === wikiOwner.value) {
+    wikiOwner.value.wikiOwner = response.data["WikiOwner"];
+    wikiOwner.value.publicName = response.data["public_name"];
+    if (response.data["is_owner"] === "true" || response.data["is_owner"] === true ) {
+      wikiOwner.value.isOwner = true;
       isOwner.value = true;
     }
   } catch (error) {
@@ -326,10 +332,10 @@ const getWikiOwner = async (id: string): Promise<void> => {
 getWikiOwner(props.id);
 
 
-/** Wikiデータの更新処理 */
+// Wikiデータの更新処理
 const updateWikiData = (id: string): void => {
   getWikiOwner(id);
-  if (localStorage.getItem("loginUser") !== wikiOwner.value) {
+  if (!wikiOwner.value.wikiOwner) {
     messageModalOpenClose("オーナーではないため、編集の権限がありません。");
     return;
   } else {
@@ -801,7 +807,7 @@ const openCloseSearchBar = (): void => {
       </div>
       <div class="footer-zone" v-if="isOwner">
         <button class="btn-delete" v-on:click="onOpenDeleteViewModal()">削除</button>
-        <p class="wiki-owner">Wikiオーナー: {{ wikiOwner }}</p>
+        <p class="wiki-owner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
       </div>
     </div>
     <div v-if="showTocContent" class="toc">
@@ -879,7 +885,7 @@ const openCloseSearchBar = (): void => {
   </transition>
 
   <footer>
-    <p class="wiki-owner" v-if="!isOwner">Wikiオーナー: {{ wikiOwner }}</p>
+    <p class="wiki-owner" v-if="!isOwner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
   </footer>
 </template>
 

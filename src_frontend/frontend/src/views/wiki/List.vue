@@ -108,7 +108,7 @@ const getCurrentUser = async (): Promise<void> => {
     const response = await apiClient.get(
       getUserUrl
     );
-    currentUser.value = response.data["username"];
+    currentUser.value = response.data["public_name"];
   } catch (error) {
     loginRedirect();
   }
@@ -480,7 +480,7 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
   </div>
 
   <footer>
-    <p class="login-user">ログインユーザー: {{ currentUser }}</p>
+    <p class="login-user">ログインユーザー：{{ currentUser }}</p>
   </footer>
 </template>
 
