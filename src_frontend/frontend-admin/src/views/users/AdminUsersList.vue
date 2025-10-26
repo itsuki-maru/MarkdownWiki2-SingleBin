@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import { getUserUrl, resetUserPasswordUrl, unlockUserAccountUrl, createUserUrl } from '@/router/urls';
 import type { UserData, UpdateUserData } from '@/interface';
 import { useUsersStore } from "@/stores/users";
+import InlineEdit from "@/components/InlineEdit.vue";
 import { baseUrl, assetsUrl } from "@/setting";
 import { AxiosError } from "axios";
 
@@ -64,6 +65,7 @@ function getDateForDateTime(dateTimeString: string): string {
 const updateUserDataInit: UpdateUserData = {
   id: "",
   username: "",
+  public_name: "",
   new_password: "",
   is_superuser: false,
 };
@@ -162,15 +164,17 @@ const openCloseUserCreateModal = (): void => {
 // サインアップ処理
 const signupPost = async (): Promise<void> => {
   const username = signupInfoInit.username;
+  const public_name = signupInfoInit.public_name;
   const password = signupInfoInit.password;
 
-  if (username == "" || password == "") {
+  if (username == "" || password == "" || public_name == "") {
     messageModalOpenClose("入力は全て必須です。");
     return
   }
 
   const payload = {
     "username": username,
+    "public_name": public_name,
     "password": password,
   }
 
@@ -182,6 +186,7 @@ const signupPost = async (): Promise<void> => {
     messageModalOpenClose("ユーザーの作成に成功しました。")
     usersStore.initList();
     signupInfo.value.username = "";
+    signupInfo.value.public_name = "";
     signupInfo.value.password = "";
     return;
 
@@ -205,11 +210,13 @@ const signupPost = async (): Promise<void> => {
 
 interface typeSignup {
   username: string;
+  public_name: string;
   password: string;
 }
 
 const signupInfoInit: typeSignup = {
   username: "",
+  public_name: "",
   password: "",
 };
 
@@ -237,10 +244,11 @@ const signupInfo = ref(signupInfoInit);
               <tr>
                 <th>ID</th>
                 <th>UserName</th>
+                <th>PublicName</th>
                 <th>PassWord</th>
                 <th>CreateAt</th>
                 <th>SuperUser</th>
-                <th>Password Reset</th>
+                <th>Password</th>
                 <th>Lock</th>
               </tr>
             </thead>
@@ -248,6 +256,7 @@ const signupInfo = ref(signupInfoInit);
               <tr v-for="[id, user] in userList" v-bind:key="id">
                 <td style="text-align: center;">{{ user.id }}</td>
                 <td>{{ user.username }}</td>
+                <InlineEdit v-model="user.public_name" :data-key="id" />
                 <td>*******************</td>
                 <td>{{ getDateForDateTime(user.create_at) }}</td>
                 <td>{{ user.is_superuser }}</td>
@@ -292,6 +301,8 @@ const signupInfo = ref(signupInfoInit);
             placeholder="ユーザー名（3文字以上、半角英数字が使用可）" autocomplete="username" required v-model="signupInfo.username" />
           <input type="password" pattern=".{8,}" title="8文字以上で入力してください。" placeholder="パスワード（8文字以上）" autocomplete="current-password" required
             v-model="signupInfo.password" class="input-text user-list-password" />
+          <input type="text" title="2文字以上10文字以下" placeholder="表記ユーザー名" name="public_name" required
+            minlength="2" maxlength="10" v-model="signupInfo.public_name" class="input-text user-list-password" />
         </div>
         <div class="btn-zone">
           <button v-on:click="openCloseUserCreateModal()">閉じる</button>
@@ -418,7 +429,7 @@ button {
 
 .table_sticky td {
   text-align: center;
-  font-size: 16px;
+  font-size: 12px;
 }
 
 /* テーブルのホバー：ボディ部分の行のみホバー時のスタイルを適用 */
@@ -436,37 +447,42 @@ button {
 }
 
 .table_stickyt h:nth-child(1) {
-  font-size: 18px;
+  font-size: 14px;
   width: 5%;
 }
 
 .table_stickyt h:nth-child(2) {
-  font-size: 18px;
-  width: 20%;
+  font-size: 14px;
+  width: 15%;
 }
 
 .table_stickyt h:nth-child(3) {
-  font-size: 18px;
+  font-size: 14px;
   width: 20%;
 }
 
 .table_stickyt h:nth-child(4) {
-  font-size: 18px;
-  width: 25%;
+  font-size: 14px;
+  width: 20%;
 }
 
 .table_stickyt h:nth-child(5) {
-  font-size: 18px;
+  font-size: 14px;
   width: 10%;
 }
 
 .table_stickyt h:nth-child(6) {
-  font-size: 18px;
+  font-size: 14px;
   width: 20%;
 }
 
 .table_sticky th:nth-child(7) {
-  font-size: 18px;
+  font-size: 14px;
+  width: 10%;
+}
+
+.table_sticky th:nth-child(8) {
+  font-size: 14px;
   width: 10%;
 }
 

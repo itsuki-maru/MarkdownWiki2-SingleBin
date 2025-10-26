@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import type { UserData, UpdateUserData } from "@/interface";
 import apiClient from "@/axiosClient";
-import {getUsersUrl } from "@/router/urls";
+import { getUsersUrl, updateUserPublicNameUrl } from "@/router/urls";
 
 interface State {
     usersList: Map<string, UserData>;
@@ -35,6 +35,7 @@ export const useUsersStore = defineStore({
                         usersData[key]["id"], {
                             id: usersData[key]["id"],
                             username: usersData[key]["username"],
+                            public_name: usersData[key]["public_name"],
                             password: usersData[key]["password"],
                             create_at: usersData[key]["create_at"],
                             is_superuser: usersData[key]["is_superuser"],
@@ -46,6 +47,26 @@ export const useUsersStore = defineStore({
                 this.usersList = sortedDsc;
             } catch(error) {
                 console.log("Init List Error.");
+            }
+        },
+        async updatePublicName(id: string, newName: string): Promise<void> {
+            // ペイロードに追加
+            const payload = {
+                "public_name": newName,
+            };
+
+            const updateUrlJoinId = updateUserPublicNameUrl + id;
+            try {
+                const response = await apiClient.put(
+                    updateUrlJoinId,
+                    payload
+                );
+                const updateUser = this.getById(id);
+                updateUser.public_name = newName;
+                this.initList();
+            } catch (error) {
+                console.log("Update Error.");
+                return;
             }
         },
     }

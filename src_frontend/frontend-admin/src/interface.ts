@@ -6,6 +6,7 @@ interface LoginUser {
 interface UserData {
     id: string;
     username: string;
+    public_name: string;
     password: string;
     create_at: string;
     is_superuser: boolean;
@@ -21,6 +22,7 @@ interface LockedUserData {
 interface UpdateUserData {
     id: string;
     username: string;
+    public_name: string;
     new_password: string;
     is_superuser: boolean;
 }
