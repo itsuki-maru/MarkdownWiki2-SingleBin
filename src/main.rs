@@ -46,9 +46,10 @@ use handler::account::{
 use handler::admin::{
     admin_index_get_handler,
     get_users_handler,
-    update_users_handler,
     unlock_account_handler,
     create_users_handler,
+    update_users_password_handler,
+    update_public_name_handler,
 };
 use handler::assets::{
     serve_image_file,
@@ -251,7 +252,8 @@ async fn main() {
         .route("/account/auth", get(auth_check_handler))
         .route("/admin", get(admin_index_get_handler))
         .route("/admin/users", get(get_users_handler))
-        .route("/admin/user/password-reset/{update_user_id}", post(update_users_handler))
+        .route("/admin/user/password-reset/{update_user_id}", post(update_users_password_handler))
+        .route("/admin/user/publicname-update/{update_user_id}", put(update_public_name_handler))
         .route("/admin/user/unlock/{unlock_user_id}", post(unlock_account_handler))
         .route("/admin/user/create", post(create_users_handler))
         .route("/onetimeurl/generate/{wiki_id}", post(generate_url_handler))

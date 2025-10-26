@@ -80,6 +80,7 @@ pub struct IsSuperuser {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SignupPayload {
     pub username: String,
+    pub public_name: String,
     pub password: String,
 }
 
@@ -142,6 +143,7 @@ pub struct TokenPare {
 pub struct AuthenticatedUser {
     pub id: String,
     pub username: String,
+    pub public_name: String,
 }
 
 // アカウントプライバシー設定取得構造体
@@ -230,7 +232,9 @@ pub struct Memories {
 // Wikiオーナー返却構造体
 #[derive(Serialize, Deserialize)]
 pub struct WikiOwner {
+    pub id: String,
     pub username: String,
+    pub public_name: String,
 }
 
 // 画像構造体
@@ -282,16 +286,23 @@ fn default_string() -> String {
 pub struct ResponseUserData {
     pub id: String,
     pub username: String,
+    pub public_name: String,
     pub password: String,
     pub create_at: String,
     pub is_superuser: bool,
     pub is_locked: bool,
 }
 
-// ユーザー情報更新構造体
+// ユーザーパスワード更新構造体
 #[derive(Serialize, Deserialize)]
-pub struct UpdateUserData {
+pub struct UpdateUserPasswordData {
     pub new_password: String,
+}
+
+// 公開ユーザー名更新構造体
+#[derive(Serialize, Deserialize)]
+pub struct UpdateUserPublicNameData {
+    pub public_name: String,
 }
 
 // URL作成のエラーハンドリング

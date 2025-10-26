@@ -174,7 +174,7 @@ pub async fn get_wiki_owner_handler(
 
     let result = query_as!(
         WikiOwner,
-        "SELECT user_model.username FROM wiki_model 
+        "SELECT user_model.id, user_model.username, user_model.public_name FROM wiki_model
         JOIN user_model ON wiki_model.user_id = user_model.id
         WHERE (wiki_model.id = $1 AND wiki_model.user_id = $2)
         OR (wiki_model.id = $1 AND wiki_model.is_public = true)",
@@ -194,7 +194,16 @@ pub async fn get_wiki_owner_handler(
         }
     };
 
-    let response_data = json!({ "WikiOwner": owner.username});
+    let mut is_owner = false;
+    if user_id == owner.id {
+        is_owner = true;
+    }
+
+    let response_data = json!({
+        "WikiOwner": owner.username,
+        "public_name": owner.public_name,
+        "is_owner": is_owner,
+    });
 
     Ok(Json(response_data))
 }

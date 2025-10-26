@@ -35,6 +35,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
         CREATE TABLE IF NOT EXISTS user_model (
             id TEXT PRIMARY KEY NOT NULL,
             username CHARACTER VARYING(256) NOT NULL UNIQUE,
+            public_name CHARACTER VARYING(256) NOT NULL,
             password CHARACTER VARYING(256) NOT NULL,
             create_at TEXT NOT NULL,
             is_superuser BOOLEAN NOT NULL,
@@ -154,9 +155,10 @@ async fn insert_initial_admin_data(
 
     let result = query_as!(
         ReturningId,
-        "INSERT INTO user_model (id, username, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+        "INSERT INTO user_model (id, username, public_name, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
         new_admin_id,
+        CONFIG.admin_user_name,
         CONFIG.admin_user_name,
         hashed_password,
         now,

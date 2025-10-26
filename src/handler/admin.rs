@@ -12,7 +12,7 @@ use sqlx::query_as;
 use uuid::Uuid;
 use std::collections::HashMap;
 use super::super::custom_responses::custom_error_response;
-use super::super::scheme::{ResponseUserData, UpdateUserData, ReturningId, SignupPayload, IsSuperuser, IsExists};
+use super::super::scheme::{ResponseUserData, UpdateUserPasswordData, UpdateUserPublicNameData, ReturningId, SignupPayload, IsSuperuser, IsExists};
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
@@ -92,7 +92,7 @@ pub async fn get_users_handler(
     if is_superuser {
         let result = query_as!(
             ResponseUserData,
-            "SELECT id, username, password, create_at, is_superuser, is_locked FROM user_model"
+            "SELECT id, username, public_name, password, create_at, is_superuser, is_locked FROM user_model"
         )
         .fetch_all(&pool)
         .await;
@@ -113,6 +113,7 @@ pub async fn get_users_handler(
             let parsed_user = ResponseUserData {
                 id: user.id,
                 username: user.username,
+                public_name: user.public_name,
                 password: user.password,
                 create_at: user.create_at,
                 is_superuser: user.is_superuser,
@@ -130,11 +131,11 @@ pub async fn get_users_handler(
 }
 
 // UPDATE USER PASSWORD
-pub async fn update_users_handler(
+pub async fn update_users_password_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(update_user_id): Path<String>,
-    Json(payload): Json<UpdateUserData>,
+    Json(payload): Json<UpdateUserPasswordData>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
 
     // スーパーユーザー判定
@@ -177,6 +178,64 @@ pub async fn update_users_handler(
         match result {
             Ok(_) => {
                 let body = json!({"message": "Password Reset Ok."}).to_string();
+                return Ok(body);
+            }
+            Err(_) => {
+                return Err(custom_error_response(
+                    "Update Error.",
+                    StatusCode::BAD_REQUEST,
+                ))
+            }
+        }
+    } else {
+        Err(custom_error_response(
+            "Update Error.",
+            StatusCode::BAD_REQUEST,
+        ))
+    }
+}
+
+// UPDATE USER PASSWORD
+pub async fn update_public_name_handler(
+    Extension(user_id): Extension<String>,
+    Extension(pool): Extension<SqlitePool>,
+    Path(update_user_id): Path<String>,
+    Json(payload): Json<UpdateUserPublicNameData>,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+
+    // スーパーユーザー判定
+    let super_user_exists = query_as!(
+        IsSuperuser,
+        "SELECT is_superuser FROM user_model WHERE id = $1",
+        user_id,
+    )
+    .fetch_one(&pool)
+    .await;
+
+    // `i64`を`bool`に変換
+    let mut is_superuser = false;
+    match super_user_exists {
+        Ok(super_user) => {
+            if super_user.is_superuser {
+                is_superuser = true;
+            }
+        },
+        Err(_e) => {}
+    }
+
+    if is_superuser {
+        let result = query_as!(
+            ReturningId,
+            "UPDATE user_model SET public_name = $1 WHERE id = $2 RETURNING id",
+            payload.public_name,
+            update_user_id,
+        )
+        .fetch_one(&pool)
+        .await;
+
+        match result {
+            Ok(_) => {
+                let body = json!({"message": "Public Name Update Ok."}).to_string();
                 return Ok(body);
             }
             Err(_) => {
