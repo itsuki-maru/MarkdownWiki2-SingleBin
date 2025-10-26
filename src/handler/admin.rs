@@ -392,10 +392,11 @@ pub async fn create_users_handler(
         // ユーザーが存在しない場合は新しいユーザーを追加し、追加したユーザーのidを取得
         let rec = query_as!(
             ReturningId,
-            "INSERT INTO user_model (id, username, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            "INSERT INTO user_model (id, username, public_name, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
             new_user_id,
             payload.username,
+            payload.public_name,
             hashed_password,
             now,
             false,
