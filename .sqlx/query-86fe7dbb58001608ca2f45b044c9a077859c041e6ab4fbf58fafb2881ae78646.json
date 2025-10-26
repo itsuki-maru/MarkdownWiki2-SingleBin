@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, username, password, create_at, is_superuser, is_locked FROM user_model",
+  "query": "SELECT id, username, public_name, password, create_at, is_superuser, is_locked FROM user_model",
   "describe": {
     "columns": [
       {
@@ -14,23 +14,28 @@
         "type_info": "Text"
       },
       {
-        "name": "password",
+        "name": "public_name",
         "ordinal": 2,
         "type_info": "Text"
       },
       {
-        "name": "create_at",
+        "name": "password",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "is_superuser",
+        "name": "create_at",
         "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_superuser",
+        "ordinal": 5,
         "type_info": "Bool"
       },
       {
         "name": "is_locked",
-        "ordinal": 5,
+        "ordinal": 6,
         "type_info": "Bool"
       }
     ],
@@ -43,8 +48,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "a1c6444ca5e176747b89cb2a0d95908016db92ed4bb7970240bda9ef31a99b04"
+  "hash": "86fe7dbb58001608ca2f45b044c9a077859c041e6ab4fbf58fafb2881ae78646"
 }

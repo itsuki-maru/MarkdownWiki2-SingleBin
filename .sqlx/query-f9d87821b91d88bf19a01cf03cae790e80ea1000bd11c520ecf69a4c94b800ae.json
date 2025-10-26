@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO user_model (id, username, public_name, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f9d87821b91d88bf19a01cf03cae790e80ea1000bd11c520ecf69a4c94b800ae"
+}
