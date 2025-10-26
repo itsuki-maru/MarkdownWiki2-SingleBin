@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.1
+
+- 管理者画面からのユーザー作成エラーを修正。
+    - Version 1.1.0 での実装ミスを修正
+- .sqlx ファイルを更新
+
 ## Version 1.1.0
 
 ### 公開ユーザー名の実装
