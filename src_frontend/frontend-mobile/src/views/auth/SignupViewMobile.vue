@@ -12,16 +12,18 @@ const signupRedirect = (): void => {
 
 const signupPost = async (): Promise<void> => {
   const username = signupInfoInit.username;
+  const public_name = signupInfoInit.public_name;
   const password = signupInfoInit.password;
 
 
-  if (username == "" || password == "") {
+  if (username == "" || password == "" || public_name == "") {
     window.alert("入力は全て必須です。")
     return
   }
 
   const data = {
     "username": username,
+    "public_name": public_name,
     "password": password,
   }
 
@@ -39,11 +41,13 @@ const signupPost = async (): Promise<void> => {
 
 interface typeSignup {
   username: string;
+  public_name: String;
   password: string;
 }
 
 const signupInfoInit: typeSignup = {
   username: "",
+  public_name: "",
   password: "",
 };
 
@@ -60,6 +64,8 @@ const signupInfo = ref(signupInfoInit);
           placeholder="ユーザー名（3文字以上、半角英数字が使用可）: maru" autocomplete="username" required v-model="signupInfo.username" />
         <input type="password" pattern=".{8,}" title="8文字以上で入力してください。" placeholder="パスワード（8文字以上）" autocomplete="current-password" required
           v-model="signupInfo.password" />
+        <input type="text" title="2文字以上10文字以下" placeholder="表記ユーザー名" name="public_name" required
+          minlength="2" maxlength="10" v-model="signupInfo.public_name" />
         <button type="submit" class="btn btn-primary btn-block btn-large">アカウント作成</button>
       </form>
       <p>

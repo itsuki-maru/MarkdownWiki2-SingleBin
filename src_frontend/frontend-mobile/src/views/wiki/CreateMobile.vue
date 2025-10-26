@@ -716,20 +716,6 @@ function saveQRCode(): void {
   }
 }
 
-// 現在ユーザーの取得
-const currentUser = ref("");
-const getCurrentUser = async (): Promise<void> => {
-  try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["username"];
-  } catch (error) {
-    loginRedirect();
-  }
-};
-getCurrentUser();
-
 // メッセージモーダル表示時に灰色の部分のクリック時にもメッセージモーダルを閉じる処理
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {

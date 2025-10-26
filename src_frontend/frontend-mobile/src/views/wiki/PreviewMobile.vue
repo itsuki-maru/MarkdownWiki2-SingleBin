@@ -3,7 +3,7 @@ import { marked, Renderer } from "marked";
 import type { Tokens, MarkedOptions } from "marked";
 import { computed, ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import type { WikiData } from "@/interface";
+import type { WikiData, TypeWikiOwner } from "@/interface";
 import { useWikiStore } from "@/stores/wikis";
 import { wikiOwnerGetUrl, generateOnetimeWikiUrl, invalidateOntimeWikiUrl } from "@/router/urls";
 import { assetsUrl } from "@/setting";
@@ -306,16 +306,22 @@ const bindHtml = ref(renderHtml);
 Prism.highlightAll();
 
 // Wikiデータのオーナー取得
-const wikiOwner = ref("");
+const wikiOwnerInit: TypeWikiOwner = {
+  wikiOwner: "",
+  publicName: "",
+  isOwner: false,
+}
+const wikiOwner = ref(wikiOwnerInit);
 const isOwner = ref(false);
 const getWikiOwner = async (id: string): Promise<void> => {
   try {
     const response = await apiClient.get(
       wikiOwnerGetUrl + `/${id}`,
     );
-    wikiOwner.value = response.data["WikiOwner"];
-    // Wikiオーナーとログインユーザーが一致しているか確認
-    if (localStorage.getItem("loginUser") === wikiOwner.value) {
+    wikiOwner.value.wikiOwner = response.data["WikiOwner"];
+    wikiOwner.value.publicName = response.data["public_name"];
+    if (response.data["is_owner"] === "true" || response.data["is_owner"] === true ) {
+      wikiOwner.value.isOwner = true;
       isOwner.value = true;
     }
   } catch (error) {
@@ -336,11 +342,10 @@ const checkIsOwner = (): boolean => {
 
 getWikiOwner(props.id);
 
-
-/** Wikiデータの更新処理 */
+// Wikiデータの更新処理
 const updateWikiData = (id: string): void => {
   getWikiOwner(id);
-  if (localStorage.getItem("loginUser") !== wikiOwner.value) {
+  if (!wikiOwner.value.isOwner) {
     window.alert("オーナーではないため、編集の権限がありません。");
     return
   } else {
@@ -811,9 +816,9 @@ onUnmounted(() => {
       </div>
       <div class="footer-zone" v-if="checkIsOwner()">
         <button v-on:click="onOpenDeleteViewModal()" class="btn-delete">削除</button>
-        <p class="wiki-owner">Wikiオーナー: {{ wikiOwner }}</p>
+        <p class="wiki-owner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
       </div>
-      <p class="wiki-owner" v-if="!isOwner">Wikiオーナー: {{ wikiOwner }}</p>
+      <p class="wiki-owner" v-if="!isOwner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
     </div>
   </div>
 

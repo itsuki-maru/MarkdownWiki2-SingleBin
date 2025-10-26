@@ -52,6 +52,12 @@ interface ApplicationInit {
     allowOrigins: string, // ex) http://localhost:3080,www.example.com
 };
 
+interface TypeWikiOwner {
+    wikiOwner: string;
+    publicName: String;
+    isOwner: boolean;
+}
+
 export type {
     LoginUser,
     CreateWikiData,
@@ -61,4 +67,5 @@ export type {
     QueryForm,
     ImageData,
     ApplicationInit,
+    TypeWikiOwner,
 }

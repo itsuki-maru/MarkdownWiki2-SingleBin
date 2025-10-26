@@ -779,60 +779,6 @@ function saveQRCode(): void {
   }
 }
 
-// 現在ユーザーの取得
-const currentUser = ref("");
-const getCurrentUser = async (): Promise<void> => {
-  try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["username"];
-  } catch (error) {
-    loginRedirect();
-  }
-};
-getCurrentUser();
-
-
-// アクセストークンが期限切れとなった際に再度取得する
-const loginPost = async (): Promise<void> => {
-  const username = loginInfo.value.username;
-  const password = loginInfo.value.password;
-
-  if (username == "" || password == "") {
-    return
-  }
-
-  const payload = {
-    "username": username,
-    "password": password,
-  }
-
-  try {
-    // Cookie save setting.
-    const response = await apiClient.post(
-      getTokenUrl,
-      payload,
-    );
-    isAuthToken.value = true;
-  } catch (error) {
-    loginInfo.value.password = "";
-    messageModalOpenClose("Password or Username missmatch.");
-  }
-}
-
-interface typeLogin {
-  username: string;
-  password: string;
-};
-
-const loginInfoInit: typeLogin = {
-  username: "",
-  password: "",
-};
-
-const loginInfo = ref(loginInfoInit);
-
 // メッセージモーダル表示時に灰色の部分のクリック時にもメッセージモーダルを閉じる処理
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { marked, Renderer } from "marked";
 import type { Tokens, MarkedOptions } from "marked";
-import type { deleteWikiData, WikiData } from "@/interface";
+import type { deleteWikiData, WikiData, TypeWikiOwner } from "@/interface";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { deleteWikiUrl, wikiOwnerGetUrl, getUserUrl } from "@/router/urls";
@@ -269,39 +269,31 @@ const onCloseModal = (res: number): void => {
 // 削除完了モーダル
 const isDeleteOkModal = ref(false);
 
-//** Wikiデータのオーナー取得 */
-const wikiOwner = ref("");
+// Wikiデータのオーナー取得
+const wikiOwnerInit: TypeWikiOwner = {
+  wikiOwner: "",
+  publicName: "",
+  isOwner: false,
+}
+const wikiOwner = ref(wikiOwnerInit);
 const isOwner = ref(false);
 const getWikiOwner = async (id: string): Promise<void> => {
   try {
     const response = await apiClient.get(
       wikiOwnerGetUrl + `/${id}`,
     );
-    wikiOwner.value = response.data["WikiOwner"];
-    // Wikiオーナーとログインユーザーが一致しているか確認
-    if (localStorage.getItem("loginUser") === wikiOwner.value) {
+    wikiOwner.value.wikiOwner = response.data["WikiOwner"];
+    wikiOwner.value.publicName = response.data["public_name"];
+    if (response.data["is_owner"] === "true" || response.data["is_owner"] === true ) {
+      wikiOwner.value.isOwner = true;
       isOwner.value = true;
     }
   } catch (error) {
-    console.log("Owner Get Error");
+    console.error("Owner Get Error");
     loginRedirect();
   }
 };
 getWikiOwner(props.id);
-
-// 現在ユーザーの取得
-const currentUser = ref("");
-const getCurrentUser = async (): Promise<void> => {
-  try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["username"];
-  } catch (error) {
-    loginRedirect();
-  }
-};
-getCurrentUser();
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
@@ -393,7 +385,7 @@ function isPDF(filename: string) {
       <button type="submit" class="btn-delete" v-if="isOwner" v-on:click.prevent="onDeleteCheck">削除</button>
     </div>
     <div class="owner-zone">
-      <p class="wiki-owner">Wikiオーナー: {{ wikiOwner }}</p>
+      <p class="wiki-owner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
     </div>
   </div>
 </template>
