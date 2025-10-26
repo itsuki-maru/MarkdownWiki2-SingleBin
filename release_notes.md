@@ -1,5 +1,22 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.0
+
+### 公開ユーザー名の実装
+
+- `user_model` テーブルに `public_name` を追加。これにより、Wikiのオーナー名を任意の名称設定（2から10文字以内）が可能となった。
+- これまでのユーザー名からアカウントをロックされる攻撃の可能性を軽減。
+- 初回設定以降の変更は管理者アカウントからのみ管理者画面から変更が可能。これはアプリケーションの性質上、頻繁な変更を避けるため。
+- 公開ユーザー名は他のユーザーと重複可（ユーザーの自由度を優先）
+
+### 1.17.X からの変更手順
+
+```sql
+ALTER TABLE user_model ADD COLUMN public_name CHARACTER VARYING(256);
+UPDATE user_model SET public_name = username;
+ALTER TABLE user_model ALTER COLUMN public_name SET NOT NULL;
+```
+
 ## Version 1.0.16
 
 - 改行コードを LF に統一
