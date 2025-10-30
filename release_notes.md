@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.2
+
+- 未使用コードを除去
+
 ## Version 1.1.1
 
 - 管理者画面からのユーザー作成エラーを修正。
