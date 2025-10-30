@@ -5,12 +5,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
-use rust_embed::RustEmbed;
 use super::scheme::ApplicationInitSetup;
-
-#[derive(RustEmbed)]
-#[folder = "dist/"]
-struct Asset;
 
 
 pub fn get_application_user_setup_path() -> PathBuf {

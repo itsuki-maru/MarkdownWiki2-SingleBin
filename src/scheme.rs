@@ -222,13 +222,6 @@ pub struct UpdatedWikiResponse {
     pub message: String,
 }
 
-// WikiのMAPデータ
-#[derive(Serialize, Deserialize)]
-pub struct Memories {
-    pub id: String,
-    pub wiki: WikiData,
-}
-
 // Wikiオーナー返却構造体
 #[derive(Serialize, Deserialize)]
 pub struct WikiOwner {
@@ -380,12 +373,6 @@ pub struct CreatedTemporaryUrlResponse {
     pub url: String,
     pub expiration: String,
     pub title: String,
-}
-
-// 一時URLチェック用の構造体
-#[derive(Debug, Serialize, Deserialize)]
-pub struct IsTempUrlWiki {
-    pub is_temp: bool,
 }
 
 // 発行済み一時URL取得構造体
