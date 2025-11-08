@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.3
+
+- YouTubeの埋め込みエラーを修正
+    - iframe の置換内容を YouTube のものと統一
+
 ## Version 1.1.2
 
 - 未使用コードを除去
