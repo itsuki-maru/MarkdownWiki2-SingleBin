@@ -199,7 +199,7 @@ renderer.image = (tokens: Tokens.Image) => {
   let text = tokens.text;
   const match = tokens.href.match(/\s*=(\d+)(x)?$/);
   if (match) {
-    width = match[1];
+    width = match[1]!;
     href  = href.replace(/\s*=.*$/, "");
   }
   const widthAttr = width ? ` width="${width}px"` : "";
@@ -563,8 +563,8 @@ const onImageSelect = async (): Promise<void> => {
 
   // ファイルオブジェクトを取得してペイロードに追加
   const file = element.files!
-  const fileObj = file[0];
-  const fileName = file[0].name;
+  const fileObj = file[0]!;
+  const fileName = fileObj.name;
 
   // mime-typeで許可ファイルをフィルタリング
   const arrowMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf"];
@@ -838,7 +838,7 @@ const loadPdf = async (url: string) => {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 1.0 });
 
-    const canvasRef = pdfCanvases.value[i - 1].ref;
+    const canvasRef = pdfCanvases.value[i - 1]!.ref;
     const canvas = (document.getElementById(canvasRef) as HTMLCanvasElement) || null;
 
     if (canvas) {

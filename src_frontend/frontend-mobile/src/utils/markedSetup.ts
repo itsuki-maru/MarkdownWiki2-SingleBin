@@ -52,7 +52,7 @@ const youtubeToken: any = {
         const rule = /^\@\[(youtube)\]\((.*?)\)/;
         const match = rule.exec(src);
         if (match) {
-            const id = extractYouTubeId(match[2]);
+            const id = extractYouTubeId(match[2]!);
             if (!id) return null;
             return {
                 type: "youtube", // カスタムトークンタイプ
@@ -131,7 +131,7 @@ function createNestedTokenizer(typeName: "details" | "note" | "warning") {
             let endIndex = -1;
 
             for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
+                const line = lines[i]!.trim();
                 if (/^:::(\w+)/.test(line)) {
                     nestLevel++;
                 } else if (/^:::\s*$/.test(line)) {
@@ -148,8 +148,8 @@ function createNestedTokenizer(typeName: "details" | "note" | "warning") {
             const rawLines = lines.slice(0, endIndex + 1);
             const raw = rawLines.join("\n");
 
-            const titleMatch = lines[0].match(new RegExp(`^:::${typeName}\\s+(.+)`));
-            const title = titleMatch ? titleMatch[1].trim() : typeName.toUpperCase();
+            const titleMatch = lines[0]!.match(new RegExp(`^:::${typeName}\\s+(.+)`));
+            const title = titleMatch ? titleMatch[1]!.trim() : typeName.toUpperCase();
 
             const content = lines.slice(1, endIndex).join("\n");
 

@@ -71,12 +71,12 @@ const getUpdateAt = (dateStr: string, datetimeStr: string): string => {
   }
   const dateStrSplit = datetimeStr.split("T")[0];
   const timeStrSplit = datetimeStr.split("T")[1];
-  return ` 【更新：${dateStrSplit} ${timeStrSplit.substring(0, 5)} 】`;
+  return ` 【更新：${dateStrSplit} ${timeStrSplit!.substring(0, 5)} 】`;
 }
 
 // 日付時刻から日付のみを取り出す関数
 function getDateForDateTime(dateTimeString: string): string {
-  return dateTimeString.split("T")[0];
+  return dateTimeString.split("T")[0]!;
 }
 
 // 日付を比較する関数

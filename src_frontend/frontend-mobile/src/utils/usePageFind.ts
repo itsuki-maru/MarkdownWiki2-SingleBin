@@ -30,7 +30,7 @@ function normalizeWithMap(orig: string) {
         n = kataToHira(n);
         normPieces.push(n);
         // n が複数文字に展開される場合も、各文字に同じ原文位置を対応づける
-        for (let i = 0; i < n.length; i++) map.push(normPieces.join("").length - n.length + i >= 0 ? (map.length ? map[map.length-1] + 0 : 0) : 0);
+        for (let i = 0; i < n.length; i++) map.push(normPieces.join("").length - n.length + i >= 0 ? (map.length ? map[map.length-1]! + 0 : 0) : 0);
     }
     
     // 上の複雑化を避けて書き直し
@@ -128,8 +128,8 @@ export function usePageFind(containerRef: Ref<HTMLElement | null>, opts: Options
                 if (pos === -1) break;
                 const startOrig = map[pos];
                 const endOrigIdx = map[pos + qn.length - 1];
-                const endOrig = (endOrigIdx ?? startOrig) + 1;
-                perNodeMatches.push({ node, start: startOrig, end: endOrig });
+                const endOrig = (endOrigIdx! ?? startOrig) + 1;
+                perNodeMatches.push({ node, start: startOrig!, end: endOrig });
                 from = pos + (qn.length || 1);
             }
         }
@@ -166,13 +166,13 @@ export function usePageFind(containerRef: Ref<HTMLElement | null>, opts: Options
         marks.forEach(m => m.classList.remove("is-current"));
         if (current.value >= 0 && marks[current.value]) {
             const target = marks[current.value];
-            target.classList.add("is-current");
+            target!.classList.add("is-current");
 
             // <details> タグを開く
-            revealDetailsAncestores(target);
+            revealDetailsAncestores(target!);
 
             requestAnimationFrame(() => {
-                target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+                target!.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
             })
         }
     }

@@ -348,8 +348,8 @@ const onImageSelect = async (): Promise<void> => {
 
   // ファイルオブジェクトを取得してペイロードに追加
   const file = element.files!
-  const fileObj = file[0];
-  const fileName = file[0].name;
+  const fileObj = file[0]!;
+  const fileName = fileObj.name;
 
   // mime-typeで許可ファイルをフィルタリング
   const arrowMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf"];

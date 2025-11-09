@@ -145,7 +145,7 @@ renderer.image = (tokens: Tokens.Image) => {
   let text = tokens.text;
   const match = tokens.href.match(/\s*=(\d+)(x)?$/);
   if (match) {
-    width = match[1];
+    width = match[1]!;
     href  = href.replace(/\s*=.*$/, "");
   }
   const widthAttr = width ? ` width="${width}px"` : "";

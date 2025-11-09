@@ -150,7 +150,7 @@ const getUpdateAt = (dateStr: string, datetimeStr: string): string => {
 
 // 日付時刻から日付のみを取り出す関数
 function getDateForDateTime(dateTimeString: string): string {
-  return dateTimeString.split("T")[0];
+  return dateTimeString.split("T")[0]!;
 }
 
 // 日付を比較する関数（同日編集の場合は対象外とする仕様）
