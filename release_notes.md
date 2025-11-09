@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.4
+
+- フロントエンドの依存関係を更新
+    - 将来的に Pinia を3系に更新
+
 ## Version 1.1.3
 
 - YouTubeの埋め込みエラーを修正
