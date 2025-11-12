@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.5
+
+- パブリックのWikiがオーナー以外からダウンロードできない問題を修正
+
 ## Version 1.1.4
 
 - フロントエンドの依存関係を更新
