@@ -418,7 +418,8 @@ pub async fn download_file(
 
     let result = query_as!(
         DownloadWikiData,
-        "SELECT title, body FROM wiki_model WHERE id = $1 AND user_id = $2",
+        "SELECT title, body FROM wiki_model
+        WHERE id = $1 AND user_id = $2 OR id = $1 AND is_public = true",
         wiki_id,
         user_id,
     )
@@ -431,7 +432,7 @@ pub async fn download_file(
             let body = markdown_data.body;
             format!("# {}\n\n{}", title, body)
         }
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(_) => return Err(StatusCode::NOT_FOUND),
     };
 
     let response = Response::builder()
