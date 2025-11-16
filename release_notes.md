@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.6
+
+- 開発時のみオリジンの許可が必要であった `http://localhost:5173` をリリースビルド時に除外
+
 ## Version 1.1.5
 
 - パブリックのWikiがオーナー以外からダウンロードできない問題を修正
