@@ -218,8 +218,7 @@ async fn main() {
     let tera = Arc::new(Mutex::new(tera));
 
     // CORSの設定例
-    let cors = CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+    let mut cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(vec![
             header::AUTHORIZATION,
@@ -233,6 +232,11 @@ async fn main() {
             header::CONTENT_TYPE,
             // 必要に応じて他のヘッダーを追加
         ]);
+
+    // 開発時のみ Vue3 のサーバを許可オリジンに追加
+    if cfg!(debug_assertions) {
+        cors = cors.allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap());
+    }
 
     // アクセストークンによる認可を要する
     let secured_routes = Router::new()
