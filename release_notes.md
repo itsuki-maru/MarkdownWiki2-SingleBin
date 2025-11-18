@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.7
+
+- 認可トークン（Cookie）に Secure 属性の設定オプションを追加。
+    - HTTP環境下での運用の場合、`markdown-wiki2-single.env.json` 設定ファイル内の `secure_cookie` を `false` に変更する。
+
 ## Version 1.1.6
 
 - 開発時のみオリジンの許可が必要であった `http://localhost:5173` をリリースビルド時に除外
