@@ -45,3 +45,12 @@ docker cp markdown-wiki2-app:/web/dist .
 ```bash
 docker run --name proxy-nginx --network=host -p 80:80 -v $(pwd)/utils/nginx/nginx.conf.template:/etc/nginx/nginx.conf:ro -d nginx
 ```
+
+## ローカルネットワーク内でHTTP運用
+
+デフォルトでは HTTP 環境下では使用できないため、明示的に `markdown-wiki2-single.env.json` ファイル内の次の行を変更する。
+
+```json
+- "secure_cookie": "true",
++ "secure_cookie": "false",
+```

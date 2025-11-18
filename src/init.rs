@@ -61,6 +61,7 @@ pub fn create_default_env(
     let access_token_exp_minutes = prompt("Enter access token exp(minutes)", "60");
     let refresh_token_exp_minutes = prompt("Enter refresh token exp(minutes)", "1440");
     let secret_key = Uuid::new_v4().to_string();
+    let secure_cookie = "true".to_string();
     let rust_log = "markdown_wiki2_single=info,tower_http=info".to_string();
     let allow_user_create_account = "false".to_string();
 
@@ -79,6 +80,7 @@ pub fn create_default_env(
         refresh_token_exp_minutes: refresh_token_exp_minutes,
         secret_key: secret_key,
         cache_control: "max-age=3600".to_string(),
+        secure_cookie: secure_cookie,
         service_name: app_title,
         rust_log: rust_log,
         allow_user_create_account: allow_user_create_account,

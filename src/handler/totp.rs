@@ -284,8 +284,15 @@ pub async fn token_totp_handler(
     })?;
 
     // cookieヘッダーの生成
-    let access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-    let refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+    let access_token_cookie;
+    let refresh_token_cookie;
+    if CONFIG.secure_cookie {
+        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
+        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+    } else {
+        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
+        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+    }
 
     let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
         custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;

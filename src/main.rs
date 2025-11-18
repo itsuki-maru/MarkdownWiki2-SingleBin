@@ -184,6 +184,7 @@ async fn main() {
         env::set_var("ACCESS_TOKEN_EXP_MINUTUES", default_env.access_token_exp_minutes);
         env::set_var("REFRESH_TOKEN_EXP_MINUTUES", default_env.refresh_token_exp_minutes);
         env::set_var("CACHE_CONTROL", default_env.cache_control);
+        env::set_var("SECURE_COOKIE", default_env.secure_cookie);
         env::set_var("SERVICE_NAME", default_env.service_name);
         env::set_var("RUST_LOG", default_env.rust_log);
         env::set_var("ALLOW_USER_CREATE_ACCOUNT", default_env.allow_user_create_account);

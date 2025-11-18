@@ -22,6 +22,7 @@ pub struct ApplicationInitSetup {
     pub next_challenge_minutes: String,
     pub challenge_limit_time_failed_count: String,
     pub cache_control: String,
+    pub secure_cookie: String,
     pub service_name: String,
     pub rust_log: String,
     pub allow_user_create_account: String,

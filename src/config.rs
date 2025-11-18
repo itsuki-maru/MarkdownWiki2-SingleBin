@@ -17,6 +17,7 @@ pub struct Config {
     pub images_path: String,
     pub upload_file_path: String,
     pub cache_control: String,
+    pub secure_cookie: bool,
     pub service_name: String,
     pub allow_user_create_account: bool,
     pub allow_origins: String,
@@ -42,6 +43,9 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| Config {
     images_path: env::var("IMAGE_FILES_PATH").expect("IMAGE_FILES_PATH must be set"),
     upload_file_path: env::var("UPLOAD_FILE_PATH").expect("UPLOAD_FILE_PATH must be set"),
     cache_control: get_cache_control_from_env().to_header_value(),
+    secure_cookie: env::var("SECURE_COOKIE")
+        .expect("SECURE_COOKIE must be set")
+        .parse::<bool>().expect("SECURE_COOKIE Parse Error."),
     service_name: env::var("SERVICE_NAME").expect("SERVICE_NAME must be set"),
     allow_user_create_account: env::var("ALLOW_USER_CREATE_ACCOUNT")
         .expect("ALLOW_USER_CREATE_ACCOUNT must be set")
