@@ -103,7 +103,10 @@ use init::{
 };
 
 use scheme::{MessageApi, AppInit};
+
+#[cfg(windows)]
 use utils::ensure_console;
+
 use config::CONFIG;
 
 #[derive(RustEmbed)]
