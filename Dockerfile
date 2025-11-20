@@ -1,6 +1,6 @@
 FROM rust:latest
 
-RUN apt update && apt install -y curl pkg-config libssl-dev && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs && apt clean
+RUN apt update && apt install -y curl pkg-config libssl-dev && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt install -y nodejs && apt clean
 
 WORKDIR /web
 
