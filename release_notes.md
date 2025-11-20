@@ -1,5 +1,12 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.8
+
+- Windows環境下ではコンソールを非表示に変更
+    - コマンド起動の場合は `-c` オプションにより、表示可能
+    - 初回起動以降、バックグラウンドでサーバプロセスが起動し続け、2回目以降はブラウザのみ起動
+- Dockerfile 内の Node.js の取得を 20.X から 22.X に変更
+
 ## Version 1.1.7
 
 - 認可トークン（Cookie）に Secure 属性の設定オプションを追加。
