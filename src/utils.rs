@@ -9,3 +9,18 @@ pub async fn ensure_dir(path: &Path) -> io::Result<()> {
         Err(e) => Err(e),
     }
 }
+
+// Windowsのみ有効
+#[cfg(windows)]
+pub fn ensure_console() {
+    use windows::Win32::System::Console::{
+        AttachConsole, AllocConsole, ATTACH_PARENT_PROCESS,
+    };
+
+    unsafe {
+        // 親プロセスのコンソールへアタッチ
+        if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
+            AllocConsole().unwrap();
+        }
+    }
+}

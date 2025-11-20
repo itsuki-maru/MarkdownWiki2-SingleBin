@@ -48,7 +48,7 @@ pub fn create_default_env(
     application_user_setting_dir: PathBuf,
 ) -> ApplicationInitSetup {
     // ユーザー入力から取得
-    let app_title = prompt("Enter application title", "MarkdownWiki2-SingleBin");
+    let app_title = prompt("Enter application title", "MarkdownWiki2-Single");
     let database_path = application_user_setting_dir.join("markdown-wiki2.sqlite");
     let database_url = format!("sqlite:{}", &database_path.to_string_lossy());
     let image_file_path = application_user_setting_dir.join("images");

@@ -1,3 +1,6 @@
+// Windowsでコンソールを非表示にする設定処理
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use axum::{
     body::Body,
     extract::{Extension, DefaultBodyLimit},
@@ -21,6 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::env;
+use std::process;
 
 mod auth;
 mod custom_responses;
@@ -30,6 +34,8 @@ mod handler;
 mod my_middleware;
 mod scheme;
 mod init;
+mod config;
+mod utils;
 
 use database::{
     setup_database_pool,
@@ -97,8 +103,7 @@ use init::{
 };
 
 use scheme::{MessageApi, AppInit};
-mod config;
-mod utils;
+use utils::ensure_console;
 use config::CONFIG;
 
 #[derive(RustEmbed)]
@@ -145,23 +150,46 @@ async fn main() {
                 .help("ex) -s")
                 .action(clap::ArgAction::SetTrue)
         )
+        .arg(
+            Arg::new("console")
+                .short('c')
+                .long("console")
+                .required(false)
+                .help("ex) -c Windows Only")
+                .action(clap::ArgAction::SetTrue)
+        )
         .get_matches();
 
     let mut host_ip_address: String = String::new();
     let mut host_port: String = String::new();
     let mut is_server_only = false;
-    if let (Some(hostname), Some(port), is_server) = (
+    let mut is_show_console = false;
+    if let (Some(hostname), Some(port), is_server, is_console) = (
         cli.get_one::<String>("host"),
         cli.get_one::<String>("port"),
         cli.get_flag("server"),
+        cli.get_flag("console"),
     ) {
         host_ip_address = hostname.to_string();
         host_port = port.to_string();
         is_server_only = is_server;
+        is_show_console = is_console;
     }
 
     // 起動ソケット
     let addr = format!("{}:{}", host_ip_address, host_port);
+
+    // すでにサーバが起動していないかOS問い合わせ
+    if tokio::net::TcpStream::connect(&addr).await.is_ok() {
+        // すでに起動している場合はブラウザのみを開き終了
+        if !is_server_only {
+            let url = format!("http://{}", &addr);
+            if webbrowser::open(&url).is_ok() {
+                tracing::info!("=================== Open Web Browser ===================");
+            }
+        }
+        process::exit(0);
+    }
 
     // 初期化処理
     let app_setup_path = get_application_user_setup_path();
@@ -315,12 +343,19 @@ async fn main() {
         .await
         .unwrap();
 
-    // サーバーモードでなければブラウザ起動（-sオプションなしの場合）
+    // サーバモードでなければブラウザ起動（-sオプションなしの場合）
     if !is_server_only {
         let url = format!("http://{}", &addr);
         if webbrowser::open(&url).is_ok() {
             tracing::info!("=================== Open Web Browser ===================");
         }
+    }
+
+    // コンソール出力オプション時
+    if is_show_console {
+        // Windows かつ サーバモードの場合はコンソール出力
+        #[cfg(windows)]
+        ensure_console();
     }
 
     tracing::info!("========== Listening on http://{} ==========", addr);
