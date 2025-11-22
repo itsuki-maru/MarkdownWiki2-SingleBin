@@ -10,7 +10,7 @@ pub async fn ensure_dir(path: &Path) -> io::Result<()> {
     }
 }
 
-// Windowsのみ有効
+// コンソール表示処理（Windowsのみ有効）
 #[cfg(windows)]
 pub fn ensure_console() {
     use windows::Win32::System::Console::{
@@ -22,5 +22,25 @@ pub fn ensure_console() {
         if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
             AllocConsole().unwrap();
         }
+    }
+}
+
+
+// コンソール非表示処理（Windowsのみ有効）
+#[cfg(windows)]
+pub fn hide_console() {
+    use windows::Win32::{
+        System::Console::GetConsoleWindow,
+        UI::WindowsAndMessaging::{ShowWindow, SW_HIDE},
+    };
+
+    unsafe {
+        let hwnd = GetConsoleWindow();
+        // console window がない場合
+        if hwnd.is_invalid() {
+            return;
+        }
+        // 非表示処理
+        let _ = ShowWindow(hwnd, SW_HIDE);
     }
 }

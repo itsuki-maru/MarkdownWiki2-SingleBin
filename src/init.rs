@@ -6,6 +6,8 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
 use super::scheme::ApplicationInitSetup;
+#[cfg(windows)]
+use super::utils::{ensure_console, hide_console};
 
 
 pub fn get_application_user_setup_path() -> PathBuf {
@@ -47,6 +49,11 @@ pub fn read_or_create_json_env(setup_file_dir: PathBuf) -> ApplicationInitSetup 
 pub fn create_default_env(
     application_user_setting_dir: PathBuf,
 ) -> ApplicationInitSetup {
+
+    // Windows 環境下にて初回起動時のセットアップのみコンソール出力
+    #[cfg(windows)]
+    ensure_console();
+
     // ユーザー入力から取得
     let app_title = prompt("Enter application title", "MarkdownWiki2-Single");
     let database_path = application_user_setting_dir.join("markdown-wiki2.sqlite");
@@ -64,6 +71,10 @@ pub fn create_default_env(
     let secure_cookie = "true".to_string();
     let rust_log = "markdown_wiki2_single=info,tower_http=info".to_string();
     let allow_user_create_account = "false".to_string();
+
+    // コンソール出力を非表示
+    #[cfg(windows)]
+    hide_console();
 
     ApplicationInitSetup {
         app_title: app_title.clone(),
