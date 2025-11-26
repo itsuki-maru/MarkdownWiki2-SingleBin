@@ -37,7 +37,6 @@ Dockerコンテナを使用してバイナリを作成する用途
 docker build -t markdown-wiki2-single .
 docker run --name markdown-wiki2-app markdown-wiki2-single
 docker cp markdown-wiki2-app:/web/target/release/markdown_wiki2_single .
-docker cp markdown-wiki2-app:/web/dist .
 ```
 
 ## NginxプロキシサーバーをDockerで用意
