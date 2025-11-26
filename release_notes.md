@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.10
+
+- フロントエンドのビルドスクリプト（frontend-builder.sh）を修正
+
 ## Version 1.1.9
 
 - 初回起動時にコンソールが出力されない問題を修正
