@@ -87,8 +87,7 @@ a {
 
 .head1 {
   font-size: 22px;
-  margin-bottom: -1%;
-  border-bottom: solid 3px #d7d7d7;
+  margin-bottom: 1%;
 }
 
 .head2 {
@@ -96,8 +95,8 @@ a {
   color: black;
   margin-top: 2%;
   padding: 0.1em 0.3em;
-  background: #f4f4f4;
-  border-left: solid 5px #daac9e;
+  background: #ebe8e8;
+  border-left: solid 5px #426f9c;
   border-bottom: solid 3px #d7d7d7;
 }
 
