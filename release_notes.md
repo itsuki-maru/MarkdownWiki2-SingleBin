@@ -1,5 +1,13 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.11
+
+- 起動済みサーバの検証に使用するロジックを `TcpStream::connect` から `TcpListener::bind` に変更
+    - connect はハンドシェイクを行うため起動確認に時間がかかる。
+- サーバの起動を `localhost` から `127.0.0.1` に変更
+    - localhost は言わばホスト名であり、IPは v4 か v6 か動的に使われる（2重起動ができてしまう）。
+- Wikiのヘッダのスタイルを変更
+
 ## Version 1.1.10
 
 - フロントエンドのビルドスクリプト（frontend-builder.sh）を修正
