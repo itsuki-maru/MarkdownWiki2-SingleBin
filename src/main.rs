@@ -132,8 +132,8 @@ async fn main() {
                 .value_name("HostName")
                 .required(false)
                 .value_parser(clap::value_parser!(String))
-                .default_value("localhost")
-                .help("ex) -h localhost")
+                .default_value("127.0.0.1")
+                .help("ex) -h 127.0.0.1")
         )
         .arg(
             Arg::new("port")
@@ -181,13 +181,17 @@ async fn main() {
 
     // 起動ソケット
     let addr = format!("{}:{}", host_ip_address, host_port);
+    let browser_url: String = match host_ip_address.trim() { // String から &str
+        "127.0.0.1" => format!("http://localhost:{}", host_port),
+        _ => format!("http://{}:{}", host_ip_address, host_port),
+    };
 
     // すでにサーバが起動していないかOS問い合わせ
-    if tokio::net::TcpStream::connect(&addr).await.is_ok() {
-        // すでに起動している場合はブラウザのみを開き終了
+    if std::net::TcpListener::bind(&addr).is_err() {
+        // バインドを試みエラーの場合は既に起動済みのためブラウザを開き終了
+        tracing::info!("================ Server Already Started ================");
         if !is_server_only {
-            let url = format!("http://{}", &addr);
-            if webbrowser::open(&url).is_ok() {
+            if webbrowser::open(&browser_url).is_ok() {
                 tracing::info!("=================== Open Web Browser ===================");
             }
         }
@@ -348,8 +352,7 @@ async fn main() {
 
     // サーバモードでなければブラウザ起動（-sオプションなしの場合）
     if !is_server_only {
-        let url = format!("http://{}", &addr);
-        if webbrowser::open(&url).is_ok() {
+        if webbrowser::open(&browser_url).is_ok() {
             tracing::info!("=================== Open Web Browser ===================");
         }
     }
