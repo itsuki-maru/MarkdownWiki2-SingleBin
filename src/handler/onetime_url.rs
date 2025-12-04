@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Extension},
+    extract::{Path, Extension, rejection::PathRejection},
     response::{IntoResponse, Html},
     http::{StatusCode, header::HeaderMap}, Json,
 };
@@ -130,7 +130,7 @@ pub async fn temporary_wiki_get_handler(
     headers: HeaderMap,
     Extension(pool): Extension<SqlitePool>,
     Extension(tera): Extension<Arc<Mutex<Tera>>>,
-    Path(url_id): Path<String>,
+    url_id: Result<Path<String>, PathRejection>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     // User-Agentの取り出し
@@ -139,58 +139,105 @@ pub async fn temporary_wiki_get_handler(
     // User-Agentにmobileが含まれているか確認
     let is_mobile = user_agent.map_or(false, |ua| ua.contains("Mobile"));
 
-    let temp_url = query_as!(
-        TemporaryUrl,
-        "SELECT * FROM temporary_urls WHERE id = $1",
-        url_id
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|_| StatusCode::NOT_FOUND)?;
+    match url_id {
+        // 正常な UUID（String） が渡された場合
+        Ok(Path(url_id)) => {
+            let render_html = if is_mobile {
+                "preview-mobile.html"
+            } else {
+                "preview.html"
+            };
 
-    if temp_url.is_expired() {
-        let title = temp_url.title;
-        query!("DELETE FROM temporary_urls WHERE id = $1", url_id)
-            .execute(&pool)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let mut context = Context::new();
-        context.insert("wikititle", &title);
+            let temp_url = query_as!(
+                TemporaryUrl,
+                "SELECT * FROM temporary_urls WHERE id = $1",
+                url_id
+            )
+            .fetch_one(&pool)
+            .await;
 
-        let tera = tera.lock().await;
-        match tera.render("notfound.html", &context) {
-            Ok(renderd) => return Ok(Html(renderd).into_response()),
-            Err(e) => {
-                tracing::error!("{}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            match temp_url {
+                // DBから共有URLの取得に成功した場合
+                Ok(temp_url) => {
+                    // 共有URLが期限切れの場合
+                    if temp_url.is_expired() {
+                        query!("DELETE FROM temporary_urls WHERE id = $1", url_id)
+                            .execute(&pool)
+                            .await
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        let mut context = Context::new();
+
+                        let statuscode = "Not Found".to_string();
+                        let message = "コンテンツが見つかりません。共有の期限切れやURLの入力間違いの可能性があります。".to_string();
+
+                        context.insert("statuscode", &statuscode);
+                        context.insert("message", &message);
+
+                        let tera = tera.lock().await;
+                        match tera.render("notfound.html", &context) {
+                            Ok(renderd) => return Ok(Html(renderd).into_response()),
+                            Err(e) => {
+                                tracing::error!("{}", e);
+                                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                            }
+                        }
+                    // 正常に 共有URLを返却できる場合
+                    } else {
+                        let title = temp_url.title;
+                        let body = temp_url.body;
+
+                        let mut context = Context::new();
+                        context.insert("markdowntitle", &title);
+                        context.insert("markdownbody", &body);
+
+                        let tera = tera.lock().await;
+                        match tera.render(render_html, &context) {
+                            Ok(renderd) => Ok(Html(renderd).into_response()),
+                            Err(e) => {
+                                tracing::error!("{}", e);
+                                Err(StatusCode::INTERNAL_SERVER_ERROR)
+                            }
+                        }
+                    }
+                },
+                // DBから共有URLの取得に失敗した場合
+                Err(_) => {
+                    let mut context = Context::new();
+
+                    let statuscode = "Not Found".to_string();
+                    let message = "コンテンツが見つかりません。共有の期限切れやURLの入力間違いの可能性があります。".to_string();
+
+                    context.insert("statuscode", &statuscode);
+                    context.insert("message", &message);
+
+                    let tera = tera.lock().await;
+                    match tera.render("notfound.html", &context) {
+                        Ok(renderd) => return Ok(Html(renderd).into_response()),
+                        Err(e) => {
+                            tracing::error!("{}", e);
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                        }
+                    }
+                }
             }
-        }
-    }
+        },
+        // 不正な UUID（String） が渡された場合
+        Err(_rejection) => {
+            let mut context = Context::new();
 
-    let title = temp_url.title;
-    let body = temp_url.body;
+            let statuscode = "Not Found".to_string();
+            let message = "コンテンツが見つかりません。共有の期限切れやURLの入力間違いの可能性があります。".to_string();
 
-    let mut context = Context::new();
-    context.insert("markdowntitle", &title);
-    context.insert("markdownbody", &body);
+            context.insert("statuscode", &statuscode);
+            context.insert("message", &message);
 
-    // User-Agentで返却するHTMLを切り替え
-    if is_mobile {
-        let tera = tera.lock().await;
-        match tera.render("preview-mobile.html", &context) {
-            Ok(renderd) => Ok(Html(renderd).into_response()),
-            Err(e) => {
-                tracing::error!("{}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        }
-    } else {
-        let tera = tera.lock().await;
-        match tera.render("preview.html", &context) {
-            Ok(renderd) => Ok(Html(renderd).into_response()),
-            Err(e) => {
-                tracing::error!("{}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            let tera = tera.lock().await;
+            match tera.render("notfound.html", &context) {
+                Ok(renderd) => return Ok(Html(renderd).into_response()),
+                Err(e) => {
+                    tracing::error!("{}", e);
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
             }
         }
     }
