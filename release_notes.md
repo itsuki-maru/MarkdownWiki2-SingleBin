@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.12
+
+- 共有URLのエラーハンドリングを強化
+    - UUID のパースエラー時の処理を適切にハンドリング
+
 ## Version 1.1.11
 
 - 起動済みサーバの検証に使用するロジックを `TcpStream::connect` から `TcpListener::bind` に変更
