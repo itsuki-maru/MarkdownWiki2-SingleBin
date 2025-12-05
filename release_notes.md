@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.13
+
+- ライセンスをフリーウェアに変更
+
 ## Version 1.1.12
 
 - 共有URLのエラーハンドリングを強化
