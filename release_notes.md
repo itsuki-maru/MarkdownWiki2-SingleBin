@@ -1,5 +1,10 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.1.14
+
+- 既存のアクセストークンとリフレッシュトークンを期限0の無効トークンで上書きするAPIを追加
+- `frontends-builder.ps1` PowerShell スクリプトでビルド時は Rust もビルドするように修正
+
 ## Version 1.1.13
 
 - ライセンスをフリーウェアに変更
