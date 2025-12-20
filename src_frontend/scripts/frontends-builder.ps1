@@ -207,3 +207,7 @@ New-Item -Type Directory $distributionDir
 Set-Location $mainDistDir
 Copy-Item -Path "./*" -Destination $distributionDir -Recurse -Force
 Copy-Item -Path $rustTemplatesDir -Destination $distributionDir -Recurse -Force
+
+# プロジェクトディレクトリに移動し、Rustをコンパイル
+Set-Location $prepareDistributionDir
+cargo build --release
