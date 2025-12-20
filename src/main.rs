@@ -48,6 +48,7 @@ use handler::account::{
     refresh_token_handler,
     account_privacy_update_handler,
     get_account_info_handler,
+    disable_token,
 };
 use handler::admin::{
     admin_index_get_handler,
@@ -304,6 +305,7 @@ async fn main() {
         .route("/account/totp/setup", get(totp_setup_handler))
         .route("/account/totp/verify", post(totp_verify_handler))
         .route("/account/totp/disable", get(totp_disable_handler))
+        .route("/account/token/disable", get(disable_token))
         .layer(CookieValidator);
 
     // アクセストークン不要

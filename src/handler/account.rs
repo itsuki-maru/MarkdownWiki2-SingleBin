@@ -581,3 +581,54 @@ fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
     }
     None
 }
+
+// 期限0の無効トークンを発行し、既存のトークンを上書き
+pub async fn disable_token(
+    Extension(user_id): Extension<String>,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+
+    // アクセストークン生成
+    let access_token = create_token(&user_id, 0, "access_token".to_string()).map_err(|_e| {
+        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+
+    // リフレッシュトークン生成
+    let refresh_token = create_token(&user_id, 0, "refresh_token".to_string()).map_err(|_e| {
+        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+
+    // cookieヘッダーの生成
+    let access_token_cookie;
+    let refresh_token_cookie;
+    if CONFIG.secure_cookie {
+        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
+        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+    } else {
+        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
+        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+    }
+
+    let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
+        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+    let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
+        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+
+    let mut builder = Response::builder();
+    if let Some(headers) = builder.headers_mut() {
+        headers.append("Set-Cookie", access_token_cookie_header);
+        headers.append("Set-Cookie", refresh_token_cookie_header);
+    }
+
+    // レスポンスの生成
+    let response = builder
+        .status(StatusCode::OK)
+        .body(axum::body::Body::empty())
+        .map_err(|_e| {
+            custom_error_response(
+                "Failed to create response body.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        }
+    );
+    response
+}
