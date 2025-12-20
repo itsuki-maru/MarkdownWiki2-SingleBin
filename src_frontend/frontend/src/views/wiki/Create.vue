@@ -3,7 +3,7 @@ import type { CreateWikiData, ImageData, WikiData, LocalStrageItem } from "@/int
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, nextTick } from "vue";
 import type { Ref } from "vue";
 import { useRouter } from "vue-router";
-import { createWikiUrl, imageUploadUrl, imageDeleteUrl, getUserUrl } from "@/router/urls";
+import { createWikiUrl, imageUploadUrl, imageDeleteUrl, getUserUrl, disableTokenUrl } from "@/router/urls";
 import { FilterXSS, getDefaultWhiteList } from "xss";
 import type { IFilterXSSOptions } from "xss"
 import { marked, Renderer } from "marked";
@@ -417,8 +417,13 @@ const listRedirect = (): void => {
   router.push("/wiki/list");
 }
 
-// Login.vueへリダイレクト
-const loginRedirect = (): void => {
+// Login.vueへリダイレクト（無効トークンで上書き）
+async function loginRedirect(): Promise<void> {
+  try {
+    await apiClient.get(disableTokenUrl);
+  } catch (error) {
+    console.error(error);
+  }
   router.push("/account/login");
 }
 

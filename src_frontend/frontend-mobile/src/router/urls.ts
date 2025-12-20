@@ -1,6 +1,7 @@
 import { baseUrl } from "@/setting";
 
 export const getTokenUrl = baseUrl + "/account/token";
+export const disableTokenUrl = baseUrl + "/account/token/disable";
 export const getUserUrl = baseUrl + "/account/auth";
 export const getSecretQuestionUrl = baseUrl + "/account/secret-question";
 export const passwordResetUrl = baseUrl + "/account/password_reset";

@@ -6,7 +6,7 @@ import { createWikiUrl, getUserUrl } from "@/router/urls";
 import { useWikiStore } from "@/stores/wikis";
 import { useImageStore } from "@/stores/images";
 import { AxiosError } from "axios";
-import { imageUploadUrl, imageDeleteUrl, getTokenUrl } from "@/router/urls";
+import { imageUploadUrl, imageDeleteUrl, disableTokenUrl } from "@/router/urls";
 import { baseUrl, assetsUrl } from "@/setting";
 import { marked, Renderer } from "marked";
 import { videoToken } from "@/utils/markedSetup";
@@ -152,8 +152,13 @@ const listRedirect = (): void => {
   router.push("/wiki/list");
 }
 
-// "login" Redirect
-const loginRedirect = (): void => {
+// Login.vueへリダイレクト（無効トークンで上書き）
+async function loginRedirect(): Promise<void> {
+  try {
+    await apiClient.get(disableTokenUrl);
+  } catch (error) {
+    console.error(error);
+  }
   router.push("/account/login");
 }
 
