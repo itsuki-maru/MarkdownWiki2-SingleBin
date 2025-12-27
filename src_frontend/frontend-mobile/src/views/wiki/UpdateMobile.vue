@@ -6,93 +6,12 @@ import { updateWikiUrl, getUserUrl } from "@/router/urls";
 import { AxiosError } from "axios";
 import { useWikiStore } from "@/stores/wikis";
 import { useImageStore } from "@/stores/images";
-import { imageUploadUrl, imageDeleteUrl, getTokenUrl } from "@/router/urls";
+import { imageUploadUrl, imageDeleteUrl } from "@/router/urls";
 import { baseUrl, assetsUrl } from "@/setting";
 import { marked, Renderer } from "marked";
 import { videoToken } from "@/utils/markedSetup";
 import apiClient from "@/axiosClient";
-import katex from "katex";
-import "katex/dist/katex.min.css";
-import html2canvas from "html2canvas";
 
-
-// KaTeXによる数式描画機能
-const formula = ref("");
-const renderedFormula = ref("");
-const katexPreviewModal = ref(false);
-const isGenMath = ref(false);
-const onCloseKatexModal = (): void => {
-  if (katexPreviewModal.value) {
-    katexPreviewModal.value = false;
-  } else {
-    katexPreviewModal.value = true;
-  }
-}
-
-watch(formula, () => {
-  renderedFormula.value = katex.renderToString(formula.value, {
-    throwOnError: false,
-  });
-  if (formula.value === "") {
-    isGenMath.value = false;
-  } else {
-    isGenMath.value = true;
-  }
-});
-
-const mathContainer = ref<HTMLElement | null>(null);
-const insertMathImage = async () => {
-  if (mathContainer.value && formula.value !== "") {
-    // キャプチャ前にサイズを固定
-    await nextTick();
-    const originalStyle = mathContainer.value.style.transform;
-    mathContainer.value.style.transform = "scale(1)";
-
-    const canvas = await html2canvas(mathContainer.value, {
-      scale: 1, // スケールを1に固定
-      backgroundColor: null, // 背景を透明化
-      useCORS: true,
-    });
-
-    // 元のスタイルに戻す
-    mathContainer.value.style.transform = originalStyle;
-
-    isImageSendNow.value === true;
-    canvas.toBlob((blob) =>{
-      if (blob) {
-        selectedImageBlob.value = blob;
-        selectedFileName.value = "math.png"
-        uploadImage();
-      } else {
-        isImageSendNow.value === false;
-        selectedFileName.value = "";
-      }
-    });
-  }
-};
-
-const saveMathImage = async () => {
-  if (mathContainer.value && formula.value !== "") {
-    // キャプチャ前にサイズを固定
-    await nextTick();
-    const originalStyle = mathContainer.value.style.transform;
-    mathContainer.value.style.transform = "scale(1)";
-
-    const canvas = await html2canvas(mathContainer.value, {
-      scale: 1, // スケールを1に固定
-      backgroundColor: null, // 背景を透明化
-      useCORS: true,
-    });
-
-    // 元のスタイルに戻す
-    mathContainer.value.style.transform = originalStyle;
-
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "math.png";
-    link.click();
-  }
-};
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -1023,6 +942,16 @@ function insertMarkdown(text: string) {
     navigator.clipboard.writeText(text);
   }
 };
+
+// マークダウン入力支援ボタンの表示・非表示
+const isShowMarkdownInputButton = ref(true);
+function handleMarkdownInputButtons() {
+  if (isShowMarkdownInputButton.value) {
+    isShowMarkdownInputButton.value = false;
+  } else {
+    isShowMarkdownInputButton.value = true;
+  }
+}
 </script>
 
 <template>
@@ -1040,8 +969,8 @@ function insertMarkdown(text: string) {
       class="btn-img" alt="documents_line24.png"></button>
     <button class="btn-head-img" v-on:click="onOpenCloseQRCodeCreateModal"><img
       :src="`${assetsUrl}code_reader_line24.png`" class="btn-img" alt="code_reader_line24.png"></button>
-    <button class="btn-head-img" title="計算式作成" v-on:click="onCloseKatexModal()"><img
-      :src="`${assetsUrl}math24.png`" class="btn-img" alt="math24.png"></button>
+    <button class="btn-head-img" v-on:click="handleMarkdownInputButtons"><img
+      :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png"></button>
   </div>
 
   <!-- 入力フォーム -->
@@ -1069,7 +998,7 @@ function insertMarkdown(text: string) {
       </p>
       <button type="submit" class="btn-post" v-on:click.prevent="updateWiki">+ 更新</button>
     </div>
-    <div class="input-tools">
+    <div class="input-tools" v-if="isShowMarkdownInputButton">
       <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')"><img :src="`${assetsUrl}format_h2_24.png`" class="btn-input-tools-img" alt="format_h2_24.png"></button>
       <button class="btn-input-tools" title="### を挿入" v-on:click="insertMarkdown('### ')"><img :src="`${assetsUrl}format_h3_24.png`" class="btn-input-tools-img" alt="format_h3_24.png"></button>
       <button class="btn-input-tools" title="** を挿入" v-on:click="insertMarkdown('**')"><img :src="`${assetsUrl}format_bold_24.png`" class="btn-input-tools-img" alt="format_bold_24.png"></button>
@@ -1312,20 +1241,6 @@ function insertMarkdown(text: string) {
                 stroke-dasharray="31.4 31.4" />
       </g>
     </svg>
-  </div>
-
-  <!-- 数式作成モーダル -->
-  <div id="overlay-katex-preview" v-show="katexPreviewModal">
-    <div id="content-katex-view">
-      <h2 class="modal-h2">数式作成</h2>
-      <div ref="mathContainer" v-html="renderedFormula" id="content-katex"></div>
-      <textarea class="input-katex" id="input-katex" name="input-katex" v-model="formula"></textarea>
-      <div :class="{ 'btn-zone': isGenMath, 'btn-close': !isGenMath }">
-        <button v-on:click.prevent="onCloseKatexModal()">閉じる</button>
-        <button v-on:click.prevent="saveMathImage()" v-if="isGenMath">保存</button>
-        <button v-on:click.prevent="insertMathImage()" v-if="isGenMath">挿入</button>
-      </div>
-    </div>
   </div>
 </template>
 
