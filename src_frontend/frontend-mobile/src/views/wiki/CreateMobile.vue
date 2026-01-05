@@ -1,17 +1,28 @@
 <script setup lang="ts">
 import type { WikiData, CreateWikiData, ImageData } from "@/interface";
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { createWikiUrl, getUserUrl } from "@/router/urls";
 import { useWikiStore } from "@/stores/wikis";
 import { useImageStore } from "@/stores/images";
 import { AxiosError } from "axios";
-import { imageUploadUrl, imageDeleteUrl, disableTokenUrl } from "@/router/urls";
+import { createWikiUrl, disableTokenUrl, imageUploadUrl, imageDeleteUrl, getUserUrl } from "@/router/urls";
 import { baseUrl, assetsUrl } from "@/setting";
 import { marked, Renderer } from "marked";
 import { videoToken } from "@/utils/markedSetup";
 import apiClient from "@/axiosClient";
 
+
+// 現在ユーザーの取得
+const getCurrentUser = async (): Promise<void> => {
+  try {
+    await apiClient.get(
+      getUserUrl
+    );
+  } catch (error) {
+    loginRedirect();
+  }
+};
+getCurrentUser();
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -50,7 +61,6 @@ const wikiStore = useWikiStore();
 
 // 画像ファイルのデータ管理
 const imageStore = useImageStore();
-imageStore.initList();
 // ImageStoreから取得したデータをMapオブジェクトとして保持
 const imageList = computed(
   (): Map<string, ImageData> => {

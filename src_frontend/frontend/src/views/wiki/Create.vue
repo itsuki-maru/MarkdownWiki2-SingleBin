@@ -192,7 +192,6 @@ renderer.code = (tokens: Tokens.Code) => {
   }
 }
 
-const originalImageRenderer = renderer.image;
 renderer.image = (tokens: Tokens.Image) => {
   let width = "";
   let href = tokens.href;
@@ -287,6 +286,8 @@ watch(content, (newContent) => {
 const localStorageItems = getLocalStrageInfo();
 const isShowTools = ref(false); // マークダウン入力ツール表示コントロール
 const isPreview = ref(true); // プレビューの表示非表示
+const localStrageTitle = localStorage.getItem("wikiTitle");
+const localStrageBody = localStorage.getItem("wikiBody");
 
 if (localStorageItems.isShowToolsFromLocalStrage === null) {
     localStorage.setItem("isShowTools", "false");
@@ -345,6 +346,14 @@ onMounted(() => {
     editor.setFontSize(16);
     // 80文字の縦ラインを消す
     editor.setShowPrintMargin(false);
+    console.log(localStrageTitle, localStrageBody)
+
+    if (localStrageTitle !== null) {
+      createWikiData.value.title = localStrageTitle;
+    }
+    if (localStrageBody !== null) {
+      content.value = localStrageBody;
+    }
   }
   // editorの変更を監視
   editor.on("change", () => {
@@ -413,6 +422,7 @@ const createRedirect = (): void => {
 
 // List.vueへリダイレクト
 const listRedirect = (): void => {
+  // ローカルストレージに保存
   localStorage.setItem("prev-table-data", "");
   router.push("/wiki/list");
 }
@@ -500,6 +510,11 @@ const createWiki = async (): Promise<void> => {
     // タイトルとAceエディタをクリア
     createWikiData.value.title = "";
     createWikiData.value.is_public = false;
+
+    // ローカルストレージをクリア
+    localStorage.setItem("wikiTitle", "");
+    localStorage.setItem("wikiBody", "");
+  
     clearAceEditor();
     createRedirect();
   } catch (error) {
@@ -513,27 +528,10 @@ const createWiki = async (): Promise<void> => {
 // ログイン画面へ遷移
 const onLogout = (): void => {
   localStorage.setItem("loginUser", "");
+  localStorage.setItem("wikiTitle", "");
+  localStorage.setItem("wikiBody", "");
   loginRedirect()
 }
-
-/** 作成中のデータ存在時の画面遷移を確認 */
-const showYesNoMessageContent = ref(false);
-const onOutCheck = (): void => {
-  if (createWikiData.value.title != "" || content.value != "") {
-    showYesNoMessageContent.value = true;
-  } else {
-    listRedirect();
-  }
-}
-
-/** 作成中のデータ存在時の画面遷移を確認後の処理 */
-const onCloseModal = (res: number): void => {
-  if (res === 1) {
-    listRedirect();
-  } else {
-    showYesNoMessageContent.value = false;
-  }
-};
 
 /** 画像送信のモーダル表示・非表示を管理 */
 const showFileUploadContent = ref(false);
@@ -1105,6 +1103,9 @@ const markDownConv = computed(
     const htmlStr = marked.parse(plainText, options);
     const cleanHtml = myXss.process(htmlStr as string);
     const renderHtml = renderIframe(cleanHtml);
+
+    localStorage.setItem("wikiTitle", createWikiData.value.title);
+    localStorage.setItem("wikiBody", content.value);
     return renderHtml;
   }
 );
@@ -1388,7 +1389,7 @@ function insertMarkdown(text: string) {
 <template>
   <div id="btn-head-zone">
     <div class="btn-head-left">
-      <button class="btn-head-image" title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="onOutCheck"><img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
+      <button class="btn-head-image" title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="listRedirect"><img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
       <button class="btn-head-image" title="画像・PDFの挿入画面を表示&#10;ショートカット: Ctrl + 2" v-on:click="openFileUpModal"><img :src="`${assetsUrl}smartphone_line24.png`" class="btn-img" alt="smartphone_line24.png"></button>
       <button v-if="isHttpsProtocol" class="btn-head-image" title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3" v-on:click="openCloseImageListHttpsModal"><img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png"></button>
       <button v-else="isHttpsProtocol" class="btn-head-image" title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3" v-on:click="openImageListModal"><img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png"></button>
@@ -1675,20 +1676,6 @@ function insertMarkdown(text: string) {
       </div>
     </div>
   </transition>
-
-  <transition>
-    <div id="overlay-warn-message" v-show="showYesNoMessageContent">
-      <div id="content-warn-message">
-        <h2 class="modal-h2">メッセージ</h2>
-        <p><strong>作成中のデータがあります。画面の移動した場合、入力データは失われますがよろしいですか？</strong></p>
-        <div class="btn-zone">
-          <button v-on:click="onCloseModal(0)">いいえ</button>
-          <button v-on:click="onCloseModal(1)">はい</button>
-        </div>
-      </div>
-    </div>
-  </transition>
-
   <footer>
     <p class="login-user">ログインユーザー: {{ currentUser }}</p>
   </footer>

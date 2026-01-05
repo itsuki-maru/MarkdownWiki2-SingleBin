@@ -11,17 +11,6 @@ const routeSettings: RouteRecordRaw[] = [
     component: () => {
       return import("@/views/wiki/CreateMobile.vue");
     },
-    beforeEnter: async (to, from, next) => {
-      // 認証確認
-      try {
-        const res = await apiClient.get(getUserUrl);
-        // 正常処理
-        next();
-      } catch (error) {
-        // 失敗したらログイン画面に飛ばす
-        next({ name: "login" });
-      }
-    }
   },
   {
     path: "/wiki/list",
@@ -29,17 +18,6 @@ const routeSettings: RouteRecordRaw[] = [
     component: () => {
       return import("@/views/wiki/ListMobile.vue");
     },
-    beforeEnter: async (to, from, next) => {
-      // 認証確認
-      try {
-        const res = await apiClient.get(getUserUrl);
-        // 正常処理
-        next();
-      } catch (error) {
-        // 失敗したらログイン画面に飛ばす
-        next({ name: "login" });
-      }
-    }
   },
   {
     path: "/wiki/preview/:id",

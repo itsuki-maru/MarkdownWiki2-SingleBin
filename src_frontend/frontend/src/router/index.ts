@@ -12,19 +12,6 @@ const routeSettings: RouteRecordRaw[] = [
     component: () => {
       return import("@/views/wiki/Create.vue");
     },
-    beforeEnter: async (to, from, next) => {
-      // 認証確認
-      try {
-        const res = await apiClient.get(getUserUrl);
-        // 認証に成功したら画像一覧データを取得
-        const imageStore = useImageStore();
-        imageStore.initList();
-        next();
-      } catch (error) {
-        // 失敗したらログイン画面に飛ばす
-        next({ name: "login" });
-      }
-    }
   },
   {
     path: "/wiki/list",
@@ -32,17 +19,6 @@ const routeSettings: RouteRecordRaw[] = [
     component: () => {
       return import("@/views/wiki/List.vue");
     },
-    beforeEnter: async (to, from, next) => {
-      // 認証確認
-      try {
-        const res = await apiClient.get(getUserUrl);
-        // 正常処理
-        next();
-      } catch (error) {
-        // 失敗したらログイン画面に飛ばす
-        next({ name: "login" });
-      }
-    }
   },
   {
     path: "/wiki/preview/:id",

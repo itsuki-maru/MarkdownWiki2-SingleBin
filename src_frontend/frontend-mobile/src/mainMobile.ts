@@ -5,6 +5,7 @@ import router from './router/indexMobile'
 import { assetsUrl } from "@/setting";
 import "./style.css";
 import { useApplicationInitStore } from "./stores/appInits";
+import { useImageStore } from "./stores/images";
 import './assets/github.css'
 
 const app = createApp(App)
@@ -29,5 +30,9 @@ if ("serviceWorker" in navigator) {
 useApplicationInitStore(pinia).init().finally(() => {
     const appInitStore = useApplicationInitStore();
     appInitStore.init();
+
+    const imagesStore = useImageStore();
+    imagesStore.initList();
+
     app.mount("#app");
 });
