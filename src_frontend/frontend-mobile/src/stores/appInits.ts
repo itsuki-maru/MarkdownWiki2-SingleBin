@@ -14,8 +14,7 @@ interface State {
     appInitData: ApplicationInit
 };
 
-export const useApplicationInitStore = defineStore({
-    id: "appInits",
+export const useApplicationInitStore = defineStore("appInits", {
     state: (): State => {
         return {
             appInitData: DEFAULT_STATE

@@ -197,7 +197,7 @@ const signupPost = async (): Promise<void> => {
       if (axiosError.response) {
         const errorStatus = axiosError.response.data["error"];
 
-        if (errorStatus === "Conflict") {
+        if (errorStatus === "unauthorized error: Conflict") {
           messageModalOpenClose("既に使用されているユーザー名です。");
 
         } else {

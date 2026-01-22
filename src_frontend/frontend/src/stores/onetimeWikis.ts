@@ -7,8 +7,7 @@ interface State {
     onetimeWikiList: Map<string, OneTimeWikis>;
 }
 
-export const useOnetimeWikiStore = defineStore({
-    id: "onetimeWikis",
+export const useOnetimeWikiStore = defineStore("onetimeWikis", {
     state: (): State => {
         return {
             onetimeWikiList: new Map<string, OneTimeWikis>()

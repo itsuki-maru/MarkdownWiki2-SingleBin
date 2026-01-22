@@ -7,8 +7,7 @@ interface State {
     wikiList: Map<string, WikiData>;
 }
 
-export const useWikiStore = defineStore({
-    id: "wiki",
+export const useWikiStore = defineStore("wiki", {
     state: (): State => {
         return {
             wikiList: new Map<string, WikiData>()

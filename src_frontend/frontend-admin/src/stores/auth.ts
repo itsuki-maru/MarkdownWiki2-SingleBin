@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 
-export const useAuthStore = defineStore({
-    id: "auth",
+export const useAuthStore = defineStore("auth", {
     state: () => ({
         isAuthenticated: true, // デフォルトでは認証されているとする
     }),

@@ -7,8 +7,7 @@ interface State {
     usersList: Map<string, UserData>;
 }
 
-export const useUsersStore = defineStore({
-    id: "user",
+export const useUsersStore = defineStore("user", {
     state: (): State => {
         return {
             usersList: new Map<string, UserData>()

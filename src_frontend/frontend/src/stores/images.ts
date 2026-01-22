@@ -7,8 +7,7 @@ interface State {
     imageList: Map<string, ImageData>;
 }
 
-export const useImageStore = defineStore({
-    id: "images",
+export const useImageStore = defineStore("images", {
     state: (): State => {
         return {
             imageList: new Map<string, ImageData>()

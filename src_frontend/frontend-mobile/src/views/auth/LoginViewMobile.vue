@@ -62,19 +62,19 @@ const loginPost = async (): Promise<void> => {
       if (axiosError.response) {
         const errorStatus = axiosError.response.data["error"];
 
-        if (errorStatus === "Unauthorized") {
+        if (errorStatus === "unauthorized error: Unauthorized") {
           messageModalOpenClose("パスワードかユーザー名が間違っています。");
 
-        } else if (errorStatus === "LockedAccount") {
+        } else if (errorStatus === "unauthorized error: LockedAccount") {
           messageModalOpenClose("アカウントがロックされています。");
 
-        } else if (errorStatus === "PleaseWait") {
+        } else if (errorStatus === "unauthorized error: PleaseWait") {
           messageModalOpenClose("複数回の間違いにより、時間制限が設定されています。");
 
-        } else if (errorStatus === "UnauthorizedPleaseWait") {
+        } else if (errorStatus === "unauthorized error: UnauthorizedPleaseWait") {
           messageModalOpenClose("複数回の間違いがあったため、時間をおいてから再度ログインしてください。");
 
-        } else if (errorStatus === "Locked") {
+        } else if (errorStatus === "unauthorized error: Locked") {
           messageModalOpenClose("複数回の失敗により、アカウントがロックされました。管理者に連絡してください。");
 
         } else {
@@ -118,14 +118,14 @@ const tokenPost = async (): Promise<void> => {
         const errorStatus = axiosError.response.data["error"];
         console.log(errorStatus);
 
-        if (errorStatus === "NoAuth") {
+        if (errorStatus === "unauthorized error: NoAuth") {
           messageModalOpenClose("トークンが不正です。");
 
-        } else if (errorStatus === "Time Over.") {
+        } else if (errorStatus === "unauthorized error: Time Over.") {
           messageModalOpenClose("時間切れとなりました。再度ログインしてください。");
           isTotpPostModal.value = false;
 
-        } else if (errorStatus === "NoBasicAuth") {
+        } else if (errorStatus === "unauthorized error: NoBasicAuth") {
           messageModalOpenClose("不正な操作です。");
 
         } else {
