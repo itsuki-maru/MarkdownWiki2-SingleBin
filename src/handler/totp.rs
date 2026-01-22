@@ -10,8 +10,8 @@ use base32::Alphabet;
 use rand::Rng;
 use serde_json::json;
 use chrono::{Duration, Utc};
-use super::super::custom_responses::custom_error_response;
-use super::super::scheme::{
+use crate::error::AppError;
+use crate::scheme::{
     MessageApi,
     TotpSetupResponse,
     TotpVerifyRequest,
@@ -21,7 +21,7 @@ use super::super::scheme::{
     GetUserNameFromDb,
 };
 use chrono::NaiveDateTime;
-use super::super::auth::create_token;
+use crate::auth::create_token;
 use crate::config::CONFIG;
 
 
@@ -29,10 +29,9 @@ use crate::config::CONFIG;
 pub async fn totp_setup_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> impl IntoResponse {
-     let secret_bytes: [u8; 20] = rand::thread_rng().r#gen(); // 2024 Editionで `gen` は予約語であるため修正
+) -> Result<impl IntoResponse, AppError> {
+    let secret_bytes: [u8; 20] = rand::thread_rng().r#gen(); // 2024 Editionで `gen` は予約語であるため修正
     let secret_base32 = base32::encode(Alphabet::RFC4648 { padding: false }, &secret_bytes);
-
 
     let user = query_as!(
         GetUserNameFromDb,
@@ -41,11 +40,9 @@ pub async fn totp_setup_handler(
     )
     .fetch_one(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response(
-            "Failed to request.",
-            StatusCode::BAD_REQUEST,
-        )
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
     })?;
 
     let totp = TOTP::new(
@@ -58,50 +55,35 @@ pub async fn totp_setup_handler(
         user.username.clone(),
     )
     .map_err(|_e| {
-        custom_error_response(
-            "Failed to create response body.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
+        AppError::InternalServerError
     });
 
     match totp {
         Ok(totp) => {
             let url = totp.get_url();
-            let result = query!(
+            let query_result = query!(
                 "UPDATE user_model SET totp_temp_secret = $1 WHERE id = $2",
                 secret_base32,
                 user_id,
             )
             .execute(&pool)
-            .await;
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "database error.");
+                AppError::Sqlx(e)
+            })?;
 
-            match result {
-                Ok(query_result) => {
-                    let affected_rows = query_result.rows_affected();
-                    if affected_rows > 0 {
-                        Ok(Json(TotpSetupResponse {
-                            otpauth_url: url,
-                            secret_base32: secret_base32,
-                        }))
-                    } else {
-                        Err(custom_error_response(
-                            "Not update user.",
-                            StatusCode::BAD_REQUEST,
-                        ))
-                    }
-                },
-                Err(_) => Err(custom_error_response(
-                    "User totp setup failed.",
-                    StatusCode::BAD_REQUEST,
-                ))
+            let affected_rows = query_result.rows_affected();
+            if affected_rows > 0 {
+                Ok(Json(TotpSetupResponse {
+                    otpauth_url: url,
+                    secret_base32: secret_base32,
+                }))
+            } else {
+                Err(AppError::BadRequest)
             }
         },
-        Err(_) => {
-            Err(custom_error_response(
-                "User totp setup failed.",
-                StatusCode::BAD_REQUEST,
-            ))
-        }
+        Err(_) => Err(AppError::BadRequest)
     }
 }
 
@@ -110,7 +92,7 @@ pub async fn totp_verify_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<TotpVerifyRequest>,
-) -> Result<Json<MessageApi>, impl IntoResponse> {
+) -> Result<Json<MessageApi>, AppError> {
 
     let result = query_as!(
         TotpTempSecret,
@@ -119,18 +101,13 @@ pub async fn totp_verify_handler(
     )
     .fetch_one(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        )
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
     })?;
 
     if result.totp_temp_secret == "" {
-        return Err(custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        ));
+        return Err(AppError::Unauthorized("Unauthorized".into()));
     };
 
     let totp = TOTP::new(
@@ -143,17 +120,11 @@ pub async fn totp_verify_handler(
         user_id.to_string().into()
     )
     .map_err(|_e| {
-        custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        )
+        AppError::Unauthorized("Unauthorized".into())
     })?;
 
     if !totp.check_current(&payload.token).unwrap_or(false) {
-        return Err(custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        ));
+        return Err(AppError::Unauthorized("Unauthorized".into()));
     };
 
     // 検証成功時は本番用に昇格
@@ -166,11 +137,9 @@ pub async fn totp_verify_handler(
     )
     .execute(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response(
-            "Internal Server Error",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
     })?;
 
     Ok(Json(MessageApi { message: "Success TOTP 2FA enabled.".to_string() }))
@@ -181,11 +150,12 @@ pub async fn totp_verify_handler(
 pub async fn token_totp_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<TotpLoginPayload>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
     // ユーザーIDからユーザーを取得
     let user = query_as!(
         UserAccountModel,
-        "SELECT
+        r#"
+        SELECT
             id,
             username,
             password,
@@ -200,24 +170,20 @@ pub async fn token_totp_handler(
             totp_secret,
             totp_temp_secret
         FROM user_model
-        WHERE id = $1",
+        WHERE id = $1
+        "#,
         payload.user_id
     )
     .fetch_one(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        )
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
     })?;
 
     // パスワードベーシック認証を成功していなければエラーレスポンス
     if !user.is_basic_authed {
-        return Err(custom_error_response(
-            "NoBasicAuth",
-            StatusCode::UNAUTHORIZED,
-        ));
+        return Err(AppError::Unauthorized("NoBasicAuth".into()));
     }
 
     // 3分以内か検証
@@ -226,14 +192,11 @@ pub async fn token_totp_handler(
 
         match parse_naive_datetime(&user.is_basic_authed_at) {
             Some(next) if Utc::now().naive_utc() - next > expiry => {
-                return Err(custom_error_response(
-                    "Time Over.",
-                    StatusCode::UNAUTHORIZED,
-                ));
+                return Err(AppError::Unauthorized("Time Over.".into()));
             }
             Some(_) => {}
             None => {
-                return Err(custom_error_response("Parse Error.", StatusCode::INTERNAL_SERVER_ERROR));
+                return Err(AppError::Validation("Parse Error.".into()));
             }
         }
     }
@@ -248,39 +211,38 @@ pub async fn token_totp_handler(
         payload.user_id.clone().to_string(),
     )
     .map_err(|_e| {
-        custom_error_response(
-            "Failed to create response body.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
+        AppError::InternalServerError
     })?;
 
     if !totp.check_current(&payload.totp_token).unwrap_or(false) {
-        return Err(custom_error_response(
-            "NoAuth",
-            StatusCode::UNAUTHORIZED,
-        ));
+        return Err(AppError::Unauthorized("NoAuth".into()));
     }
 
     // ログインに成功したらfailed_countをリセット
-    query!("UPDATE user_model SET failed_count = $1 WHERE id = $2", 0, user.id)
-        .execute(&pool)
-        .await
-        .map_err(|_e| {
-            custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        }
-    )?;
+    query!(
+        r#"
+        UPDATE user_model
+        SET failed_count = $1
+        WHERE id = $2
+        "#,
+        0,
+        user.id
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     // アクセストークン生成
     let access_token = create_token(&user.id, CONFIG.access_token_exp_minutes, "access_token".to_string()).map_err(|_e| {
-        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+        AppError::InternalServerError
     })?;
 
     // リフレッシュトークン生成
     let refresh_token = create_token(&user.id, CONFIG.refresh_token_exp_minutes, "refresh_token".to_string()).map_err(|_e| {
-        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+        AppError::InternalServerError
     })?;
 
     // cookieヘッダーの生成
@@ -295,9 +257,9 @@ pub async fn token_totp_handler(
     }
 
     let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+        AppError::InternalServerError})?;
     let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+        AppError::InternalServerError})?;
 
     // レスポンスボディの情報
     let body = json!({
@@ -308,16 +270,21 @@ pub async fn token_totp_handler(
     }).to_string();
 
     // ベーシック認証確認済みのフラグのフラグをfalseへ初期化
-    query!("UPDATE user_model SET is_basic_authed = $1 WHERE id = $2", false, user.id)
-        .execute(&pool)
-        .await
-        .map_err(|_e| {
-            custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        }
-    )?;
+    query!(
+        r#"
+        UPDATE user_model
+        SET is_basic_authed = $1
+        WHERE id = $2
+        "#,
+        false,
+        user.id
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut builder = Response::builder();
     if let Some(headers) = builder.headers_mut() {
@@ -330,12 +297,8 @@ pub async fn token_totp_handler(
         .status(StatusCode::OK)
         .body(body)
         .map_err(|_e| {
-            custom_error_response(
-                "Failed to create response body.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        }
-    )?;
+            AppError::InternalServerError
+        })?;
     Ok(response)
 }
 
@@ -343,34 +306,31 @@ pub async fn token_totp_handler(
 pub async fn totp_disable_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<MessageApi>, impl IntoResponse> {
+) -> Result<Json<MessageApi>, AppError> {
     // 無効化
     let blank_text = "".to_string();
-    let result = query!(
-        "UPDATE user_model SET totp_secret = $1, totp_temp_secret = $2 WHERE id = $3",
+    let query_result = query!(
+        r#"
+        UPDATE user_model
+        SET totp_secret = $1, totp_temp_secret = $2
+        WHERE id = $3
+        "#,
         blank_text,
         blank_text,
         user_id,
     )
     .execute(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(query_result) => {
-            let affected_rows = query_result.rows_affected();
-            if affected_rows > 0 {
-                Ok(Json(MessageApi { message: "Success TOTP 2FA disabled.".to_string() }))
-            } else {
-                Err(custom_error_response(
-                    "Failed TOTP 2FA disable.",
-                    StatusCode::UNAUTHORIZED,
-                ))
-            }
-        },
-        Err(_) => Err(custom_error_response(
-            "Failed TOTP 2FA disable.",
-            StatusCode::UNAUTHORIZED,
-        ))
+    let affected_rows = query_result.rows_affected();
+    if affected_rows > 0 {
+        Ok(Json(MessageApi { message: "Success TOTP 2FA disabled.".to_string() }))
+    } else {
+        Err(AppError::Unauthorized("Failed TOTP 2FA disable.".into()))
     }
 }
 

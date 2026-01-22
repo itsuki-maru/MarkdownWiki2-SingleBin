@@ -17,10 +17,13 @@ pub fn ensure_console() {
         AttachConsole, AllocConsole, ATTACH_PARENT_PROCESS,
     };
 
-    unsafe {
-        // 親プロセスのコンソールへアタッチ
-        if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
-            AllocConsole().unwrap();
+    // 開発時のみ
+    if !cfg!(debug_assertions) {
+        unsafe {
+            // 親プロセスのコンソールへアタッチ
+            if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
+                AllocConsole().unwrap();
+            }
         }
     }
 }

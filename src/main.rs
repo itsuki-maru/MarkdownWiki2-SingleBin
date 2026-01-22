@@ -27,7 +27,7 @@ use std::env;
 use std::process;
 
 mod auth;
-mod custom_responses;
+mod error;
 mod image_ext_validator;
 mod database;
 mod handler;
@@ -102,12 +102,11 @@ use init::{
     read_or_create_json_env,
     get_application_user_setup_path,
 };
-
 use scheme::{MessageApi, AppInit};
 
 #[cfg(windows)]
 use utils::ensure_console;
-
+use error::AppError;
 use config::CONFIG;
 
 #[derive(RustEmbed)]
@@ -182,7 +181,7 @@ async fn main() {
 
     // 起動ソケット
     let addr = format!("{}:{}", host_ip_address, host_port);
-    let browser_url: String = match host_ip_address.trim() { // String から &str
+    let mut browser_url: String = match host_ip_address.trim() { // String から &str
         "127.0.0.1" => format!("http://localhost:{}", host_port),
         _ => format!("http://{}:{}", host_ip_address, host_port),
     };
@@ -273,6 +272,8 @@ async fn main() {
     // 開発時のみ Vue3 のサーバを許可オリジンに追加
     if cfg!(debug_assertions) {
         cors = cors.allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap());
+        // 開発時は localhost:5173 でブラウザをオープンするため書き換え
+        browser_url = "http://localhost:5173".to_string();
     }
 
     // アクセストークンによる認可を要する
@@ -396,7 +397,7 @@ async fn health_check_handler() -> Json<MessageApi> {
 // INDEX HTML GET HANDLER
 async fn index_handler(
     headers: HeaderMap,
-) -> Result<Html<String>, impl IntoResponse> {
+) -> Result<Html<String>, AppError> {
     // User-Agent取り出し
     let user_agent = headers.get("user-agent").and_then(|ua| ua.to_str().ok());
 
@@ -417,17 +418,17 @@ async fn index_handler(
             let html_content = String::from_utf8(content.data.into_owned()).unwrap();
             Ok(Html(html_content))
         }
-        None => Err((StatusCode::NOT_FOUND, "Content not foubnd").into_response())
+        None => Err(AppError::NotFound)
     }
 }
 
-async fn licenses_get_handler() -> Result<Html<String>, impl IntoResponse> {
+async fn licenses_get_handler() -> Result<Html<String>, AppError> {
     match Asset::get("licenses.html") {
         Some(content) => {
             let html_content = String::from_utf8(content.data.into_owned()).unwrap();
             Ok(Html(html_content))
         }
-        None => Err((StatusCode::NOT_FOUND, "Content not foubnd").into_response())
+        None => Err(AppError::NotFound)
     }
 }
 
@@ -436,7 +437,7 @@ async fn custom_not_found_handler(_: Request<Body>) -> impl IntoResponse {
     Redirect::permanent("/index")
 }
 
-async fn serve_favicon() -> Result<Response<Body>, impl IntoResponse> {
+async fn serve_favicon() -> Result<Response<Body>, AppError> {
     match Asset::get("assets/favicon.ico") {
         Some(content) => {
             let body = content.data.into_owned();
@@ -447,7 +448,7 @@ async fn serve_favicon() -> Result<Response<Body>, impl IntoResponse> {
                 .expect("Failed to construct response");
             Ok(response)
         }
-        None => Err((StatusCode::NOT_FOUND, "Content not foubnd").into_response())
+        None => Err(AppError::NotFound)
     }
 }
 

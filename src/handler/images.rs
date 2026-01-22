@@ -1,7 +1,6 @@
 use axum::{
     extract::{Path, Extension},
-    response::IntoResponse,
-    http::StatusCode, Json,
+    Json,
 };
 use futures_util::TryStreamExt as _;
 use sqlx::sqlite::SqlitePool;
@@ -15,16 +14,16 @@ use std::collections::HashMap;
 use std::path::Path as StdPath;
 use std::path::PathBuf;
 use chrono::Utc;
-use super::super::custom_responses::custom_error_response;
-use super::super::scheme::{
+use crate::error::AppError;
+use crate::scheme::{
     DeletedImageResponse,
     ImageData,
     ReturningId,
     ImageIdNameDeleted,
     UploadResponseImage,
 };
-use super::super::image_ext_validator::check_file_extension;
-use super::super::utils::ensure_dir;
+use crate::image_ext_validator::check_file_extension;
+use crate::utils::ensure_dir;
 use crate::config::CONFIG;
 
 // GET IMAGES LIMIT
@@ -32,26 +31,28 @@ pub async fn get_enable_images_limit_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(limit): Path<i64>,
-) -> Result<Json<HashMap<String, ImageData>>, impl IntoResponse> {
+) -> Result<Json<HashMap<String, ImageData>>, AppError> {
 
-    let result = query_as!(
+    let images = query_as!(
         ImageData,
-        "SELECT id, user_id, filename, uuid_filename FROM image_model WHERE user_id = $1 ORDER BY id DESC LIMIT $2",
+        r#"
+        SELECT
+            id,
+            user_id,
+            filename,
+            uuid_filename
+        FROM image_model
+        WHERE user_id = $1 ORDER BY id DESC LIMIT $2
+        "#,
         user_id,
         limit,
     )
     .fetch_all(&pool)
-    .await;
-
-    let images = match result {
-        Ok(images) => images,
-        Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    };
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut images_hash_map = HashMap::new();
     for image in images {
@@ -66,25 +67,27 @@ pub async fn get_enable_images_limit_handler(
 pub async fn get_enable_images_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<HashMap<String, ImageData>>, impl IntoResponse> {
+) -> Result<Json<HashMap<String, ImageData>>, AppError> {
 
-    let result = query_as!(
+    let images = query_as!(
         ImageData,
-        "SELECT id, user_id, filename, uuid_filename FROM image_model WHERE user_id = $1",
+        r#"
+        SELECT
+            id,
+            user_id,
+            filename,
+            uuid_filename
+        FROM image_model
+        WHERE user_id = $1
+        "#,
         user_id,
     )
     .fetch_all(&pool)
-    .await;
-
-    let images = match result {
-        Ok(images) => images,
-        Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    };
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut images_hash_map = HashMap::new();
     for image in images {
@@ -100,7 +103,7 @@ pub async fn upload_image_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     mut payload: axum::extract::Multipart,
-) -> Result<Json<UploadResponseImage>, impl IntoResponse> {
+) -> Result<Json<UploadResponseImage>, AppError> {
 
     // 現在時刻を取得
     let now = Utc::now().naive_utc();
@@ -112,7 +115,7 @@ pub async fn upload_image_handler(
     while let Some(field) = payload
         .next_field()
         .await
-        .map_err(|_e| StatusCode::BAD_REQUEST)?
+        .map_err(|_e| AppError::BadRequest)?
     {
         // UUIDを生成
         let uuid = Uuid::now_v7();
@@ -125,7 +128,7 @@ pub async fn upload_image_handler(
 
         match ensure_dir(&dir_path).await {
             Ok(_) => {},
-            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            Err(_) => return Err(AppError::InternalServerError),
         }
 
         // アップロードされたファイル名を取得
@@ -136,13 +139,13 @@ pub async fn upload_image_handler(
         let file_name_path = StdPath::new(&original_name);
         let ext = match file_name_path.extension() {
             Some(ext) => ext.to_string_lossy(),
-            None => return Err(StatusCode::BAD_REQUEST),
+            None => return Err(AppError::BadRequest),
         };
 
         // 拡張子によるファイル検査
         let valid_ext = match check_file_extension(ext.to_string()) {
             Ok(valid_ext) => valid_ext,
-            Err(_) => return Err(StatusCode::BAD_REQUEST),
+            Err(_) => return Err(AppError::UnsupportedMediaType),
         };
 
         // 画像ファイルの場合EXIF情報などを除去して保存
@@ -152,7 +155,7 @@ pub async fn upload_image_handler(
             // 一時ファイルを作成
             let mut temp_file = match File::create(&temp_file_path).await {
                 Ok(file) => file,
-                Err(_) => return Err(StatusCode::BAD_REQUEST),
+                Err(_) => return Err(AppError::BadRequest),
             };
 
             // 作成した一時ファイルにストリームでデータを流し込む
@@ -160,43 +163,43 @@ pub async fn upload_image_handler(
             StreamReader::new(field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
 
             if let Err(_) = tokio::io::copy(&mut stream, &mut temp_file).await {
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                return Err(AppError::InternalServerError);
             }
 
             // 画像を読み込みEXIF情報を削除し、元の形式で保存
             let temp_file_data = tokio::fs::read(&temp_file_path)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
             let img_reader = ImageReader::new(Cursor::new(&temp_file_data))
                 .with_guessed_format()
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
             let img = &img_reader.decode()
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
             let format = match ImageFormat::from_path(&temp_file_path) {
                 Ok(format) => format,
-                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => return Err(AppError::InternalServerError),
             };
 
             // 最終ファイルを作成
             let final_file_path = format!("{}/{}.{}", dir_path.to_string_lossy(), uuid, valid_ext);
             let mut final_file = File::create(&final_file_path)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
             let mut output_data = Vec::new();
             img.write_to(&mut Cursor::new(&mut output_data), format)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
             final_file.write_all(&output_data)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
             // 一時ファイルを削除
             tokio::fs::remove_file(&temp_file_path)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
 
         // PDFファイルや動画ファイルの処理
@@ -207,7 +210,7 @@ pub async fn upload_image_handler(
             // ファイルを作成
             let mut file = match File::create(file_path).await {
                 Ok(file) => file,
-                Err(_) => return Err(StatusCode::BAD_REQUEST),
+                Err(_) => return Err(AppError::BadRequest),
             };
 
             // 作成したファイルにストリームでデータを流し込む
@@ -215,7 +218,7 @@ pub async fn upload_image_handler(
             StreamReader::new(field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
             
             if let Err(_) = tokio::io::copy(&mut stream, &mut file).await {
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                return Err(AppError::InternalServerError);
             }
         }
 
@@ -225,10 +228,19 @@ pub async fn upload_image_handler(
         let save_unique_filename = unique_filename.clone();
 
         // DBに保存する処理
-        let rec = query_as!(
+        query_as!(
             ReturningId,
-            "INSERT INTO image_model (id, user_id, filename, uuid_filename, create_at)
-            VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            r#"
+            INSERT INTO image_model (
+                id,
+                user_id,
+                filename,
+                uuid_filename,
+                create_at
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            "#,
             save_image_id,
             user_id,
             original_name,
@@ -236,14 +248,13 @@ pub async fn upload_image_handler(
             now,
         )
         .fetch_one(&pool)
-        .await;
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
-        match rec {
-            Ok(_) => {
-                original_filename = original_name;
-            }
-            Err(_) => return Err(StatusCode::BAD_REQUEST),
-        }
+        original_filename = original_name;
     }
     Ok(Json(UploadResponseImage {
         new_image_id: new_image_id,
@@ -253,12 +264,12 @@ pub async fn upload_image_handler(
     }))
 }
 
-// DELETE IMAGE
+// 画像削除ハンドラー
 pub async fn delete_image_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(image_id): Path<String>,
-) -> Result<Json<DeletedImageResponse>, impl IntoResponse> {
+) -> Result<Json<DeletedImageResponse>, AppError> {
 
     // UUID文字列から先頭5文字を取得
     let sub_dir = &image_id.to_string()[0..5];
@@ -266,38 +277,33 @@ pub async fn delete_image_handler(
     // サブディレクトリパス
     let dir_path = PathBuf::from(CONFIG.upload_file_path.clone()).join(sub_dir);
 
-    let result = query_as!(
+    let deleted_image = query_as!(
         ImageIdNameDeleted,
-        "DELETE FROM image_model WHERE id = $1 AND user_id = $2 RETURNING id, uuid_filename",
+        r#"
+        DELETE FROM image_model
+        WHERE id = $1 AND user_id = $2
+        RETURNING id, uuid_filename
+        "#,
         image_id,
         user_id
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(deleted_image) => {
-            let file_path = format!("{}/{}", dir_path.to_string_lossy(), &deleted_image.uuid_filename);
-            match std::fs::remove_file(file_path) {
-                Ok(_) => {
-                    return Ok(Json(DeletedImageResponse {
-                        id: deleted_image.id,
-                        message: "Delete Ok.".to_string(),
-                    }))
-                }
-                Err(_) => {
-                    return Err(custom_error_response(
-                        "Internal Server Error.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
-            }
+    let file_path = format!("{}/{}", dir_path.to_string_lossy(), &deleted_image.uuid_filename);
+    match std::fs::remove_file(file_path) {
+        Ok(_) => {
+            Ok(Json(DeletedImageResponse {
+                id: deleted_image.id,
+                message: "Delete Ok.".to_string(),
+            }))
         }
         Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
+            Err(AppError::NotFound)
         }
     }
 }

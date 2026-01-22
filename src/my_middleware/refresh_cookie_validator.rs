@@ -1,4 +1,4 @@
-use super::super::auth::verify_refresh_token;
+use crate::auth::verify_refresh_token;
 use axum::response::IntoResponse;
 use axum::{
     body::Body,

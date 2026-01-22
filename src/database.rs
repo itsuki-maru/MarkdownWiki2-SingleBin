@@ -100,9 +100,15 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
         "#,
     ];
 
+    // トランザクションの開始
+    let mut tx = pool.begin().await?;
+
     for schema in schemas {
-        sqlx::query(schema).execute(pool).await?;
+        sqlx::query(schema).execute(&mut *tx).await?;
     }
+
+    // トランザクションの終了
+    tx.commit().await?;
 
     Ok(())
 }
@@ -133,6 +139,9 @@ async fn insert_initial_admin_data(
     pool: &Pool<Sqlite>
 ) -> Result<(), sqlx::Error> {
 
+    // トランザクションの開始
+    let mut tx = pool.begin().await?;
+
     let now = Utc::now().naive_utc();
     let yesterday;
     match TimeDelta::try_days(1) {
@@ -155,8 +164,26 @@ async fn insert_initial_admin_data(
 
     let result = query_as!(
         ReturningId,
-        "INSERT INTO user_model (id, username, public_name, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+        r#"
+        INSERT INTO user_model (
+            id,
+            username,
+            public_name,
+            password,
+            create_at,
+            is_superuser,
+            failed_count,
+            next_challenge_time,
+            is_locked,
+            is_private,
+            is_basic_authed,
+            is_basic_authed_at,
+            totp_secret,
+            totp_temp_secret
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING id
+        "#,
         new_admin_id,
         CONFIG.admin_user_name,
         CONFIG.admin_user_name,
@@ -172,7 +199,7 @@ async fn insert_initial_admin_data(
         totp_secret,
         totp_temp_secret,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await;
 
     match result {
@@ -194,8 +221,18 @@ async fn insert_initial_admin_data(
 
     let result = query_as!(
         ReturningId,
-        "INSERT INTO application_settings (id, setting_key, setting_value, description, create_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)  RETURNING id",
+        r#"
+        INSERT INTO application_settings (
+            id,
+            setting_key,
+            setting_value,
+            description,
+            create_at,
+            updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+        "#,
         new_settings_id,
         setting_value,
         CONFIG.failed_count,
@@ -203,7 +240,7 @@ async fn insert_initial_admin_data(
         now,
         now,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await;
 
     match result {
@@ -223,8 +260,18 @@ async fn insert_initial_admin_data(
 
     let result = query_as!(
         ReturningId,
-        "INSERT INTO application_settings (id, setting_key, setting_value, description, create_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)  RETURNING id",
+        r#"
+        INSERT INTO application_settings (
+            id,
+            setting_key,
+            setting_value,
+            description,
+            create_at,
+            updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+        "#,
         new_settings_id,
         setting_value,
         CONFIG.next_challenge_minutes,
@@ -232,7 +279,7 @@ async fn insert_initial_admin_data(
         now,
         now,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await;
 
     match result {
@@ -252,8 +299,18 @@ async fn insert_initial_admin_data(
 
     let result = query_as!(
         ReturningId,
-        "INSERT INTO application_settings (id, setting_key, setting_value, description, create_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)  RETURNING id",
+        r#"
+        INSERT INTO application_settings (
+            id,
+            setting_key,
+            setting_value,
+            description,
+            create_at,
+            updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+        "#,
         new_settings_id,
         setting_value,
         CONFIG.challenge_limit_start,
@@ -261,13 +318,16 @@ async fn insert_initial_admin_data(
         now,
         now,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await;
 
     match result {
         Ok(_) => tracing::info!("Next Challenge Limit Start: {}", challenge_limit_start_parsed),
         Err(_) => tracing::error!("Initial Data Create Error."),
     }
+
+    // トランザクションの終了
+    tx.commit().await?;
 
     Ok(())
 }

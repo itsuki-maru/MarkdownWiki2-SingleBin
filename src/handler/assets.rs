@@ -1,7 +1,7 @@
 use axum::{
     body::Body, extract::{Extension, Path},
     http::{header::CONTENT_TYPE, HeaderValue, Response, StatusCode},
-    response::{IntoResponse, Response as HttpResponse},
+    response::Response as HttpResponse,
 };
 use sqlx::sqlite::SqlitePool;
 use sqlx::query_as;
@@ -10,6 +10,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use std::path::PathBuf;
 use crate::config::CONFIG;
 use rust_embed::RustEmbed;
+use crate::error::AppError;
 
 #[derive(RustEmbed)]
 #[folder = "dist/assets"]
@@ -18,7 +19,7 @@ struct Asset;
 // 静的ファイルのレスポンスハンドラー
 pub async fn serve_static_file(
     Path(uri): Path<String>,
-) -> Result<Response<Body>, impl IntoResponse> {
+) -> Result<Response<Body>, AppError> {
     match Asset::get(&uri) {
         Some(content) => {
             // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
@@ -41,10 +42,10 @@ pub async fn serve_static_file(
                     .expect("Failed to construct response");
                 Ok(response)
             } else {
-                Err(StatusCode::NOT_FOUND)
+                Err(AppError::NotFound)
             }
         }
-        None => Err(StatusCode::NOT_FOUND)
+        None => Err(AppError::NotFound)
     }
 }
 
@@ -53,7 +54,7 @@ pub async fn serve_image_file(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(image_name): Path<String>,
-) -> Result<Response<Body>, impl IntoResponse> {
+) -> Result<Response<Body>, AppError> {
 
     // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
     if let Some(safe_file_name) = sanitoze_filename(&image_name) {
@@ -67,41 +68,51 @@ pub async fn serve_image_file(
         }
 
         // 非公開ユーザーの画像データでないか検証
-        let result = query_as!(
+        let query_filen_name = image_name.clone();
+        let owner = query_as!(
             ImageOwner,
-            "SELECT user_id FROM image_model WHERE uuid_filename = $1",
-            image_name,
+            r#"
+            SELECT user_id
+            FROM image_model
+            WHERE uuid_filename = $1
+            "#,
+            query_filen_name,
         )
-        .fetch_one(&pool)
-        .await;
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to database access");
+            AppError::Sqlx(e)
+        })?;
 
-        match result {
-            Ok(owner) => {
-                // 画像のオーナーとアクセスしたユーザーのIDが異なる場合
-                if owner.user_id != user_id {
-                    let result = query_as!(
-                        IsPrivateUser,
-                        "SELECT is_private FROM user_model WHERE id = $1",
-                        owner.user_id,
-                    )
-                    .fetch_one(&pool)
-                    .await;
-    
-                    match result {
-                        Ok(user) => {
-                            if user.is_private {
-                                return Err(StatusCode::NOT_FOUND);
-                            }
-                        },
-                        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
-                }
-            },
-            Err(_err) => {
-                return Err(StatusCode::NOT_FOUND)
+        let owner = match owner {
+            Some(owner) => owner,
+            None => return Err(AppError::BadRequest),
+        };
+
+        // 画像のオーナーとアクセスしたユーザーのIDが異なる場合
+        if owner.user_id != user_id {
+            let is_private_user_db = query_as!(
+                IsPrivateUser,
+                r#"
+                SELECT is_private
+                FROM user_model
+                WHERE id = $1
+                "#,
+                owner.user_id,
+            )
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "failed to database access");
+                AppError::Sqlx(e)
+            })?;
+
+            // プライバシー設定がされている場合は NOT FOUND
+            if is_private_user_db.is_private {
+                return Err(AppError::NotFound);
             }
         }
-
 
         // ファイル名のUUID文字列から先頭5文字を取得
         let sub_dir = &safe_file_name[0..5];
@@ -111,7 +122,7 @@ pub async fn serve_image_file(
         base_path.push(sub_dir);
         base_path.push(safe_file_name.trim_start_matches('/'));
         if !base_path.exists() || base_path.is_dir() {
-            return Err(StatusCode::NOT_FOUND);
+            return Err(AppError::NotFound);
         }
 
         let content_type = match safe_file_name.rsplit('.').next() {
@@ -127,7 +138,7 @@ pub async fn serve_image_file(
         // parseに失敗した場合はINTERNAL_SERVER_ERRORを早期リターン
         let parsed_content_type = content_type
             .parse()
-            .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         let mut builder = HttpResponse::builder();
         if let Some(headers) = builder.headers_mut() {
@@ -135,9 +146,9 @@ pub async fn serve_image_file(
             headers.append(CONTENT_TYPE, parsed_content_type);
         }
 
-        let file = match File::open(&base_path).await {
+        let file = match File::open(base_path).await {
             Ok(file) => file,
-            Err(_) => return Err(StatusCode::NOT_FOUND),
+            Err(_) => return Err(AppError::NotFound),
         };
 
         let stream = FramedRead::new(file, BytesCodec::new());
@@ -149,8 +160,10 @@ pub async fn serve_image_file(
             .expect("Failed to construct response");
 
         Ok(response)
+
+    // 存在しないファイル
     } else {
-        Err(StatusCode::NOT_FOUND)
+        Err(AppError::NotFound)
     }
 }
 

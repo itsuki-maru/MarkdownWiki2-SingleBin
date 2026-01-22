@@ -1,5 +1,4 @@
 use axum::{
-    http::StatusCode,
     response::IntoResponse,
     response::Response, Json,
     extract::{Extension, Path, Query},
@@ -7,11 +6,11 @@ use axum::{
 use chrono::Utc;
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
-use sqlx::{query, query_as, Error as SqlxError};
+use sqlx::query_as;
 use std::collections::HashMap;
 use uuid::Uuid;
-use super::super::custom_responses::custom_error_response;
-use super::super::scheme::{
+use crate::error::AppError;
+use crate::scheme::{
     CreateWikiData, DownloadWikiData, WikiData, ReturningId, WikiOwner, ResponseWikiData,
     ResponseWikiId, UpdateWikiData, UpdatedWikiResponse, WikiQueryParams,
 };
@@ -21,7 +20,7 @@ pub async fn create_wiki_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<CreateWikiData>,
-) -> Result<Json<ResponseWikiId>, impl IntoResponse> {
+) -> Result<Json<ResponseWikiId>, AppError> {
 
     // UTCで現在時刻を取得し、NaiveDateTimeに変換
     let now = Utc::now().naive_utc();
@@ -29,10 +28,22 @@ pub async fn create_wiki_handler(
     // 新規WikiのID
     let new_wiki_id = Uuid::now_v7().to_string();
 
-    let rec = query_as!(
+    let new_wiki_id = query_as!(
         ReturningId,
-        "INSERT INTO wiki_model (id, user_id, date, title, body, create_at, update_at, is_public)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        r#"
+        INSERT INTO wiki_model (
+            id,
+            user_id,
+            date,
+            title,
+            body,
+            create_at,
+            update_at,
+            is_public
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+        "#,
         new_wiki_id,
         user_id,
         now,
@@ -43,77 +54,91 @@ pub async fn create_wiki_handler(
         payload.is_public
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match rec {
-        Ok(wiki_id) => Ok(Json(ResponseWikiId {
-            message: "New wiki created.".to_string(),
-            user_id: user_id,
-            new_wiki_id: wiki_id.id,
-            date: now.to_string(),
-        })),
-        Err(_) => Err(custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )),
-    }
+    Ok(Json(ResponseWikiId {
+        message: "New wiki created.".to_string(),
+        user_id: user_id,
+        new_wiki_id: new_wiki_id.id,
+        date: now.to_string(),
+    }))
 }
 
 // GET WIKI
 pub async fn get_wiki_by_id_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
-) -> Result<Json<WikiData>, StatusCode> {
+) -> Result<Json<WikiData>, AppError> {
 
-    let result = query!("SELECT * FROM wiki_model WHERE id = $1", wiki_id)
-        .fetch_one(&pool)
-        .await;
+    let wiki = query_as!(
+        WikiData,
+        r#"
+        SELECT
+            id,
+            user_id,
+            date,
+            title,
+            body,
+            update_at,
+            is_public
+        FROM wiki_model
+        WHERE id = $1
+        "#,
+        wiki_id
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    // データベースからの応答に基づいて処理
-    match result {
-        Ok(wiki) => Ok(Json(WikiData {
-            id: wiki.id,
-            user_id: wiki.user_id,
-            date: wiki.date,
-            title: wiki.title,
-            body: wiki.body,
-            update_at: wiki.update_at,
-            is_public: wiki.is_public,
-        })),
-        Err(e) => match e {
-            SqlxError::RowNotFound => Err(StatusCode::NOT_FOUND),
-            _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
-        },
-    }
+    Ok(Json(WikiData {
+        id: wiki.id,
+        user_id: wiki.user_id,
+        date: wiki.date,
+        title: wiki.title,
+        body: wiki.body,
+        update_at: wiki.update_at,
+        is_public: wiki.is_public,
+    }))
 }
 
 // GET WIKIS
 pub async fn get_all_wiki_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<HashMap<String, ResponseWikiData>>, impl IntoResponse> {
+) -> Result<Json<HashMap<String, ResponseWikiData>>, AppError> {
 
-    let result = query_as!(
+    let wikis = query_as!(
         WikiData,
-        "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
-        WHERE user_id = $1 OR is_public = true",
+        r#"
+        SELECT
+            id,
+            user_id,
+            date,
+            title,
+            body,
+            update_at,
+            is_public
+        FROM wiki_model
+        WHERE user_id = $1 OR is_public = true
+        "#,
         user_id,
     )
     .fetch_all(&pool)
-    .await;
-
-    let memories = match result {
-        Ok(memories) => memories,
-        Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    };
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut wiki_hash_map = HashMap::new();
-    for wiki in memories {
+    for wiki in wikis {
         let wiki_id = wiki.id.clone();
         let parsed_wiki = ResponseWikiData {
             id: wiki.id,
@@ -134,30 +159,35 @@ pub async fn get_wiki_limit_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(limit): Path<i64>,
-) -> Result<Json<HashMap<String, WikiData>>, impl IntoResponse> {
+) -> Result<Json<HashMap<String, WikiData>>, AppError> {
 
-    let result = query_as!(
+    let wikis = query_as!(
         WikiData,
-        "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
-        WHERE user_id = $1 OR is_public = true ORDER BY id DESC LIMIT $2",
+        r#"
+        SELECT
+            id,
+            user_id,
+            date,
+            title,
+            body,
+            update_at,
+            is_public
+        FROM wiki_model
+        WHERE user_id = $1 OR is_public = true
+        ORDER BY id DESC LIMIT $2
+        "#,
         user_id,
         limit,
     )
     .fetch_all(&pool)
-    .await;
-
-    let memories = match result {
-        Ok(memories) => memories,
-        Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    };
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut wiki_hash_map = HashMap::new();
-    for wiki in memories {
+    for wiki in wikis {
         let wiki_id = wiki.id.clone();
         wiki_hash_map.insert(wiki_id, wiki);
     }
@@ -170,29 +200,29 @@ pub async fn get_wiki_owner_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
-    let result = query_as!(
+    let owner = query_as!(
         WikiOwner,
-        "SELECT user_model.id, user_model.username, user_model.public_name FROM wiki_model
+        r#"
+        SELECT
+            user_model.id,
+            user_model.username,
+            user_model.public_name
+        FROM wiki_model 
         JOIN user_model ON wiki_model.user_id = user_model.id
         WHERE (wiki_model.id = $1 AND wiki_model.user_id = $2)
-        OR (wiki_model.id = $1 AND wiki_model.is_public = true)",
+        OR (wiki_model.id = $1 AND wiki_model.is_public = true)
+        "#,
         wiki_id,
         user_id,
     )
     .fetch_one(&pool)
-    .await;
-
-    let owner = match result {
-        Ok(owner) => owner,
-        Err(_) => {
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    };
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
     let mut is_owner = false;
     if user_id == owner.id {
@@ -214,14 +244,18 @@ pub async fn update_wiki_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
     Json(payload): Json<UpdateWikiData>,
-) -> Result<Json<UpdatedWikiResponse>, impl IntoResponse> {
+) -> Result<Json<UpdatedWikiResponse>, AppError> {
 
     let now = Utc::now().naive_utc();
 
-    let result = query_as!(
+    let returned_id = query_as!(
         ReturningId,
-        "UPDATE wiki_model SET title=$1, body=$2, update_at=$3, is_public=$4
-        WHERE id = $5 AND user_id = $6 RETURNING id",
+        r#"
+        UPDATE wiki_model
+        SET title=$1, body=$2, update_at=$3, is_public=$4
+        WHERE id = $5 AND user_id = $6
+        RETURNING id
+        "#,
         payload.title,
         payload.body,
         now,
@@ -230,18 +264,16 @@ pub async fn update_wiki_handler(
         user_id
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(id) => Ok(Json(UpdatedWikiResponse {
-            id: id.id,
-            message: "Update Ok.".to_string(),
-        })),
-        Err(_) => Err(custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )),
-    }
+    Ok(Json(UpdatedWikiResponse {
+        id: returned_id.id,
+        message: "Update Ok.".to_string(),
+    }))
 }
 
 // DELETE WIKI
@@ -249,28 +281,30 @@ pub async fn delete_wiki_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
-    let result = query_as!(
+    let returned_id = query_as!(
         ReturningId,
-        "DELETE FROM wiki_model WHERE id = $1
-        AND user_id = $2 RETURNING id",
+        r#"
+        DELETE FROM wiki_model
+        WHERE id = $1
+        AND user_id = $2
+        RETURNING id
+        "#,
         wiki_id,
         user_id,
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(id) => Ok(Json(UpdatedWikiResponse {
-            id: id.id,
-            message: "Delete Ok.".to_string(),
-        })),
-        Err(_) => Err(custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )),
-    }
+    Ok(Json(UpdatedWikiResponse {
+        id: returned_id.id,
+        message: "Delete Ok.".to_string(),
+    }))
 }
 
 // QUERY WIKI
@@ -278,33 +312,38 @@ pub async fn wiki_query_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Query(params): Query<WikiQueryParams>,
-) -> Result<Json<HashMap<String, WikiData>>, impl IntoResponse> {
+) -> Result<Json<HashMap<String, WikiData>>, AppError> {
 
     let query1 = params.query1;
     let query2 = params.query2;
 
     if query1 == "".to_string() && query2 == "".to_string() {
-        let result = query_as!(
+        let wikis = query_as!(
             WikiData,
-            "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
-            WHERE user_id = $1 OR is_public = true ORDER BY id DESC LIMIT 100",
+            r#"
+            SELECT
+                id,
+                user_id,
+                date,
+                title,
+                body,
+                update_at,
+                is_public
+            FROM wiki_model
+            WHERE user_id = $1 OR is_public = true
+            ORDER BY id DESC LIMIT 100
+            "#,
             user_id,
         )
         .fetch_all(&pool)
-        .await;
-
-        let memories = match result {
-            Ok(memories) => memories,
-            Err(_) => {
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        };
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
         let mut wiki_hash_map = HashMap::new();
-        for wiki in memories {
+        for wiki in wikis {
             let wiki_id = wiki.id.clone();
             wiki_hash_map.insert(wiki_id, wiki);
         }
@@ -312,30 +351,34 @@ pub async fn wiki_query_handler(
         Ok(Json(wiki_hash_map))
     } else if query2 == "".to_string() {
         let query_text = format!("%\\{}%", query1);
-        let result = query_as!(
+        let wikis = query_as!(
             WikiData,
-            "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
+            r#"
+            SELECT
+                id,
+                user_id,
+                date,
+                title,
+                body,
+                update_at,
+                is_public
+            FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            "#,
             user_id,
             query_text,
         )
         .fetch_all(&pool)
-        .await;
-
-        let memories = match result {
-            Ok(memories) => memories,
-            Err(_) => {
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        };
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
         let mut wiki_hash_map = HashMap::new();
-        for wiki in memories {
+        for wiki in wikis {
             let wiki_id = wiki.id.clone();
             wiki_hash_map.insert(wiki_id, wiki);
         }
@@ -343,30 +386,34 @@ pub async fn wiki_query_handler(
         Ok(Json(wiki_hash_map))
     } else if query1 == "".to_string() {
         let query_text = format!("%\\{}%", query2);
-        let result = query_as!(
+        let wikis = query_as!(
             WikiData,
-            "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
+            r#"
+            SELECT
+                id,
+                user_id,
+                date,
+                title,
+                body,
+                update_at,
+                is_public
+            FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            "#,
             user_id,
             query_text,
         )
         .fetch_all(&pool)
-        .await;
-
-        let memories = match result {
-            Ok(memories) => memories,
-            Err(_) => {
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        };
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
         let mut wiki_hash_map = HashMap::new();
-        for wiki in memories {
+        for wiki in wikis {
             let wiki_id = wiki.id.clone();
             wiki_hash_map.insert(wiki_id, wiki);
         }
@@ -375,32 +422,36 @@ pub async fn wiki_query_handler(
     } else {
         let query_text1 = format!("%\\{}%", query1);
         let query_text2 = format!("%\\{}%", query2);
-        let result = query_as!(
+        let wikis = query_as!(
             WikiData,
-            "SELECT id, user_id, date, title, body, update_at, is_public FROM wiki_model
+            r#"
+            SELECT
+                id,
+                user_id,
+                date,
+                title,
+                body,
+                update_at,
+                is_public
+            FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
             AND (title LIKE $3 ESCAPE '\\' OR body LIKE $3 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            "#,
             user_id,
             query_text1,
             query_text2,
         )
         .fetch_all(&pool)
-        .await;
-
-        let memories = match result {
-            Ok(memories) => memories,
-            Err(_) => {
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        };
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
         let mut wiki_hash_map = HashMap::new();
-        for wiki in memories {
+        for wiki in wikis {
             let wiki_id = wiki.id.clone();
             wiki_hash_map.insert(wiki_id, wiki);
         }
@@ -414,25 +465,35 @@ pub async fn download_file(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
-    let result = query_as!(
+    let wiki = query_as!(
         DownloadWikiData,
-        "SELECT title, body FROM wiki_model
-        WHERE id = $1 AND user_id = $2 OR id = $1 AND is_public = true",
+        r#"
+        SELECT
+            title,
+            body
+        FROM wiki_model
+        WHERE id = $1 AND user_id = $2
+        OR id = $1 AND is_public = true
+        "#,
         wiki_id,
         user_id,
     )
-    .fetch_one(&pool)
-    .await;
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    let markdown_text = match result {
-        Ok(markdown_data) => {
+    let markdown_text = match wiki {
+        Some(markdown_data) => {
             let title = markdown_data.title;
             let body = markdown_data.body;
             format!("# {}\n\n{}", title, body)
-        }
-        Err(_) => return Err(StatusCode::NOT_FOUND),
+        },
+        None => return Err(AppError::NotFound),
     };
 
     let response = Response::builder()
@@ -444,10 +505,7 @@ pub async fn download_file(
         )
         .body(markdown_text)
         .map_err(|_e| {
-            custom_error_response(
-                "Failed to create response body.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
+            AppError::InternalServerError
         });
 
     Ok(response)

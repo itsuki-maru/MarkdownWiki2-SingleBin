@@ -1,4 +1,4 @@
-use super::super::auth::verify_access_token;
+use crate::auth::verify_access_token;
 use axum::response::IntoResponse;
 use serde_json::json;
 use axum::{

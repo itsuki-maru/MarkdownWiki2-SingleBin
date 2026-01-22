@@ -7,16 +7,15 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
-use sqlx::{query, query_as, Error as SqlxError};
+use sqlx::{query, query_as};
 use uuid::Uuid;
 use crate::config::CONFIG;
 
-use super::super::auth::{
+use crate::auth::{
     create_token,
     refresh_access_token,
 };
-use super::super::custom_responses::custom_error_response;
-use super::super::scheme::{
+use crate::scheme::{
     MessageApi,
     AuthenticatedUser,
     LoginPayload,
@@ -27,23 +26,27 @@ use super::super::scheme::{
     AccountPrivacyInfo,
     IsExists
 };
+use crate::error::AppError;
 
-// SIGNUP USER API
+// サインアップハンドラー
 pub async fn signup_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<SignupPayload>,
-) -> Result<Json<ReturningId>, impl IntoResponse> {
-    
+) -> Result<Json<ReturningId>, AppError> {
     // 既に同名のユーザーが存在するか確認
     let user_exists = query_as!(
         IsExists,
-        "SELECT EXISTS(SELECT 1 FROM user_model WHERE username = $1) as exists_flag",
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM user_model WHERE username = $1
+        ) as exists_flag
+        "#,
         payload.username
     )
     .fetch_one(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response("Database query failed.", StatusCode::INTERNAL_SERVER_ERROR)
+    .map_err(|e| {
+        AppError::Sqlx(e)
     })?;
 
     // `i64`を`bool`に変換
@@ -51,19 +54,13 @@ pub async fn signup_handler(
 
     // 同名のユーザーが既に存在する場合はエラーを返す
     if user_exists {
-        return Err(custom_error_response(
-            "A user with the same name already exists.",
-            StatusCode::CONFLICT,
-        ));
+        return Err(AppError::Conflict);
     }
 
     // パスワードをハッシュ化(ソルト値はハッシュ値に組み込んで管理)
     let hashed_password = hash(payload.password, DEFAULT_COST).unwrap_or("".to_string());
     if hashed_password == "" {
-        return Err(custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ));
+        return Err(AppError::InternalServerError);
     }
 
     // UTCで現在時刻を取得し、NaiveDateTimeに変換
@@ -75,9 +72,15 @@ pub async fn signup_handler(
         },
         None => {
             tracing::error!("Initial Data Create Error.");
-            panic!("Initial Data Create Error.");
+            return Err(AppError::InternalServerError);
         }
     }
+
+    // トランザクションの開始
+    let mut tx = pool.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "failed to begin transaction");
+        AppError::InternalServerError
+    })?;
 
     // 新規ID
     let new_user_id = Uuid::now_v7().to_string();
@@ -86,10 +89,28 @@ pub async fn signup_handler(
     let totp_temp_secret = "".to_string();
 
     // ユーザーが存在しない場合は新しいユーザーを追加し、追加したユーザーのidを取得
-    let rec = query_as!(
+    let returning_user_id = query_as!(
         ReturningId,
-        "INSERT INTO user_model (id, username, public_name, password, create_at, is_superuser, failed_count, next_challenge_time, is_locked, is_private, is_basic_authed, is_basic_authed_at, totp_secret, totp_temp_secret)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+        r#"
+        INSERT INTO user_model (
+            id,
+            username,
+            public_name,
+            password,
+            create_at,
+            is_superuser,
+            failed_count,
+            next_challenge_time,
+            is_locked,
+            is_private,
+            is_basic_authed,
+            is_basic_authed_at,
+            totp_secret,
+            totp_temp_secret
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING id
+        "#,
         new_user_id,
         payload.username,
         payload.public_name,
@@ -105,23 +126,27 @@ pub async fn signup_handler(
         totp_secret,
         totp_temp_secret,
     )
-    .fetch_one(&pool)
-    .await;
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to user create");
+        AppError::Sqlx(e)
+    })?;
 
-    match rec {
-        Ok(user_id) => return Ok(Json(user_id)),
-        Err(_) => Err(custom_error_response(
-            "Internal Server Error.",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )),
-    }
+    // トランザクションの終了
+    tx.commit().await.map_err(|e| {
+        tracing::error!(error = %e, "failed to commit transaction");
+        AppError::Sqlx(e)
+    })?;
+
+    return Ok(Json(returning_user_id))
 }
 
 // ログインハンドラー
 pub async fn token_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<LoginPayload>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
     // application_settingsの値を格納する構造体
     struct ApplicationSettings {
@@ -131,7 +156,12 @@ pub async fn token_handler(
 
     let result_settings = query_as!(
         ApplicationSettings,
-        "SELECT setting_key, setting_value FROM application_settings",
+        r#"
+        SELECT
+            setting_key,
+            setting_value
+        FROM application_settings
+        "#,
     )
     .fetch_all(&pool)
     .await;
@@ -159,7 +189,8 @@ pub async fn token_handler(
     // ユーザー名からユーザーを取得
     let user = query_as!(
         UserAccountModel,
-        "SELECT
+        r#"
+        SELECT
             id,
             username,
             password,
@@ -174,24 +205,25 @@ pub async fn token_handler(
             totp_secret,
             totp_temp_secret
         FROM user_model
-        WHERE username = $1",
+        WHERE username = $1
+        "#,
         payload.username
     )
-    .fetch_one(&pool)
+    .fetch_optional(&pool)
     .await
-    .map_err(|_e| {
-        custom_error_response(
-            "Unauthorized",
-            StatusCode::UNAUTHORIZED,
-        )
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to commit transaction");
+        AppError::Sqlx(e)
     })?;
+
+    let user = match user {
+        Some(user) => user,
+        None => return Err(AppError::Unauthorized("Unauthorized".into())),
+    };
 
     // アカウントがロックされている場合はエラーレスポンス
     if user.is_locked {
-        return Err(custom_error_response(
-            "LockedAccount",
-            StatusCode::UNAUTHORIZED,
-        ));
+        return Err(AppError::Unauthorized("LockedAccount".into()));
     }
 
     // すでに設定回数以上失敗し、次にチャレンジできる時間に達していなければエラーレスポンス
@@ -199,45 +231,39 @@ pub async fn token_handler(
     // SQLiteでの文字列から日付型に戻す
     match parse_naive_datetime(&user.next_challenge_time) {
         Some(next) if next > current_datetime => {
-            return Err(custom_error_response("PleaseWait", StatusCode::UNAUTHORIZED));
+            return Err(AppError::Unauthorized("PleaseWait".into()));
         }
         Some(_) => {}
         None => {
-            return Err(custom_error_response("Parse Error.", StatusCode::INTERNAL_SERVER_ERROR));
+            return Err(AppError::Unauthorized("Parse Error.".into()));
         }
     }
 
     // ログイン失敗回数が上限に達している場合はアカウントをロックしてエラーレスポンス（カウントリセット）
     if user.failed_count == parsed_login_limit - 1 {
-        let result = query!(
-            "UPDATE user_model SET is_locked = $1, failed_count = $2  WHERE id = $3",
+        query!(
+            r#"
+            UPDATE user_model
+            SET is_locked = $1, failed_count = $2
+            WHERE id = $3
+            "#,
             true,
             0,
             user.id
         )
         .execute(&pool)
-        .await;
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
-        match result {
-            Ok(_) => {
-                return Err(custom_error_response(
-                    "Locked",
-                    StatusCode::UNAUTHORIZED,
-                ))
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ));
-            }
-        }
+        return Err(AppError::Unauthorized("Locked".into()));
     }
 
     // パスワード検証（ユーザー存在確認済）
     if verify(&payload.password, &user.password).map_err(|_e| {
-        custom_error_response("Internal Server Error.", StatusCode::INTERNAL_SERVER_ERROR)
+        return AppError::InternalServerError;
     })? == false
     {
     
@@ -251,82 +277,73 @@ pub async fn token_handler(
             match TimeDelta::try_minutes(parsed_minutes.into()) {
                 Some(five_min_delta) => {
                     five_minutes_later = now + five_min_delta;
-                    let result = query!(
-                        "UPDATE user_model SET failed_count = $1, next_challenge_time = $2 WHERE id = $3",
+                    query!(
+                        r#"
+                        UPDATE user_model
+                        SET failed_count = $1, next_challenge_time = $2
+                        WHERE id = $3
+                        "#,
                         failed_count,
                         five_minutes_later,
                         user.id
                     )
                     .execute(&pool)
-                    .await;
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(error = %e, "database error.");
+                        AppError::Sqlx(e)
+                    })?;
 
-                    match result {
-                        Ok(_) => {
-                            return Err(custom_error_response(
-                                "UnauthorizedPleaseWait",
-                                StatusCode::UNAUTHORIZED,
-                            ))
-                        }
-                        Err(e) => {
-                            tracing::error!("{}", e);
-                            return Err(custom_error_response(
-                                "Internal Server Error.",
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                            ));
-                        }
-                    }
-
+                    return Err(AppError::Unauthorized("UnauthorizedPleaseWait".into()));
                 },
                 None => {
                     tracing::error!("five_min_delta Get Error.");
-                    return Err(custom_error_response(
-                        "Internal Server Error.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ));
+                    return Err(AppError::InternalServerError);
                 }
             }
         }
 
         // 認証に失敗したらカウントアップしエラーレスポンス
-        let result = query!(
-            "UPDATE user_model SET failed_count = $1 WHERE id = $2",
+        query!(
+            r#"
+            UPDATE user_model
+            SET failed_count = $1
+            WHERE id = $2
+            "#,
             failed_count,
             user.id
         )
         .execute(&pool)
-        .await;
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
-        match result {
-            Ok(_) => {
-                return Err(custom_error_response(
-                    "Unauthorized",
-                    StatusCode::UNAUTHORIZED,
-                ))
-            }
-            Err(e) => {
-                tracing::error!("{}", e);
-                return Err(custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ));
-            }
-        }
+        return Err(AppError::Unauthorized("Unauthorized".into()));
     }
 
     // TOTPが有効であれば要求
     if user.totp_secret != "" {
         let now = Utc::now().naive_utc().to_string();
         // ベーシック認証確認済みのフラグ
-        query!("UPDATE user_model SET is_basic_authed = $1, is_basic_authed_at = $2 WHERE id = $3", true, now, user.id)
-            .execute(&pool)
-            .await
-            .map_err(|_e| {
-                custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            }
-        )?;
+        query!(
+            r#"
+            UPDATE user_model
+            SET is_basic_authed = $1, is_basic_authed_at = $2
+            WHERE id = $3
+            "#,
+            true,
+            now,
+            user.id
+        )
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
+
         let builder = Response::builder();
         let body = json!({
             "success": false,
@@ -334,40 +351,43 @@ pub async fn token_handler(
             "id": user.id,
             "totp_required": true,
         }).to_string();
+
         // レスポンスの生成
         let response = builder
             .status(StatusCode::OK)
             .body(body)
             .map_err(|_e| {
-                custom_error_response(
-                    "Failed to create response body.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
+                AppError::InternalServerError
             }
         )?;
         return Ok(response);
     // TOTPが有効でなければそのままログイン成功
     } else {
         // ログインに成功したらfailed_countをリセット
-        query!("UPDATE user_model SET failed_count = $1 WHERE id = $2", 0, user.id)
-            .execute(&pool)
-            .await
-            .map_err(|_e| {
-                custom_error_response(
-                    "Internal Server Error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            }
-        )?;
+        query!(
+            r#"
+            UPDATE user_model
+            SET failed_count = $1
+            WHERE id = $2
+            "#,
+            0,
+            user.id
+        )
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
 
         // アクセストークン生成
         let access_token = create_token(&user.id, CONFIG.access_token_exp_minutes, "access_token".to_string()).map_err(|_e| {
-            custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+            AppError::InternalServerError
         })?;
 
         // リフレッシュトークン生成
         let refresh_token = create_token(&user.id, CONFIG.refresh_token_exp_minutes, "refresh_token".to_string()).map_err(|_e| {
-            custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+            AppError::InternalServerError
         })?;
 
         // cookieヘッダーの生成
@@ -382,9 +402,9 @@ pub async fn token_handler(
         }
 
         let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-            custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+            AppError::InternalServerError})?;
         let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-            custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+            AppError::InternalServerError})?;
 
         let body = json!({
             "success": true,
@@ -404,10 +424,7 @@ pub async fn token_handler(
             .status(StatusCode::OK)
             .body(body)
             .map_err(|_e| {
-                custom_error_response(
-                    "Failed to create response body.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
+                AppError::InternalServerError
             }
         )?;
         Ok(response)
@@ -418,30 +435,23 @@ pub async fn token_handler(
 pub async fn auth_check_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<AuthenticatedUser>, impl IntoResponse> {
+) -> Result<Json<AuthenticatedUser>, AppError> {
 
     // SQLクエリの実行
-    let result = query_as!(
+    let user = query_as!(
         AuthenticatedUser,
-        "SELECT id, username, public_name FROM user_model WHERE id = $1",
+        r#"
+        SELECT id, username, public_name FROM user_model WHERE id = $1
+        "#,
         user_id
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(user) => Ok(Json(user)),
-        Err(e) => match e {
-            SqlxError::RowNotFound => Err(custom_error_response(
-                "User not found.",
-                StatusCode::NOT_FOUND,
-            )),
-            _ => Err(custom_error_response(
-                "Database error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )),
-        },
-    }
+    Ok(Json(user))
 }
 
 fn parsed_i64_to_string(string_int: String) -> Result<i64, std::num::ParseIntError> {
@@ -454,7 +464,7 @@ fn parsed_i64_to_string(string_int: String) -> Result<i64, std::num::ParseIntErr
 // リフレッシュトークンの再取得ハンドラ
 pub async fn refresh_token_handler(
     Extension(user_id): Extension<String>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
     match refresh_access_token(user_id) {
         Ok(new_tokens) => {
@@ -471,10 +481,10 @@ pub async fn refresh_token_handler(
 
             // cookieヘッダーの生成
             let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-                custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)
+                AppError::InternalServerError
             })?;
             let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-                custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)
+                AppError::InternalServerError
             })?;
             
             let mut builder = Response::builder();
@@ -488,20 +498,14 @@ pub async fn refresh_token_handler(
                 .status(StatusCode::OK)
                 .body(axum::body::Body::empty())
                 .map_err(|_e| {
-                    custom_error_response(
-                        "Failed to create response body.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    )
+                    AppError::InternalServerError
                 }
             )?;
             Ok(response)
         }
         Err(err) => {
             tracing::error!("{}", err);
-            return Err(custom_error_response(
-                "Internal Server Error.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ));
+            return Err(AppError::InternalServerError);
         }
     }
 }
@@ -511,31 +515,28 @@ pub async fn account_privacy_update_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<UpdateAccountPrivacyPayload>,
-) -> Result<Json<MessageApi>, impl IntoResponse> {
+) -> Result<Json<MessageApi>, AppError> {
     let result = query!(
-        "UPDATE user_model SET is_private = $1 WHERE id = $2",
+        r#"
+        UPDATE user_model
+        SET is_private = $1
+        WHERE id = $2
+        "#,
         payload.is_private,
         user_id,
     )
     .execute(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(query_result) => {
-            let affected_rows = query_result.rows_affected();
-            if affected_rows > 0 {
-                Ok(Json(MessageApi { message: "User privacy successfully updated.".to_string() }))
-            } else {
-                Err(custom_error_response(
-                    "Not update user.",
-                    StatusCode::BAD_REQUEST,
-                ))
-            }
-        },
-        Err(_) => Err(custom_error_response(
-            "User privacy update failed.",
-            StatusCode::BAD_REQUEST,
-        ))
+    let affected_rows = result.rows_affected();
+    if affected_rows > 0 {
+        return Ok(Json(MessageApi { message: "User privacy successfully updated.".to_string() }));
+    } else {
+        return Err(AppError::BadRequest);
     }
 }
 
@@ -543,27 +544,25 @@ pub async fn account_privacy_update_handler(
 pub async fn get_account_info_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<AccountPrivacyInfo>, impl IntoResponse> {
-    let result = query_as!(
+) -> Result<Json<AccountPrivacyInfo>, AppError> {
+    let user_info = query_as!(
         AccountPrivacyInfo,
-        "SELECT is_private, totp_secret FROM user_model WHERE id = $1",
+        r#"
+        SELECT
+            is_private,
+            totp_secret
+        FROM user_model WHERE id = $1
+        "#,
         user_id,
     )
     .fetch_one(&pool)
-    .await;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "database error.");
+        AppError::Sqlx(e)
+    })?;
 
-    match result {
-        Ok(query_result) => {
-            Ok(Json(AccountPrivacyInfo { 
-                is_private: query_result.is_private,
-                totp_secret: query_result.totp_secret,
-            }))
-        },
-        Err(_) => Err(custom_error_response(
-            "User info get failed.",
-            StatusCode::BAD_REQUEST,
-        ))
-    }
+    Ok(Json(user_info))
 }
 
 fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
@@ -585,16 +584,16 @@ fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
 // 期限0の無効トークンを発行し、既存のトークンを上書き
 pub async fn disable_token(
     Extension(user_id): Extension<String>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<impl IntoResponse, AppError> {
 
     // アクセストークン生成
     let access_token = create_token(&user_id, 0, "access_token".to_string()).map_err(|_e| {
-        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+        AppError::InternalServerError
     })?;
 
     // リフレッシュトークン生成
     let refresh_token = create_token(&user_id, 0, "refresh_token".to_string()).map_err(|_e| {
-        custom_error_response("Failed to create token.", StatusCode::INTERNAL_SERVER_ERROR)
+        AppError::InternalServerError
     })?;
 
     // cookieヘッダーの生成
@@ -609,9 +608,9 @@ pub async fn disable_token(
     }
 
     let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+        AppError::InternalServerError})?;
     let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-        custom_error_response("Failed to set cookie.", StatusCode::INTERNAL_SERVER_ERROR)})?;
+        AppError::InternalServerError})?;
 
     let mut builder = Response::builder();
     if let Some(headers) = builder.headers_mut() {
@@ -624,10 +623,7 @@ pub async fn disable_token(
         .status(StatusCode::OK)
         .body(axum::body::Body::empty())
         .map_err(|_e| {
-            custom_error_response(
-                "Failed to create response body.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
+            AppError::InternalServerError
         }
     );
     response
