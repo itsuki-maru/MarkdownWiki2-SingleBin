@@ -160,6 +160,8 @@ targetHtml="$frontendMobileDir/dist/index.html"
 sed -i 's|href="./favicon.ico"|href="/assets/favicon.ico"|g' "$targetHtml"
 # qrcode.min.jsのパス変更
 sed -i 's|src="./qrcode.min.js"|src="/assets/qrcode.min.js"|g' "$targetHtml"
+# diff_match_patch.jsのパス変更
+sed -i 's|src="./diff_match_patch.js"|src="/assets/diff_match_patch.js"|g' "$targetHtml"
 # mermaid.min.jsのパス変更
 sed -i 's|src="./mermaid.min.js"|src="/assets/mermaid.min.js"|g' "$targetHtml"
 # manifest.jsonのパス変更

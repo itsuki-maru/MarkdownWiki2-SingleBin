@@ -38,7 +38,8 @@ export const useWikiStore = defineStore("wiki", {
                             title: wikisData[key]["title"],
                             body: wikisData[key]["body"],
                             update_at: wikisData[key]["update_at"],
-                            is_public: wikisData[key]["is_public"]
+                            is_public: wikisData[key]["is_public"],
+                            is_edit_request: wikisData[key]["is_edit_request"],
                         }
                     );
                 }
@@ -63,7 +64,8 @@ export const useWikiStore = defineStore("wiki", {
                             title: wikisData[key]["title"],
                             body: wikisData[key]["body"],
                             update_at: wikisData[key]["update_at"],
-                            is_public: wikisData[key]["is_public"]
+                            is_public: wikisData[key]["is_public"],
+                            is_edit_request: wikisData[key]["is_edit_request"],
                         }
                     );
                 }
@@ -75,13 +77,18 @@ export const useWikiStore = defineStore("wiki", {
             }
         },
         addWiki(wiki: WikiData): void {
-            this.wikiList.set(wiki.id, {id: wiki.id,
-                                            user_id: wiki.user_id, 
-                                            date: getTimeStamp(), // サーバーUTCに9時間加算した時刻を取得
-                                            title: wiki.title, 
-                                            body: wiki.body,
-                                            update_at: wiki.update_at,
-                                            is_public: wiki.is_public});
+            this.wikiList.set(
+                wiki.id, {
+                    id: wiki.id,
+                    user_id: wiki.user_id, 
+                    date: getTimeStamp(), // サーバーUTCに9時間加算した時刻を取得
+                    title: wiki.title, 
+                    body: wiki.body,
+                    update_at: wiki.update_at,
+                    is_public: wiki.is_public,
+                    is_edit_request: wiki.is_edit_request,
+                }
+            );
             let sortedDsc = new Map([...this.wikiList.entries()].sort((a, b) => a[0] > b[0] ? 1: -1).reverse());
             this.wikiList = sortedDsc;
         },
@@ -115,7 +122,8 @@ export const useWikiStore = defineStore("wiki", {
                                 title: wikisData[key]["title"],
                                 body: wikisData[key]["body"],
                                 update_at: wikisData[key]["update_at"],
-                                is_public: wikisData[key]["is_public"]
+                                is_public: wikisData[key]["is_public"],
+                                is_edit_request: wikisData[key]["is_edit_request"],
                             }
                         );
                     }
@@ -129,6 +137,11 @@ export const useWikiStore = defineStore("wiki", {
         sortWiki(): void {
             const wikiListArr = Array.from(this.wikiList.entries());
             wikiListArr.sort(([, a], [, b]) => {
+                // 編集リクエストを先頭
+                if (a.is_edit_request !== b.is_edit_request) {
+                    return a.is_edit_request ? -1 : 1;
+                }
+                // 更新日時を先頭
                 return new Date(b.update_at).getTime() - new Date(a.update_at).getTime();
             });
             this.wikiList = new Map(wikiListArr);

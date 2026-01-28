@@ -58,6 +58,35 @@ interface TypeWikiOwner {
     isOwner: boolean;
 }
 
+// EditRequestStatus (更新リクエストの状態)
+type EditRequestStatus =
+    | "REJECT"
+    | "REQUESTNOW"
+    | "DRAFT"
+    | "APPLIED";
+
+// バックエンドから取得するリクエスト状況
+interface EditRequestWiki {
+    id: string,
+    wiki_owner_id: string,
+    request_public_user_name: string,
+    request_wiki_id: string,
+    original_title: string,
+    original_body: string,
+    edit_request_title: string,
+    edit_request_body: string,
+    create_at: string,
+    status: EditRequestStatus,
+}
+
+// 編集リクエスト
+interface EditWikiRequestData {
+    edit_wiki_id: string,
+    edit_request_title: string,
+    edit_request_body: string,
+    status: EditRequestStatus,
+}
+
 export type {
     LoginUser,
     CreateWikiData,
@@ -68,4 +97,6 @@ export type {
     ImageData,
     ApplicationInit,
     TypeWikiOwner,
+    EditRequestWiki,
+    EditWikiRequestData,
 }

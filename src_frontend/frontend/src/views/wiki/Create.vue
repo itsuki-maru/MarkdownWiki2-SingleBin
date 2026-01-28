@@ -497,7 +497,8 @@ const createWiki = async (): Promise<void> => {
       title: title,
       body: body,
       update_at: response.data["date"],
-      is_public: is_public
+      is_public: is_public,
+      is_edit_request: false,
     }
     wikiStore.addWiki(newWikiData);
 
@@ -514,7 +515,7 @@ const createWiki = async (): Promise<void> => {
     // ローカルストレージをクリア
     localStorage.setItem("wikiTitle", "");
     localStorage.setItem("wikiBody", "");
-  
+
     clearAceEditor();
     createRedirect();
   } catch (error) {
@@ -530,7 +531,7 @@ const onLogout = (): void => {
   localStorage.setItem("loginUser", "");
   localStorage.setItem("wikiTitle", "");
   localStorage.setItem("wikiBody", "");
-  loginRedirect()
+  loginRedirect();
 }
 
 /** 画像送信のモーダル表示・非表示を管理 */
@@ -1511,7 +1512,8 @@ function insertMarkdown(text: string) {
               :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
         </div>
       </div>
-      <div class="table_sticky">
+      <div v-if="imageList.size === 0"><p>画像コンテンツがありません。</p></div>
+      <div v-else class="table_sticky">
         <table>
           <thead>
             <tr>
@@ -1533,7 +1535,7 @@ function insertMarkdown(text: string) {
           </tbody>
         </table>
       </div>
-      <div class="btn-zone">
+      <div class="btn-close">
         <button v-on:click="openImageListModal()">閉じる</button>
       </div>
     </div>
@@ -1554,7 +1556,8 @@ function insertMarkdown(text: string) {
               :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
         </div>
       </div>
-      <div class="table_sticky">
+      <div v-if="imageList.size === 0" style="text-align: center;"><p>画像コンテンツがありません。</p></div>
+      <div v-else class="table_sticky">
         <table>
           <thead>
             <tr>
@@ -1571,7 +1574,7 @@ function insertMarkdown(text: string) {
           </tbody>
         </table>
       </div>
-      <div class="btn-zone">
+      <div class="btn-close">
         <button v-on:click="openCloseImageListHttpsModal()">閉じる</button>
       </div>
     </div>
@@ -1889,7 +1892,7 @@ input:checked~.circle {
 
 /* 画面右側エリア */
 .editor-and-preview-title {
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .right-h3 {

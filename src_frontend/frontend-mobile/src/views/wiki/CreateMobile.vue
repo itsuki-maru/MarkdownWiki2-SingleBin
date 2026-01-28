@@ -977,15 +977,19 @@ function handleMarkdownInputButtons() {
       <h2 style="text-align: center;">画像アップロード</h2>
       <div>
         <table class="file-select-table">
-          <tr>
-            <th>File</th>
-          </tr>
-          <tr>
-            <td>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
-                id="image1" v-on:change="onImageSelect"/>
-            </td>
-          </tr>
+          <thead>
+            <tr>
+              <th>File</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
+                  id="image1" v-on:change="onImageSelect"/>
+              </td>
+            </tr>
+          </tbody>
         </table>
         <button type="submit" class="btn-file-upload" v-on:click.prevent="uploadImage()">アップロード</button>
       </div>

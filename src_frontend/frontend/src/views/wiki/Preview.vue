@@ -765,12 +765,18 @@ watch(width, (newWidth) => {
 
 // 検索機能用
 const contentEl = ref<HTMLElement | null>(null);
+const findBarRef = ref<InstanceType<typeof FindBar> | null>(null);
+const focusFindBar = async () => {
+  await nextTick();
+  findBarRef.value?.focusInput?.();
+}
 
 // 検索バー
 const isShowSearchBar = ref(false);
 const openCloseSearchBar = (): void => {
   if (!isShowSearchBar.value) {
     isShowSearchBar.value = true;
+    focusFindBar();
   } else {
     isShowSearchBar.value = false;
   }
@@ -780,7 +786,8 @@ const openCloseSearchBar = (): void => {
 <template>
   <div class="btn-head-left">
     <button class="btn-head-image" title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="listRedirect()"><img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
-    <button class="btn-head-image" title="更新画面へ遷移します。&#10;ショートカット: Ctrl + 2" v-if="isOwner" v-on:click="updateWikiData(wiki.id)"><img :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
+    <button v-if="isOwner" class="btn-head-image" title="更新画面へ遷移します。&#10;ショートカット: Ctrl + 2" v-on:click="updateWikiData(wiki.id)"><img :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
+    <button v-else class="btn-head-image" title="更新申請画面へ遷移します。&#10;ショートカット: Ctrl + 2" v-on:click="updateWikiData(wiki.id)"><img :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
     <button class="btn-head-image" title="マークダウンファイルをダウンロード&#10;ショートカット: Ctrl + 3" v-on:click="downloadFile(wiki.id)"><img :src="`${assetsUrl}download_fill24.png`" class="btn-img" alt="download_fill24.png"></button>
     <button class="btn-head-image" title="スクロール表示の切替&#10;ショートカット: Ctrl + 4" v-if="isPrintMode" v-on:click="changePrintMode()"><img :src="`${assetsUrl}close_fullscreen_24.png`" class="btn-img" alt="close_fullscreen_24.png"></button>
     <button class="btn-head-image" title="スクロール表示の切替&#10;ショートカット: Ctrl + 4" v-else="isPrintMode" v-on:click="changePrintMode()"><img :src="`${assetsUrl}fullscreen_24.png`" class="btn-img" alt="fullscreen_24.png"></button>
@@ -794,8 +801,10 @@ const openCloseSearchBar = (): void => {
           :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
       <button class="btn-scroll-to-top scroll-btn-hover" title="画面上部へ移動&#10;ショートカット: Alt + U" v-on:click="scrollAppTitle()"><img
           :src="`${assetsUrl}arrow_upward_24.png`" class="btn-img" alt="arrow_upward_24.png"></button>
-      <button class="btn-scroll-to-update scroll-btn-hover" title="更新" v-if="isOwner" v-on:click="updateWikiData(wiki.id)"><img
+      <button v-if="isOwner" class="btn-scroll-to-update scroll-btn-hover" title="更新" v-on:click="updateWikiData(wiki.id)"><img
           :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
+      <button v-else class="btn-scroll-to-update scroll-btn-hover" title="更新リクエスト" v-on:click="updateWikiData(wiki.id)"><img
+          :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
       <button class="btn-scroll-to-update scroll-btn-hover" title="ページ内検索&#10;ショートカット: Ctrl + 7" v-on:click="openCloseSearchBar()"><img 
           :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
     </div>
@@ -878,9 +887,10 @@ const openCloseSearchBar = (): void => {
     </div>
   </transition>
 
+  <!-- 検索バー -->
   <transition>
     <div id="search-word-box" v-show="isShowSearchBar">
-      <FindBar :container="contentEl" :showOpenInBrowser="true" />
+      <FindBar ref="findBarRef" :container="contentEl" :showOpenInBrowser="true" />
     </div>
   </transition>
 

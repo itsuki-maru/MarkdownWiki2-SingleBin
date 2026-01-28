@@ -344,13 +344,7 @@ getWikiOwner(props.id);
 
 // Wikiデータの更新処理
 const updateWikiData = (id: string): void => {
-  getWikiOwner(id);
-  if (!wikiOwner.value.isOwner) {
-    window.alert("オーナーではないため、編集の権限がありません。");
-    return
-  } else {
-    updateViewRedirect(id);
-  }
+  updateViewRedirect(id);
 };
 
 // 目次モーダルの描画
@@ -786,6 +780,8 @@ onUnmounted(() => {
       class="btn-img" alt="home_24.png"></button>
     <button class="btn-head-img" v-if="checkIsOwner()" v-on:click="updateWikiData(wiki.id)"><img
       :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
+    <button v-else class="btn-head-img" v-on:click="updateWikiData(wiki.id)"><img
+      :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
     <button class="btn-head-img" v-on:click="openCloseTocModal"><img :src="`${assetsUrl}toc_24.png`" class="btn-img"
       alt="toc_24.png"></button>
     <button class="btn-head-img" v-if="checkIsOwner()" v-on:click="openCloseOnetimeSetting()"><img
@@ -807,6 +803,8 @@ onUnmounted(() => {
         :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
     <button class="btn-scroll-update" v-if="checkIsOwner()" v-on:click="updateWikiData(wiki.id)"><img
         :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
+    <button class="btn-scroll-update" v-else v-on:click="updateWikiData(wiki.id)"><img
+        :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
   </div>
 
   <div class="contants-area">

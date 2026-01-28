@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { usePageFind } from '@/utils/usePageFind';
 
-const props = defineProps<{ container: HTMLElement | null, showOpenInBrowser?: boolean }>();
+const props = defineProps<{
+    container: HTMLElement | null,
+    showOpenInBrowser?: boolean,
+}>();
 const containerRef = ref<HTMLElement | null>(props.container);
 watch(() => props.container, v => (containerRef.value = v));
 
@@ -13,11 +16,21 @@ const { query, countLabel, next, prev, clear } = usePageFind(
         observeMutations: true,
     }
 );
+
+const inputRef = ref<HTMLInputElement | null>(null);
+
+const focusInput = async () => {
+    await nextTick();
+    inputRef.value?.focus();
+    inputRef.value?.select();
+}
+
+defineExpose({ focusInput });
 </script>
 
 <template>
     <div class="findbar">
-        <input data-find-input v-model="query" placeholder="ページ内検索">
+        <input ref="inputRef" data-find-input v-model="query" placeholder="ページ内検索">
         <button type="button" @click="prev" aria-label="前へ">↑</button>
         <span class="count">{{ countLabel() }}</span>
         <button type="button" @click="next" aria-label="次へ">↓</button>

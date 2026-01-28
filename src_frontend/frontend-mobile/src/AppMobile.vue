@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, provide, ref, onMounted, watch } from "vue";
+import { reactive, provide, ref, onMounted } from "vue";
 import type { LoginUser } from "./interface";
 import { useRouter } from "vue-router";
 import { assetsUrl } from "@/setting";
@@ -160,4 +160,26 @@ a {
   justify-content: space-between;
   margin-bottom: 7px;
 }
+
+/**
+* Update.vueのDiffモーダル用
+*/
+/* 削除されたテキスト */
+.delete {
+  display: inline-block;
+  margin-top: 1px;
+  text-decoration: none;
+  background-color: #ffb6ba;
+  border-radius: .2em;
+}
+
+/* 追加されたテキスト */
+.added {
+  display: inline-block;
+  margin-top: -1px;
+  text-decoration: none;
+  background-color: #97f295;
+  border-radius: .2em;
+}
+
 </style>

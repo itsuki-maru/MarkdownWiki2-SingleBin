@@ -28,3 +28,7 @@ export const getUserInfoUrl = baseUrl + "/account/info";
 export const userPrivacySettingUrl = baseUrl + "/account/privacy";
 export const getTokenFromTotpUrl = baseUrl + "/account/totp/token";
 export const getAppIniturl = baseUrl + "/app-init";
+export const postEditWikiRequestUrl = baseUrl + "/wiki-edit/request/";
+export const getEditWikiRequestsUrl = baseUrl + "/wiki-edit/lists";
+export const postOwnerResultUrl = baseUrl + "/wiki-edit/result";
+export const disableEditWikiUrl = baseUrl + "/wiki-edit/disable/";

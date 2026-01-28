@@ -31,3 +31,7 @@ export const userTotpVerifyUrl = baseUrl + "/account/totp/verify";
 export const getTokenFromTotpUrl = baseUrl + "/account/totp/token";
 export const userTotpDisableUrl = baseUrl + "/account/totp/disable";
 export const getAppIniturl = baseUrl + "/app-init";
+export const postEditWikiRequestUrl = baseUrl + "/wiki-edit/request/";
+export const getEditWikiRequestsUrl = baseUrl + "/wiki-edit/lists";
+export const postOwnerResultUrl = baseUrl + "/wiki-edit/result";
+export const disableEditWikiUrl = baseUrl + "/wiki-edit/disable/";

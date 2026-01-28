@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { AxiosError } from "axios";
 import { useRouter } from "vue-router";
-import { getUserUrl } from '@/router/urls';
-import type { WikiData, QueryForm, OneTimeWikis } from '@/interface';
+import { getUserUrl, postOwnerResultUrl, disableEditWikiUrl } from '@/router/urls';
+import type { WikiData, QueryForm, OneTimeWikis, EditRequestWiki } from '@/interface';
 import { assetsUrl, baseUrl } from "@/setting";
 import { useWikiStore } from "@/stores/wikis";
 import { useOnetimeWikiStore } from "@/stores/onetimeWikis";
+import { useEditRequestWikiStore } from "@/stores/editWikis";
 import apiClient from "@/axiosClient";
 import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
 
@@ -46,6 +48,7 @@ const createRedirect = (): void => {
   router.push("/wiki/create");
 }
 
+// Wiki ストア
 const wikiStore = useWikiStore();
 const wikiList = computed(
   (): Map<string, WikiData> => {
@@ -56,6 +59,14 @@ const wikiList = computed(
 if (wikiList.value.size === 0) {
   wikiStore.initList();
 }
+
+// 変更リクエストストア
+const editRequestWikiStore = useEditRequestWikiStore();
+const editRequestWikiList = computed(
+  (): Map<string, EditRequestWiki> => {
+    return editRequestWikiStore.editRequestWikiList;
+  }
+)
 
 // 一時URL発行済みのWikiを取得
 const onetimeWikiStore = useOnetimeWikiStore();
@@ -103,12 +114,14 @@ const onSearch = (reset: boolean = false): void => {
 
 // 現在ユーザーの取得
 const currentUser = ref("");
+const currenrUserId = ref("");
 const getCurrentUser = async (): Promise<void> => {
   try {
     const response = await apiClient.get(
       getUserUrl
     );
     currentUser.value = response.data["public_name"];
+    currenrUserId.value = response.data["id"];
   } catch (error) {
     loginRedirect();
   }
@@ -138,6 +151,151 @@ const openCloseOnetimeUrls = (): void => {
     }
   }
 }
+
+// 更新リクエスト一覧モーダル
+const isOpenEditRequestWikis = ref(false);
+const openCloseEditRequestWikis = (): void => {
+  editRequestWikiStore.initList();
+  if (isOpenEditRequestWikis.value) {
+    isOpenEditRequestWikis.value = false;
+  } else {
+    isOpenEditRequestWikis.value = true;
+  }
+}
+
+// 更新リクエストステータス対応
+const statusTable = {
+  "REJECT": "却下",
+  "REQUESTNOW": "申請中",
+  "DRAFT": "下書き",
+  "APPLIED": "承認",
+}
+
+// Diff表示モーダルの表示非表示
+const showDiffPreviewModal = ref(false);
+const clickedRequestWikiId = ref("");
+
+const originalAreaRef = ref<HTMLElement | null>(null);
+const modifiedAreaRef = ref<HTMLElement | null>(null);
+
+const onOpenCloseDiffModal = async (
+  id: string,
+  text1: string,
+  text2: string,  
+  isClose: boolean = false
+) => {
+  clickedRequestWikiId.value = id;
+
+  if (isClose) {
+    showDiffPreviewModal.value = false;
+    return;
+  }
+
+  showDiffPreviewModal.value = true;
+
+  await nextTick();
+  displayDiffs(text1, text2);
+};
+
+const diff_match_patch: any = (window as any).diff_match_patch;
+const dmp = new diff_match_patch();
+
+function displayDiffs(text1: string, text2: string) {
+  const diffs = dmp.diff_main(text1, text2);
+  dmp.diff_cleanupSemantic(diffs);
+
+  const containerOriginal = originalAreaRef.value;
+  const containerModified = modifiedAreaRef.value;
+  if (!containerOriginal || !containerModified) return;
+
+  containerOriginal.replaceChildren();
+  containerModified.replaceChildren();
+
+  diffs.forEach((diff: any[]) => {
+    const operation = diff[0];
+    const text = diff[1];
+
+    const span = document.createElement("span");
+    span.textContent = text;
+
+    switch (operation) {
+      case -1:
+        span.classList.add("delete");
+        containerOriginal.appendChild(span);
+        break;
+      case 1:
+        span.classList.add("added");
+        containerModified.appendChild(span);
+        break;
+      case 0:
+        containerOriginal.appendChild(span.cloneNode(true));
+        containerModified.appendChild(span);
+        break;
+    }
+  });
+}
+
+// 承認・却下
+const resultOwnerRequest = async (isReject: boolean): Promise<void> => {
+  const payload = {
+    "id": clickedRequestWikiId.value,
+    "reject": isReject, 
+  }
+
+  try {
+    await apiClient.post(
+      postOwnerResultUrl,
+      payload
+    );
+    onOpenCloseDiffModal("", "", "", true);
+    editRequestWikiStore.initList();
+    wikiStore.initList();
+
+    if (isReject) {
+      messageModalOpenClose("却下しました。");
+    } else {
+      messageModalOpenClose("承認しました。");
+    }
+  } catch (error) {
+    if (apiClient.isAxiosError(error)) {
+      // エラーオブジェクトがAxiosError型であることが保証
+      const axiosError = error as AxiosError<any>;
+      const errorStatusCode = axiosError.response?.status;
+      if (errorStatusCode === 404) {
+        messageModalOpenClose("すでに申請者が取り下げた申請のため、変更は適用されませんでした。");
+        showDiffPreviewModal.value = false;
+        editRequestWikiStore.initList();
+        return;
+      }
+    }
+  }
+};
+
+// 取り下げ
+const disableEditRequest = async (id: string): Promise<void> => {
+  const url = `${disableEditWikiUrl}${id}`;
+  console.log(url);
+  try {
+    await apiClient.delete(
+      url,
+    );
+    onOpenCloseDiffModal("", "", "", true);
+    editRequestWikiStore.initList();
+    messageModalOpenClose("更新申請を取り下げました。");
+  } catch (error) {
+    if (apiClient.isAxiosError(error)) {
+      // エラーオブジェクトがAxiosError型であることが保証
+      const axiosError = error as AxiosError<any>;
+      const errorStatusCode = axiosError.response?.status;
+      if (errorStatusCode === 404) {
+        messageModalOpenClose("オーナーが却下後に承認しました。");
+        showDiffPreviewModal.value = false;
+        editRequestWikiStore.initList();
+        return;
+      }
+    }
+  }
+};
 
 // 更新日時を取得
 const getUpdateAt = (dateStr: string, datetimeStr: string): string => {
@@ -175,27 +333,31 @@ const handleKeyDown = (event: KeyboardEvent) => {
     event.preventDefault();
     openCloseOnetimeUrls();
 
-  // ユーザーのプライバシーセッティングモーダルを表示非表示
   } else if (event.ctrlKey && event.key === "3") {
+    event.preventDefault();
+    openCloseEditRequestWikis();
+
+  // ユーザーのプライバシーセッティングモーダルを表示非表示
+  } else if (event.ctrlKey && event.key === "4") {
     event.preventDefault();
     userPrivacySettingFunction()
 
   // 検索ワード1をフォーカス
-  } else if (event.ctrlKey && event.key === "4") {
+  } else if (event.ctrlKey && event.key === "5") {
     event.preventDefault();
     const textElement = document.getElementById("query1");
     if (textElement) {
       textElement.focus();
     }
   // 検索ワード2をフォーカス
-  } else if (event.ctrlKey && event.key === "5") {
+  } else if (event.ctrlKey && event.key === "6") {
     event.preventDefault();
     const textElement = document.getElementById("query2");
     if (textElement) {
       textElement.focus();
     }
   // 検索をクリア
-  } else if (event.ctrlKey && event.key === "6") {
+  } else if (event.ctrlKey && event.key === "7") {
     event.preventDefault();
     onSearch(true);
   }
@@ -347,20 +509,21 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
     <div class="btn-head-left">
       <button class="btn-head-image" title="Wiki作成画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="createRedirect()"><img :src="`${assetsUrl}add_fill24.png`" class="btn-img" alt="add_fill24.png"></button>
       <button class="btn-head-image" title="共有済みWiki一覧&#10;ショートカット: Ctrl + 2" v-on:click="openCloseOnetimeUrls()"><img :src="`${assetsUrl}family_line24.png`" class="btn-img" alt="family_line24.png"></button>
+      <button class="btn-head-image" title="更新リクエスト&#10;ショートカット: Ctrl + 3" v-on:click="openCloseEditRequestWikis()"><img :src="`${assetsUrl}edit_notifications_24.png`" class="btn-img" alt="edit_notifications_24.png"></button>
       <button v-on:click="userPrivacySettingFunction()" class="btn-head-image"
-        title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。&#10;ショートカット: Ctrl + 3">
+        title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。&#10;ショートカット: Ctrl + 4">
         <img :src="`${assetsUrl}manage_accounts_24.png`" class="btn-img" alt="manage_accounts_24.png"></button>
 
     </div>
     <div class="search-area">
       <div class="form-area">
-        <input type="text" class="query1" id="query1" title="1つ目の検索ワード&#10;ショートカット: Ctrl + 4" placeholder="検索ワード1"
+        <input type="text" class="query1" id="query1" title="1つ目の検索ワード&#10;ショートカット: Ctrl + 5" placeholder="検索ワード1"
           v-model="queryFormData.query1">
-        <input type="text" class="query2" id="query2" title="2つ目の検索ワード&#10;ショートカット: Ctrl + 5" placeholder="検索ワード2"
+        <input type="text" class="query2" id="query2" title="2つ目の検索ワード&#10;ショートカット: Ctrl + 6" placeholder="検索ワード2"
           v-model="queryFormData.query2">
       </div>
       <div class="form-btn-area">
-        <button class="btn-head-search" title="検索結果をクリア（作成日時でソート）&#10;ショートカット: Ctrl + 6" type="submit"
+        <button class="btn-head-search" title="検索結果をクリア（作成日時でソート）&#10;ショートカット: Ctrl + 7" type="submit"
           v-on:click="onSearch(true)"><img :src="`${assetsUrl}update_fill24.png`" class="btn-img"
             alt="update_fill24.png"></button>
       </div>
@@ -398,7 +561,8 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
   <div id="overlay-onetimewiki-https-list" v-show="isOpenShareWikis">
     <div id="content-https-wikis">
       <h2 class="modal-h2">共有URL発行済みWiki</h2>
-      <div class="table_sticky_onetime">
+      <div v-if="onetimeWikiList.size === 0"><p style="text-align: center;">共有中のWikiはありません。</p></div>
+      <div v-else class="table_sticky_onetime">
         <table>
           <thead>
             <tr>
@@ -425,8 +589,9 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
           </tbody>
         </table>
       </div>
-      <div class="btn-zone"></div>
-      <button v-on:click="openCloseOnetimeUrls()">閉じる</button>
+      <div class="btn-close">
+        <button v-on:click="openCloseOnetimeUrls()">閉じる</button>
+      </div>
     </div>
   </div>
 
@@ -434,7 +599,8 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
   <div id="overlay-onetimewiki-http-list" v-show="isOpenShareWikisHttp">
     <div id="content-http-wikis">
       <h2 class="modal-h2">共有URL発行済みWiki</h2>
-      <div class="table_sticky_onetime">
+      <div v-if="onetimeWikiList.size === 0"><p>共有中のWikiはありません。</p></div>
+      <div v-else class="table_sticky_onetime">
         <table>
           <thead>
             <tr>
@@ -461,7 +627,95 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
           </tbody>
         </table>
       </div>
-      <button v-on:click="openCloseOnetimeUrls()">閉じる</button>
+      <div class="btn-close">
+        <button v-on:click="openCloseOnetimeUrls()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 更新リクエストWikiモーダル-->
+  <div id="overlay-edit-request-list" v-show="isOpenEditRequestWikis">
+    <div id="content-edit-request-wikis">
+      <h2 class="modal-h2">更新リクエスト一覧</h2>
+      <div v-if="editRequestWikiList.size === 0"><p style="text-align: center;">申請中及び受け付けた変更リクエストはありません。</p></div>
+      <div v-else class="table_sticky_edit_requests">
+        <table>
+          <thead>
+            <tr>
+              <th>申請者</th>
+              <th>タイトル</th>
+              <th>状況</th>
+              <th>アクション</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="[id, editRequestWiki] in editRequestWikiList" v-bind:key="id">
+              <td>{{ editRequestWiki.request_public_user_name }}</td>
+              <td>{{ editRequestWiki.original_title }}</td>
+              <td>{{ statusTable[editRequestWiki.status] }}</td>
+              <td v-if="currenrUserId === editRequestWiki.wiki_owner_id">
+                <button v-on:click="onOpenCloseDiffModal(
+                  editRequestWiki.id,
+                  `${editRequestWiki.original_title}\n\n${editRequestWiki.original_body}`,
+                  `${editRequestWiki.edit_request_title}\n\n${editRequestWiki.edit_request_body}`,
+                  )">確認する</button>
+              </td>
+              <td v-if="currenrUserId !== editRequestWiki.wiki_owner_id">
+                <button v-on:click="disableEditRequest(editRequestWiki.id)">取り下げ</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="btn-close">
+        <button v-on:click="openCloseEditRequestWikis()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff表示モーダル -->
+  <div
+    id="overlay-diff"
+    v-show="showDiffPreviewModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="diff-title"
+    @click.self="onOpenCloseDiffModal('', '', '', true)"
+  >
+    <div id="content-diff">
+      <header class="diff-header">
+        <div class="diff-header__title">
+          <h2 id="diff-title">差分比較</h2>
+          <p class="diff-header__sub">元の内容 / 更新リクエストの内容</p>
+        </div>
+        <button type="button" v-on:click="onOpenCloseDiffModal('', '', '', true)">
+          閉じる
+        </button>
+      </header>
+
+      <div class="diff-grid">
+        <section class="diff-panel">
+          <div class="diff-panel__head">
+            <h3>元の内容</h3>
+          </div>
+          <div class="diff-panel__body" ref="originalAreaRef"></div>
+        </section>
+
+        <section class="diff-panel">
+          <div class="diff-panel__head">
+            <h3>更新リクエストの内容</h3>
+          </div>
+          <div class="diff-panel__body" ref="modifiedAreaRef"></div>
+        </section>
+      </div>
+
+      <footer class="diff-footer">
+        <div class="diff-footer__spacer"></div>
+        <div class="diff-footer__actions">
+          <button type="button" v-on:click="resultOwnerRequest(true)">却下</button>
+          <button type="button" v-on:click="resultOwnerRequest(false)">承認</button>
+        </div>
+      </footer>
     </div>
   </div>
 
@@ -473,8 +727,7 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
         <p><strong>{{ messageText }}</strong></p>
       </div>
       <div class="btn-close">
-        <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')"
-          class="btn-message-close">閉じる</button>
+        <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')">閉じる</button>
       </div>
     </div>
   </div>
@@ -694,7 +947,7 @@ input:checked~.circle {
 }
 
 /* 画像一覧モーダル */
-#overlay-onetimewiki-http-list, #overlay-onetimewiki-https-list {
+#overlay-onetimewiki-http-list, #overlay-onetimewiki-https-list, #overlay-edit-request-list {
   z-index: 1;
   position: fixed;
   top: 0;
@@ -708,12 +961,45 @@ input:checked~.circle {
 }
 
 /* 画像一覧モーダルのコンテンツ */
-#content-https-wikis, #content-http-wikis {
+#content-https-wikis, #content-http-wikis, #content-edit-request-wikis {
   z-index: 2;
-  width: 70%;
+  width: 73%;
   padding: 1em;
   background: #fff;
   border-radius: 10px;
+}
+
+.table_sticky_edit_requests table {
+  margin-top: 0;
+  width: 100%;
+}
+
+.table_sticky_edit_requests {
+  display: block;
+  overflow-y: auto;
+  margin-bottom: 1%;
+}
+
+.table_sticky_edit_requests thead th:nth-child(1) {
+  width: 5%;
+}
+
+.table_sticky_edit_requests thead th:nth-child(2) {
+  width: 40%;
+}
+
+.table_sticky_edit_requests thead th:nth-child(3) {
+  width: 5%;
+}
+
+.table_sticky_edit_requests thead th:nth-child(4) {
+  width: 5%;
+}
+
+.table_sticky_edit_requests tbody td:nth-child(1),
+.table_sticky_edit_requests tbody td:nth-child(4),
+.table_sticky_edit_requests tbody td:nth-child(3) {
+  text-align: center;
 }
 
 .table_sticky_onetime table {
@@ -740,7 +1026,7 @@ input:checked~.circle {
   color: #dd1010;
 }
 
-.table_sticky_onetime thead th {
+.table_sticky_onetime, .table_sticky_edit_requests thead th {
   text-align: center;
   position: sticky;
   font-size: 14px;
@@ -840,5 +1126,125 @@ input:checked~.circle {
 
 .btn-onetimewiki-stop-share:hover {
   background: rgb(56, 56, 56);
+}
+
+/* Diff表示モーダル */
+#overlay-diff {
+  z-index: 1;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 16px;
+}
+
+#content-diff {
+  width: min(1200px, 100%);
+  height: min(92vh, 980px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden; /* header/footer固定のため */
+  display: grid;
+  grid-template-rows: auto 1fr auto; /* header / body / footer */
+  background: rgb(250, 250, 250);
+  border-radius: 10px;
+}
+
+/* ===== Header ===== */
+.diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 18px 14px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.86));
+  border-bottom: 1px solid var(--border);
+}
+
+.diff-header__title h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+}
+
+.diff-header__sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ===== Body grid ===== */
+.diff-grid {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  overflow: auto;
+}
+
+/* スマホは縦積み */
+@media (max-width: 860px) {
+  .diff-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Panel ===== */
+.diff-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0; /* 子のoverflowを効かせる */
+}
+
+.diff-panel__head {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(2, 6, 23, 0.02);
+}
+
+.diff-panel__head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.82);
+}
+
+/* ===== Diff text area ===== */
+.diff-panel__body {
+  padding: 12px;
+  overflow: auto;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.65;
+  font-size: 14px;
+
+  /* “コードビュー”っぽさ */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* ===== Footer ===== */
+.diff-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.diff-footer__actions {
+  display: flex;
+  gap: 10px;
 }
 </style>

@@ -145,6 +145,11 @@ $targetHtml = Join-Path -Path $frontendMobileDir -ChildPath "dist/index.html"
     $_ -replace 'src="./mermaid.min.js"', 'src="/assets/mermaid.min.js"'
 } | Set-Content -Path $targetHtml
 
+# diff_match_patch.jsのパス変更
+(Get-Content -Path $targetHtml) | ForEach-Object {
+    $_ -replace 'src="./diff_match_patch.js"', 'src="/assets/diff_match_patch.js"'
+} | Set-Content -Path $targetHtml
+
 # manifest.jsonのパス変更
 (Get-Content -Path $targetHtml) | ForEach-Object {
     $_ -replace 'href="./manifest.json"', 'href="/assets/manifest.json"'

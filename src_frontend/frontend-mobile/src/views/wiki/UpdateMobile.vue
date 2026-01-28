@@ -2,11 +2,12 @@
 import type { UpdateWikiData, WikiData, ImageData } from "@/interface";
 import { ref, computed, watch, onUnmounted, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { updateWikiUrl, getUserUrl } from "@/router/urls";
+import { updateWikiUrl } from "@/router/urls";
 import { AxiosError } from "axios";
 import { useWikiStore } from "@/stores/wikis";
 import { useImageStore } from "@/stores/images";
-import { imageUploadUrl, imageDeleteUrl } from "@/router/urls";
+import { useEditRequestWikiStore } from "@/stores/editWikis";
+import { imageUploadUrl, imageDeleteUrl, wikiOwnerGetUrl, postEditWikiRequestUrl, getUserUrl } from "@/router/urls";
 import { baseUrl, assetsUrl } from "@/setting";
 import { marked, Renderer } from "marked";
 import { videoToken } from "@/utils/markedSetup";
@@ -87,6 +88,43 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Wikiデータのオーナー取得
+const isOwner = ref<boolean | null>(null);
+const getWikiOwner = async (id: string): Promise<void> => {
+  try {
+    const response = await apiClient.get(
+      wikiOwnerGetUrl + `/${id}`,
+    );
+    const ownerPublicName = response.data["public_name"];
+    if (
+      response.data["is_owner"] === "true" ||
+      response.data["is_owner"] === true ) {
+      isOwner.value = true;
+    } else {
+      messageModalOpenClose(`${ownerPublicName} さんへの変更申請画面です。`);
+    }
+  } catch (error) {
+    console.error("Owner Get Error");
+    loginRedirect();
+  }
+};
+getWikiOwner(props.id);
+
+// 現在ユーザーの取得
+const currentUser = ref("");
+const getCurrentUser = async (): Promise<void> => {
+  try {
+    const response = await apiClient.get(
+      getUserUrl
+    );
+    currentUser.value = response.data["public_name"];
+  } catch (error) {
+    loginRedirect();
+  }
+};
+getCurrentUser();
+
 const wikiStore = useWikiStore();
 const wiki = computed(
   (): WikiData => {
@@ -135,7 +173,7 @@ const onOutCheck = (redirectTarget: string = "list"): void => {
   }
 }
 
-/** 作成中のデータ存在時の画面遷移を確認後の処理 */
+// 作成中のデータ存在時の画面遷移を確認後の処理
 const onCloseModal = (res: number): void => {
   if (res === 1) {
     if (redirectTargetRef.value === "list") {
@@ -148,7 +186,7 @@ const onCloseModal = (res: number): void => {
   }
 };
 
-/** 更新完了メッセージモーダル */
+// 更新完了メッセージモーダル
 const isUpdateOkModal = ref(false);
 
 // Wiki更新ボタンクリック連打の抑制とプログレス表示
@@ -162,7 +200,7 @@ watch(isWikiUpdateSendNow, (): void => {
   }
 });
 
-/** Wikiの更新処理 */
+// Wikiの更新処理
 const updateWiki = async (): Promise<void> => {
   if (isWikiUpdateSendNow.value === true) {
     return;
@@ -234,8 +272,72 @@ const updateWiki = async (): Promise<void> => {
   }
 }
 
+// 更新申請完了メッセージモーダル
+const isEditRequestOkModal = ref(false);
+
+// Wikiの更新リクエスト処理
+const editRequestWiki  = async (): Promise<void> => {
+  if (!checkingEditConfirm()) {
+    messageModalOpenClose("変更はありません。");
+    return;
+  };
+
+  if (isWikiUpdateSendNow.value === true) {
+    return;
+  } else {
+    isWikiUpdateSendNow.value = true;
+  }
+
+  const id = updateWikiData.value.id;
+  const title = updateWikiData.value.title;
+  const body = updateWikiData.value.body;
+
+  // 入力項目の検証
+  if (title === "") {
+    messageModalOpenClose("Wikiのタイトルが入力されていません。");
+    isWikiUpdateSendNow.value = false;
+    return;
+  } else if (body === "") {
+    messageModalOpenClose("Wikiのコンテンツが入力されていません。");
+    isWikiUpdateSendNow.value = false;
+    return;
+  }
+
+  const data = {
+    edit_request_title: title,
+    edit_request_body: body,
+    status: "REQUESTNOW",
+  }
+
+  // axiosによるPUT
+  try {
+    const response = await apiClient.put(
+      postEditWikiRequestUrl + `${id}`,
+      data,
+    );
+    const editRequestWikiStore = useEditRequestWikiStore();
+    editRequestWikiStore.initList();
+    isEditRequestOkModal.value = true;
+
+  } catch (error) {
+    if (apiClient.isAxiosError(error)) {
+      // エラーオブジェクトがAxiosError型であることが保証
+      const axiosError = error as AxiosError<any>;
+      const errorStatusCode = axiosError.response?.status;
+      if (errorStatusCode === 409) {
+        messageModalOpenClose("現在、更新リクエストを申請中のWikiであるため、新たに申請することができません。");
+        return;
+      }
+    } else {
+      console.error("An unknown error occurred.");
+    }
+  } finally {
+    isWikiUpdateSendNow.value = false;
+  }
+}
+
 // 画像アップロード
-/** 画像アップロードのモーダル表示・非表示を管理 */
+// 画像アップロードのモーダル表示・非表示を管理
 const showImageUploadModal = ref(false);
 const openCloseImageUpModal = (): void => {
   if (showImageUploadModal.value === true) {
@@ -996,7 +1098,9 @@ function handleMarkdownInputButtons() {
           <span v-else class="switch-title">プライベート</span>
         </label>
       </p>
-      <button type="submit" class="btn-post" v-on:click.prevent="updateWiki">+ 更新</button>
+      <button v-show="isOwner" type="submit" class="btn-post" v-on:click.prevent="updateWiki">+ 更新</button>
+      <button v-show="!isOwner" type="submit" class="btn-post"
+          v-on:click.prevent="editRequestWiki">+ 変更をリクエスト</button>
     </div>
     <div class="input-tools" v-if="isShowMarkdownInputButton">
       <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')"><img :src="`${assetsUrl}format_h2_24.png`" class="btn-input-tools-img" alt="format_h2_24.png"></button>
@@ -1024,15 +1128,19 @@ function handleMarkdownInputButtons() {
       <h2 class="modal-h2">画像アップロード</h2>
       <div>
         <table class="file-select-table">
-          <tr>
-            <th>選択</th>
-          </tr>
-          <tr>
-            <td>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
-                id="image1" v-on:change="onImageSelect"/>
-            </td>
-          </tr>
+          <thead>
+            <tr>
+              <th>選択</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
+                  id="image1" v-on:change="onImageSelect"/>
+              </td>
+            </tr>
+          </tbody>
         </table>
         <button type="submit" class="btn-file-upload" v-on:click.prevent="uploadImage()">アップロード</button>
       </div>
@@ -1170,6 +1278,19 @@ function handleMarkdownInputButtons() {
       <div class="btn-zone">
         <button v-on:click="onCloseImageDeleteModal(0)">やめる</button>
         <button v-on:click="onCloseImageDeleteModal(1)" class="btn-delete">削除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 更新申請完了モーダル -->
+  <div id="overlay-updated-message" v-show="isEditRequestOkModal">
+    <div id="content-updated-message">
+      <h2 class="modal-h2">申請完了</h2>
+      <div class="input-text-zone">
+        <p><strong>Wikiの更新を申請しました。</strong></p>
+      </div>
+      <div class="btn-close">
+        <button v-on:click="previewRedirect(wiki.id)">閉じる</button>
       </div>
     </div>
   </div>
