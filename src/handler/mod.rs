@@ -5,3 +5,4 @@ pub mod images;
 pub mod admin;
 pub mod onetime_url;
 pub mod totp;
+pub mod wiki_edit;

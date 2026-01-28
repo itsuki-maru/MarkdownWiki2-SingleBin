@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS wiki_model (
     create_at TEXT NOT NULL,
     update_at TEXT NOT NULL,
     is_public BOOLEAN NOT NULL,
+    is_edit_request BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (user_id) REFERENCES user_model(id) ON DELETE CASCADE
 );
 
@@ -46,6 +47,20 @@ CREATE TABLE IF NOT EXISTS temporary_urls (
     title TEXT NOT NULL,
     body TEXT NOT NULL,
     create_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS edit_request_wiki_model (
+    id TEXT PRIMARY KEY NOT NULL,
+    wiki_owner_id TEXT NOT NULL,
+    request_user_id TEXT NOT NULL,
+    request_wiki_id TEXT NOT NULL,
+    edit_request_title TEXT NOT NULL,
+    edit_request_body TEXT NOT NULL,
+    create_at TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('REJECT', 'REQUESTNOW', 'DRAFT', 'APPLIED')),
+    FOREIGN KEY (wiki_owner_id) REFERENCES user_model(id) ON DELETE CASCADE,
+    FOREIGN KEY (request_user_id) REFERENCES user_model(id) ON DELETE CASCADE,
+    FOREIGN KEY (request_wiki_id) REFERENCES wiki_model(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS application_settings (

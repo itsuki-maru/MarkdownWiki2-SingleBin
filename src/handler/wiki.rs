@@ -84,7 +84,8 @@ pub async fn get_wiki_by_id_handler(
             title,
             body,
             update_at,
-            is_public
+            is_public,
+            is_edit_request
         FROM wiki_model
         WHERE id = $1
         "#,
@@ -105,6 +106,7 @@ pub async fn get_wiki_by_id_handler(
         body: wiki.body,
         update_at: wiki.update_at,
         is_public: wiki.is_public,
+        is_edit_request: wiki.is_edit_request,
     }))
 }
 
@@ -124,7 +126,8 @@ pub async fn get_all_wiki_handler(
             title,
             body,
             update_at,
-            is_public
+            is_public,
+            is_edit_request
         FROM wiki_model
         WHERE user_id = $1 OR is_public = true
         "#,
@@ -171,7 +174,8 @@ pub async fn get_wiki_limit_handler(
             title,
             body,
             update_at,
-            is_public
+            is_public,
+            is_edit_request
         FROM wiki_model
         WHERE user_id = $1 OR is_public = true
         ORDER BY id DESC LIMIT $2
@@ -320,19 +324,18 @@ pub async fn wiki_query_handler(
     if query1 == "".to_string() && query2 == "".to_string() {
         let wikis = query_as!(
             WikiData,
-            r#"
-            SELECT
+            "SELECT
                 id,
                 user_id,
                 date,
                 title,
                 body,
                 update_at,
-                is_public
+                is_public,
+                is_edit_request
             FROM wiki_model
             WHERE user_id = $1 OR is_public = true
-            ORDER BY id DESC LIMIT 100
-            "#,
+            ORDER BY id DESC LIMIT 100",
             user_id,
         )
         .fetch_all(&pool)
@@ -353,20 +356,19 @@ pub async fn wiki_query_handler(
         let query_text = format!("%\\{}%", query1);
         let wikis = query_as!(
             WikiData,
-            r#"
-            SELECT
+            "SELECT
                 id,
                 user_id,
                 date,
                 title,
                 body,
                 update_at,
-                is_public
+                is_public,
+                is_edit_request
             FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC
-            "#,
+            ORDER BY id DESC",
             user_id,
             query_text,
         )
@@ -388,20 +390,19 @@ pub async fn wiki_query_handler(
         let query_text = format!("%\\{}%", query2);
         let wikis = query_as!(
             WikiData,
-            r#"
-            SELECT
+            "SELECT
                 id,
                 user_id,
                 date,
                 title,
                 body,
                 update_at,
-                is_public
+                is_public,
+                is_edit_request
             FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC
-            "#,
+            ORDER BY id DESC",
             user_id,
             query_text,
         )
@@ -424,21 +425,20 @@ pub async fn wiki_query_handler(
         let query_text2 = format!("%\\{}%", query2);
         let wikis = query_as!(
             WikiData,
-            r#"
-            SELECT
+            "SELECT
                 id,
                 user_id,
                 date,
                 title,
                 body,
                 update_at,
-                is_public
+                is_public,
+                is_edit_request
             FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
             AND (title LIKE $3 ESCAPE '\\' OR body LIKE $3 ESCAPE '\\')
-            ORDER BY id DESC
-            "#,
+            ORDER BY id DESC",
             user_id,
             query_text1,
             query_text2,

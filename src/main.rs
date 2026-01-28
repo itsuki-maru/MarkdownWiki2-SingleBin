@@ -91,6 +91,12 @@ use handler::totp::{
     totp_setup_handler,
     totp_disable_handler,
 };
+use handler::wiki_edit::{
+    request_wiki_edit,
+    get_edit_request_wikis,
+    edit_request_owner_result,
+    disable_edit_request,
+};
 use my_middleware::{
     cookie_validator::CookieValidator,
     print_req_res::print_request_response,
@@ -307,6 +313,10 @@ async fn main() {
         .route("/account/totp/verify", post(totp_verify_handler))
         .route("/account/totp/disable", get(totp_disable_handler))
         .route("/account/token/disable", get(disable_token))
+        .route("/wiki-edit/request/{wiki_id}", put(request_wiki_edit))
+        .route("/wiki-edit/lists", get(get_edit_request_wikis))
+        .route("/wiki-edit/result", post(edit_request_owner_result))
+        .route("/wiki-edit/disable/{edit_request_wiki_id}", delete(disable_edit_request))
         .layer(CookieValidator);
 
     // アクセストークン不要
