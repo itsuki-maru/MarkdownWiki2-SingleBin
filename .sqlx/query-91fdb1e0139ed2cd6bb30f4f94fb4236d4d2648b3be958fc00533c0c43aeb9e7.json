@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        DELETE FROM wiki_model\n        WHERE id = $1\n        AND user_id = $2\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "91fdb1e0139ed2cd6bb30f4f94fb4236d4d2648b3be958fc00533c0c43aeb9e7"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE wiki_model\n        SET title=$1, body=$2, update_at=$3, is_public=$4\n        WHERE id = $5 AND user_id = $6\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "acbdcf361cf60c414c456f45a3b8ad476cc774dfdcddc298c734bdd008a6a7ec"
+}

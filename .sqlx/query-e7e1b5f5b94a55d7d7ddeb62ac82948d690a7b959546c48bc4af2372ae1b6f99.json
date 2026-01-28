@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            edit_request_wiki_model.id,\n            wiki_owner_id,\n            user_model.public_name as request_public_user_name,\n            request_wiki_id,\n            wiki_model.title as original_title,\n            wiki_model.body as original_body,\n            edit_request_title,\n            edit_request_body,\n            edit_request_wiki_model.create_at,\n            status\n        FROM edit_request_wiki_model\n        JOIN user_model ON edit_request_wiki_model.request_user_id = user_model.id\n        JOIN wiki_model ON edit_request_wiki_model.request_wiki_id = wiki_model.id\n        WHERE wiki_owner_id = $1 OR request_user_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "wiki_owner_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "request_public_user_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "request_wiki_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "original_title",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "original_body",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "edit_request_title",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "edit_request_body",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "create_at",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "status",
+        "ordinal": 9,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e7e1b5f5b94a55d7d7ddeb62ac82948d690a7b959546c48bc4af2372ae1b6f99"
+}

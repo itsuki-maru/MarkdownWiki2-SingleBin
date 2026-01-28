@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id,\n            user_id,\n            date,\n            title,\n            body,\n            update_at,\n            is_public,\n            is_edit_request\n        FROM wiki_model\n        WHERE user_id = $1 OR is_public = true\n        ORDER BY id DESC LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "date",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "title",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "body",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "update_at",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_public",
+        "ordinal": 6,
+        "type_info": "Bool"
+      },
+      {
+        "name": "is_edit_request",
+        "ordinal": 7,
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f5b1430c9c95886fc568cbe7cd01866c58ee123f045060c4c6ec195db26f7424"
+}

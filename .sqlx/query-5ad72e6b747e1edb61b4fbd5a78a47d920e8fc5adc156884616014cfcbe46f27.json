@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO image_model (\n                id,\n                user_id,\n                filename,\n                uuid_filename,\n                create_at\n            )\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5ad72e6b747e1edb61b4fbd5a78a47d920e8fc5adc156884616014cfcbe46f27"
+}

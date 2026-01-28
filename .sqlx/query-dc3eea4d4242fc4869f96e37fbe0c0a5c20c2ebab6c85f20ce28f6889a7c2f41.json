@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            user_model.id,\n            user_model.username,\n            user_model.public_name\n        FROM wiki_model \n        JOIN user_model ON wiki_model.user_id = user_model.id\n        WHERE (wiki_model.id = $1 AND wiki_model.user_id = $2)\n        OR (wiki_model.id = $1 AND wiki_model.is_public = true)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "public_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dc3eea4d4242fc4869f96e37fbe0c0a5c20c2ebab6c85f20ce28f6889a7c2f41"
+}

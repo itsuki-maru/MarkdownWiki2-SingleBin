@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT EXISTS(SELECT 1 FROM user_model\n            WHERE username = $1) as exists_flag\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "exists_flag",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5ef978b33916c39dfe4eb59f784862cfb8fb147d6e99e4ec362cf1171cff6593"
+}

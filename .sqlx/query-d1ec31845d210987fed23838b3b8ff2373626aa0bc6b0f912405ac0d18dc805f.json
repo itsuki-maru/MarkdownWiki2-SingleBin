@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            title,\n            body\n        FROM wiki_model\n        WHERE id = $1 AND user_id = $2\n        OR id = $1 AND is_public = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "title",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "body",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d1ec31845d210987fed23838b3b8ff2373626aa0bc6b0f912405ac0d18dc805f"
+}

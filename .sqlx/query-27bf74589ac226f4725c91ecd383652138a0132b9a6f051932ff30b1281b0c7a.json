@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT EXISTS(SELECT 1 FROM edit_request_wiki_model\n        WHERE request_wiki_id = $1) as exists_flag\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "exists_flag",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "27bf74589ac226f4725c91ecd383652138a0132b9a6f051932ff30b1281b0c7a"
+}
