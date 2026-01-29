@@ -127,7 +127,7 @@ struct Templates;
 async fn main() {
     // CLI定義
     let cli = Command::new("MarkdownWiki2")
-        .version("1.2.0")
+        .version("1.3.0")
         .author("Itsuki Maru")
         .about("MarkdownWiki2 Backend Server")
         .disable_help_flag(true)
