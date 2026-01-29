@@ -41,6 +41,7 @@ export const useEditRequestWikiStore = defineStore("editRequestWiki", {
                             edit_request_title: wikisData[key]["edit_request_title"],
                             edit_request_body: wikisData[key]["edit_request_body"],
                             create_at: wikisData[key]["create_at"],
+                            request_message: wikisData[key]["request_message"],
                             status: wikisData[key]["status"],
                         }
                     );
@@ -62,6 +63,7 @@ export const useEditRequestWikiStore = defineStore("editRequestWiki", {
                     edit_request_title: wiki.edit_request_title,
                     edit_request_body: wiki.edit_request_body,
                     create_at: wiki.create_at,
+                    request_message: wiki.request_message,
                     status: wiki.status,
                 }
             );

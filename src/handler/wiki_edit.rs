@@ -119,9 +119,10 @@ pub async fn request_wiki_edit(
             edit_request_title,
             edit_request_body,
             create_at,
+            request_message,
             status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
         "#,
         new_edit_wiki_req_id,
@@ -131,6 +132,7 @@ pub async fn request_wiki_edit(
         payload.edit_request_title,
         payload.edit_request_body,
         now,
+        payload.request_message,
         status,
     )
     .fetch_one(&mut *tx)
@@ -193,6 +195,7 @@ pub async fn get_edit_request_wikis(
             edit_request_title,
             edit_request_body,
             edit_request_wiki_model.create_at,
+            edit_request_wiki_model.request_message,
             status
         FROM edit_request_wiki_model
         JOIN user_model ON edit_request_wiki_model.request_user_id = user_model.id
@@ -221,6 +224,7 @@ pub async fn get_edit_request_wikis(
             edit_request_title: wiki.edit_request_title,
             edit_request_body: wiki.edit_request_body,
             create_at: wiki.create_at,
+            request_message: wiki.request_message,
             status: wiki.status,
         };
         wiki_hash_map.insert(wiki_id, parsed_wiki);
@@ -249,6 +253,7 @@ pub async fn edit_request_owner_result(
             edit_request_title,
             edit_request_body,
             edit_request_wiki_model.create_at,
+            edit_request_wiki_model.request_message,
             status
         FROM edit_request_wiki_model
         JOIN user_model ON edit_request_wiki_model.request_user_id = user_model.id

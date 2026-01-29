@@ -622,6 +622,23 @@ const updateWiki = async (): Promise<void> => {
 
 // 更新申請完了メッセージモーダル
 const isEditRequestOkModal = ref(false);
+// 更新メッセージモーダル
+const isRequestMessageModal = ref(false);
+// リクエストメッセージの内容
+const requestMessage = ref<string | null>(null);
+
+const handleOpenCloseRequestMessageModal = (): void => {
+  if (!checkingEditConfirm()) {
+    messageModalOpenClose("変更はありません。");
+    return;
+  };
+
+  if (isRequestMessageModal.value) {
+    isRequestMessageModal.value = false;
+  } else {
+    isRequestMessageModal.value = true;
+  }
+}
 
 // Wikiの更新リクエスト処理
 const editRequestWiki  = async (): Promise<void> => {
@@ -639,6 +656,7 @@ const editRequestWiki  = async (): Promise<void> => {
   const id = updateWikiData.value.id;
   const title = updateWikiData.value.title;
   const body = content.value;
+  const message = requestMessage.value;
 
   // 入力項目の検証
   if (title === "") {
@@ -654,6 +672,7 @@ const editRequestWiki  = async (): Promise<void> => {
   const data = {
     edit_request_title: title,
     edit_request_body: body,
+    request_message: message,
     status: "REQUESTNOW",
   }
 
@@ -665,6 +684,7 @@ const editRequestWiki  = async (): Promise<void> => {
     );
     const editRequestWikiStore = useEditRequestWikiStore();
     editRequestWikiStore.initList();
+    isRequestMessageModal.value = false;
     isEditRequestOkModal.value = true;
 
   } catch (error) {
@@ -1533,7 +1553,10 @@ const handleKeyDown = (event: KeyboardEvent) => {
     if (isOwner.value) {
       updateWiki();
     } else {
-      editRequestWiki();
+      if (isRequestMessageModal.value) {
+        editRequestWiki();
+      }
+      handleOpenCloseRequestMessageModal();
     }
 
     // Escapeキーでモーダルウィンドウをクローズ
@@ -1647,7 +1670,7 @@ function insertMarkdown(text: string) {
       <button v-show="isOwner" type="submit" title="Wikiを更新&#10;ショートカット: Ctrl + m" class="btn-post"
           v-on:click.prevent="updateWiki">+ 更新</button>
       <button v-show="!isOwner" type="submit" title="Wikiの更新をリクエスト&#10;ショートカット: Ctrl + m" class="btn-post wide"
-          v-on:click.prevent="editRequestWiki">+ 変更をリクエスト</button>
+          v-on:click.prevent="handleOpenCloseRequestMessageModal">+ 変更をリクエスト</button>
     </div>
 
     <div class="right-area-preview" v-if="isPreview">
@@ -1712,9 +1735,9 @@ function insertMarkdown(text: string) {
 
   <!-- 画像一覧モーダル（http）-->
   <div id="overlay-imagelist" v-show="showImageListContent">
-    <div id="content-image">
+    <div id="content-image" :style="{ width: imageList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">画像・PDF・動画</h2>
-      <div class="search-form">
+      <div v-if="imageList.size !== 0" class="search-form">
         <div class="form-text">
           <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData">
         </div>
@@ -1725,7 +1748,7 @@ function insertMarkdown(text: string) {
               :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
         </div>
       </div>
-      <div v-if="imageList.size === 0"><p>画像コンテンツがありません。</p></div>
+      <div v-if="imageList.size === 0" style="text-align: center;"><p>画像コンテンツがありません。</p></div>
       <div v-else class="table_sticky">
         <table>
           <thead>
@@ -1756,9 +1779,9 @@ function insertMarkdown(text: string) {
 
   <!-- 画像一覧モーダル（https or localhost） -->
   <div id="overlay-image-https-list" v-show="showImageListHttpsModal">
-    <div id="content-image-https-list">
+    <div id="content-image-https-list" :style="{ width: imageList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">画像・PDF・動画</h2>
-      <div class="search-form">
+      <div v-if="imageList.size !== 0" class="search-form">
         <div class="form-text">
           <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData">
         </div>
@@ -1769,7 +1792,7 @@ function insertMarkdown(text: string) {
               :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
         </div>
       </div>
-      <div v-if="imageList.size === 0"><p>画像コンテンツがありません。</p></div>
+      <div v-if="imageList.size === 0" style="text-align: center;"><p>画像コンテンツがありません。</p></div>
       <div v-else class="table_sticky">
         <table>
           <thead>
@@ -1873,6 +1896,18 @@ function insertMarkdown(text: string) {
     </div>
   </transition>
 
+  <!-- 変更リクエストメッセージ -->
+  <div id="overlay-request-message" v-show="isRequestMessageModal">
+    <div id="content-request-message">
+      <h2 class="modal-h2">変更リクエストメッセージ</h2>
+      <textarea id="message-textarea" v-model="requestMessage"></textarea>
+      <div class="btn-zone">
+        <button v-on:click.prevent="handleOpenCloseRequestMessageModal">キャンセル</button>
+        <button v-on:click.prevent="editRequestWiki">送信</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Diff表示モーダル -->
   <div
     id="overlay-diff"
@@ -1891,7 +1926,7 @@ function insertMarkdown(text: string) {
         <button type="button" v-on:click="onOpenCloseDiffModal(true)">
           閉じる
         </button>
-      </header>
+      </header> 
 
       <div class="diff-grid">
         <section class="diff-panel">
@@ -2502,7 +2537,6 @@ canvas {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -2609,6 +2643,48 @@ canvas {
   outline: none;
   border-color: #007BFF;
   box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+#overlay-request-message {
+  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#content-request-message {
+  z-index: 2;
+  width: 35%;
+  padding: 1em;
+  background: #fff;
+  border-radius: 10px;
+}
+
+#message-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 1em;
+  margin: 1em 0;
+  font-family: "Consolas", "Menlo", monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #222;
+  background-color: #fdfdfd;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#message-textarea:focus {
+  outline: none;
+  border-color: #666;
 }
 
 /* Diff表示モーダル */

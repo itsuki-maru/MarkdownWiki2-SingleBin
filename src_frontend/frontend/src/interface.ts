@@ -92,6 +92,7 @@ interface EditRequestWiki {
     edit_request_title: string,
     edit_request_body: string,
     create_at: string,
+    request_message: string | null,
     status: EditRequestStatus,
 }
 
@@ -100,6 +101,7 @@ interface EditWikiRequestData {
     edit_wiki_id: string,
     edit_request_title: string,
     edit_request_body: string,
+    request_message: string | null,
     status: EditRequestStatus,
 }
 

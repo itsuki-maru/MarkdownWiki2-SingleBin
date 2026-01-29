@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS edit_request_wiki_model (
     edit_request_title TEXT NOT NULL,
     edit_request_body TEXT NOT NULL,
     create_at TEXT NOT NULL,
+    request_message TEXT,
     status TEXT NOT NULL CHECK (status IN ('REJECT', 'REQUESTNOW', 'DRAFT', 'APPLIED')),
     FOREIGN KEY (wiki_owner_id) REFERENCES user_model(id) ON DELETE CASCADE,
     FOREIGN KEY (request_user_id) REFERENCES user_model(id) ON DELETE CASCADE,

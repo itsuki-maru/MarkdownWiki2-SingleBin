@@ -395,6 +395,7 @@ pub struct IssuedTemporaryUrls {
 pub struct EditWikiRequest {
     pub edit_request_title: String,
     pub edit_request_body: String,
+    pub request_message: Option<String>,
     pub status: EditRequestStatus,
 }
 
@@ -452,6 +453,7 @@ pub struct EditWikiListFromDb {
     pub edit_request_title: String,
     pub edit_request_body: String,
     pub create_at: String,
+    pub request_message: Option<String>,
     pub status: String, // DBからはString型で受け取り
 }
 

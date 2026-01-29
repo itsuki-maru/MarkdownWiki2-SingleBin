@@ -274,6 +274,23 @@ const updateWiki = async (): Promise<void> => {
 
 // 更新申請完了メッセージモーダル
 const isEditRequestOkModal = ref(false);
+// 更新メッセージモーダル
+const isRequestMessageModal = ref(false);
+// リクエストメッセージの内容
+const requestMessage = ref<string | null>(null);
+
+const handleOpenCloseRequestMessageModal = (): void => {
+  if (!checkingEditConfirm()) {
+    messageModalOpenClose("変更はありません。");
+    return;
+  };
+
+  if (isRequestMessageModal.value) {
+    isRequestMessageModal.value = false;
+  } else {
+    isRequestMessageModal.value = true;
+  }
+}
 
 // Wikiの更新リクエスト処理
 const editRequestWiki  = async (): Promise<void> => {
@@ -291,6 +308,7 @@ const editRequestWiki  = async (): Promise<void> => {
   const id = updateWikiData.value.id;
   const title = updateWikiData.value.title;
   const body = updateWikiData.value.body;
+  const message = requestMessage.value;
 
   // 入力項目の検証
   if (title === "") {
@@ -306,6 +324,7 @@ const editRequestWiki  = async (): Promise<void> => {
   const data = {
     edit_request_title: title,
     edit_request_body: body,
+    request_message: message,
     status: "REQUESTNOW",
   }
 
@@ -317,6 +336,7 @@ const editRequestWiki  = async (): Promise<void> => {
     );
     const editRequestWikiStore = useEditRequestWikiStore();
     editRequestWikiStore.initList();
+    isRequestMessageModal.value = false;
     isEditRequestOkModal.value = true;
 
   } catch (error) {
@@ -998,7 +1018,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
     // 作成
   } else if (event.ctrlKey && event.key === "m") {
     event.preventDefault();
-    updateWiki();
+    if (isOwner.value) {
+      updateWiki();
+    } else {
+      if (isRequestMessageModal.value) {
+        editRequestWiki();
+      }
+      handleOpenCloseRequestMessageModal();
+    }
 
   // Escapeキーでモーダルウィンドウをクローズ
   } else if (event.key === "Escape") {
@@ -1100,7 +1127,7 @@ function handleMarkdownInputButtons() {
       </p>
       <button v-show="isOwner" type="submit" class="btn-post" v-on:click.prevent="updateWiki">+ 更新</button>
       <button v-show="!isOwner" type="submit" class="btn-post"
-          v-on:click.prevent="editRequestWiki">+ 変更をリクエスト</button>
+          v-on:click.prevent="handleOpenCloseRequestMessageModal">+ 変更をリクエスト</button>
     </div>
     <div class="input-tools" v-if="isShowMarkdownInputButton">
       <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')"><img :src="`${assetsUrl}format_h2_24.png`" class="btn-input-tools-img" alt="format_h2_24.png"></button>
@@ -1282,6 +1309,18 @@ function handleMarkdownInputButtons() {
     </div>
   </div>
 
+  <!-- 変更リクエストメッセージ -->
+  <div id="overlay-request-message" v-show="isRequestMessageModal">
+    <div id="content-request-message">
+      <h2 class="modal-h2">変更リクエストメッセージ</h2>
+      <textarea id="message-textarea" v-model="requestMessage"></textarea>
+      <div class="btn-zone">
+        <button v-on:click.prevent="handleOpenCloseRequestMessageModal">キャンセル</button>
+        <button v-on:click.prevent="editRequestWiki">送信</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 更新申請完了モーダル -->
   <div id="overlay-updated-message" v-show="isEditRequestOkModal">
     <div id="content-updated-message">
@@ -1410,5 +1449,48 @@ function handleMarkdownInputButtons() {
   background: whitesmoke;
   border-radius: 10px;
   text-align: center;
+}
+
+
+#overlay-request-message {
+  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#content-request-message {
+  z-index: 2;
+  width: 91%;
+  padding: 1em;
+  background: #fff;
+  border-radius: 10px;
+}
+
+#message-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 1em;
+  margin: 1em 0;
+  font-family: "Consolas", "Menlo", monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #222;
+  background-color: #fdfdfd;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#message-textarea:focus {
+  outline: none;
+  border-color: #666;
 }
 </style>

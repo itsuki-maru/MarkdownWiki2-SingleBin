@@ -9,6 +9,8 @@ import { useWikiStore } from "@/stores/wikis";
 import { useOnetimeWikiStore } from "@/stores/onetimeWikis";
 import { useEditRequestWikiStore } from "@/stores/editWikis";
 import apiClient from "@/axiosClient";
+import { FilterXSS, getDefaultWhiteList } from "xss";
+import type { IFilterXSSOptions } from "xss";
 import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
 
 
@@ -271,10 +273,10 @@ const resultOwnerRequest = async (isReject: boolean): Promise<void> => {
   }
 };
 
+
 // 取り下げ
 const disableEditRequest = async (id: string): Promise<void> => {
   const url = `${disableEditWikiUrl}${id}`;
-  console.log(url);
   try {
     await apiClient.delete(
       url,
@@ -288,7 +290,7 @@ const disableEditRequest = async (id: string): Promise<void> => {
       const axiosError = error as AxiosError<any>;
       const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose("オーナーが却下後に承認しました。");
+        messageModalOpenClose("既に承認または取り下げが行われています。");
         showDiffPreviewModal.value = false;
         editRequestWikiStore.initList();
         return;
@@ -465,12 +467,23 @@ function selectTextOrClipboardCopy(elementId: string) {
   }
 }
 
+// XSSフィルタの設定をカスタマイズする
+let xssOptions: IFilterXSSOptions = {
+  whiteList: {
+    ...getDefaultWhiteList(), // デフォルトの許可リスト
+  },
+};
+const myXss = new FilterXSS(xssOptions);
+
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
 const messageText = ref("");
-const messageModalOpenClose = (message: string): void => {
+const messageModalOpenClose = (message: string | null): void => {
+  if (!message) return;
+  const cleanMessage = myXss.process(message);
+
   if (!isMessageModal.value) {
-    messageText.value = message;
+    messageText.value = cleanMessage;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
@@ -559,7 +572,7 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
 
   <!-- 共有済みWikiモーダル（https or localhost）-->
   <div id="overlay-onetimewiki-https-list" v-show="isOpenShareWikis">
-    <div id="content-https-wikis">
+    <div id="content-https-wikis" :style="{ width: onetimeWikiList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">共有URL発行済みWiki</h2>
       <div v-if="onetimeWikiList.size === 0"><p style="text-align: center;">共有中のWikiはありません。</p></div>
       <div v-else class="table_sticky_onetime">
@@ -596,8 +609,8 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
   </div>
 
   <!-- 共有済みWikiモーダル（http） -->
-  <div id="overlay-onetimewiki-http-list" v-show="isOpenShareWikisHttp">
-    <div id="content-http-wikis">
+  <div id="overlay-onetimewiki-http-list-no-data" v-show="isOpenShareWikisHttp">
+    <div id="content-http-wikis" :style="{ width: onetimeWikiList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">共有URL発行済みWiki</h2>
       <div v-if="onetimeWikiList.size === 0"><p>共有中のWikiはありません。</p></div>
       <div v-else class="table_sticky_onetime">
@@ -635,7 +648,7 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
 
   <!-- 更新リクエストWikiモーダル-->
   <div id="overlay-edit-request-list" v-show="isOpenEditRequestWikis">
-    <div id="content-edit-request-wikis">
+    <div id="content-edit-request-wikis" :style="{ width: editRequestWikiList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">更新リクエスト一覧</h2>
       <div v-if="editRequestWikiList.size === 0"><p style="text-align: center;">申請中及び受け付けた変更リクエストはありません。</p></div>
       <div v-else class="table_sticky_edit_requests">
@@ -651,7 +664,11 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
           <tbody>
             <tr v-for="[id, editRequestWiki] in editRequestWikiList" v-bind:key="id">
               <td>{{ editRequestWiki.request_public_user_name }}</td>
-              <td>{{ editRequestWiki.original_title }}</td>
+              <td v-if="currenrUserId === editRequestWiki.wiki_owner_id"
+                v-on:click="messageModalOpenClose(`${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`)" style="cursor: pointer;">
+                {{ editRequestWiki.original_title }}
+              </td>
+              <td v-else>{{ editRequestWiki.original_title }}</td>
               <td>{{ statusTable[editRequestWiki.status] }}</td>
               <td v-if="currenrUserId === editRequestWiki.wiki_owner_id">
                 <button v-on:click="onOpenCloseDiffModal(
@@ -946,8 +963,10 @@ input:checked~.circle {
   opacity: 1;
 }
 
-/* 画像一覧モーダル */
-#overlay-onetimewiki-http-list, #overlay-onetimewiki-https-list, #overlay-edit-request-list {
+/* 各種モーダル */
+#overlay-onetimewiki-http-list,
+#overlay-onetimewiki-https-list,
+#overlay-edit-request-list {
   z-index: 1;
   position: fixed;
   top: 0;
@@ -960,10 +979,11 @@ input:checked~.circle {
   justify-content: center;
 }
 
-/* 画像一覧モーダルのコンテンツ */
-#content-https-wikis, #content-http-wikis, #content-edit-request-wikis {
+/* 各種モーダルのコンテンツ */
+#content-https-wikis,
+#content-http-wikis,
+#content-edit-request-wikis {
   z-index: 2;
-  width: 73%;
   padding: 1em;
   background: #fff;
   border-radius: 10px;

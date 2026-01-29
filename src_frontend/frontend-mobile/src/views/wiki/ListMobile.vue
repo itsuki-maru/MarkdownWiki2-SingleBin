@@ -9,6 +9,8 @@ import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
 import { AxiosError } from "axios";
 import { postOwnerResultUrl, disableEditWikiUrl, getUserUrl } from '@/router/urls';
 import { useEditRequestWikiStore } from "@/stores/editWikis";
+import { FilterXSS, getDefaultWhiteList } from "xss";
+import type { IFilterXSSOptions } from "xss";
 import apiClient from "@/axiosClient";
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
@@ -222,14 +224,14 @@ const disableEditRequest = async (id: string): Promise<void> => {
     );
     onOpenCloseDiffModal("", "", "", true);
     editRequestWikiStore.initList();
-    messageModalOpenClose("更新申請を取り下げました。");
+    messageModalOpenClose("更新申請を取り下げました。")
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
       const axiosError = error as AxiosError<any>;
       const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose("オーナーが却下後に承認しました。");
+        messageModalOpenClose("既に承認または取り下げが行われています。");
         showDiffPreviewModal.value = false;
         editRequestWikiStore.initList();
         return;
@@ -354,19 +356,29 @@ function onSort() {
   wikiStore.sortWiki();
 }
 
+// XSSフィルタの設定をカスタマイズする
+let xssOptions: IFilterXSSOptions = {
+  whiteList: {
+    ...getDefaultWhiteList(),
+  },
+};
+const myXss = new FilterXSS(xssOptions);
+
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
 const messageText = ref("");
-const messageModalOpenClose = (message: string): void => {
+const messageModalOpenClose = (message: string | null): void => {
+  if (!message) return;
+  const cleanMessage = myXss.process(message);
+
   if (!isMessageModal.value) {
-    messageText.value = message;
+    messageText.value = cleanMessage;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
     messageText.value = "";
   }
 };
-
 
 const userSettingModalRef = ref<{
   openCloseUserSettingModal: () => void;
@@ -424,7 +436,11 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
           <tbody>
             <tr v-for="[id, editRequestWiki] in editRequestWikiList" v-bind:key="id">
               <td>{{ editRequestWiki.request_public_user_name }}</td>
-              <td>{{ editRequestWiki.original_title }}</td>
+              <td v-if="currenrUserId === editRequestWiki.wiki_owner_id"
+                v-on:click="messageModalOpenClose(`${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`)" style="cursor: pointer;">
+                {{ editRequestWiki.original_title }}
+              </td>
+              <td v-else>{{ editRequestWiki.original_title }}</td>
               <td>{{ statusTable[editRequestWiki.status] }}</td>
               <td v-if="currenrUserId === editRequestWiki.wiki_owner_id">
                 <button v-on:click="onOpenCloseDiffModal(
