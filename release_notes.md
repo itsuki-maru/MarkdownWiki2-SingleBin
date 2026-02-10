@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.3.1
+
+- Rust バックエンドをリファクタリング
+- 共有中のWiki一覧のUI崩れを修正
+- フロントエンドの依存関係を更新
+
 ## Version 1.3.0
 
 - モバイルからも変更リクエストを送信できるようにアップデート
