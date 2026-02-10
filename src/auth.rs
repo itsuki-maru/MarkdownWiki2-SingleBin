@@ -1,17 +1,20 @@
-use crate::scheme::{
-    Token,
-    TokenPare,
-};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation, errors::ErrorKind};
-use chrono;
 use crate::config::CONFIG;
-
+use crate::scheme::{Token, TokenPare};
+use chrono;
+use jsonwebtoken::{
+    DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
+};
 
 // アクセストークン・リフレッシュトークン作成
-pub fn create_token(user_id: &String, minutes: i64, token_type: String) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn create_token(
+    user_id: &String,
+    minutes: i64,
+    token_type: String,
+) -> Result<String, jsonwebtoken::errors::Error> {
     let expiration = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::try_minutes(minutes)
-        .expect("Failed to create duration"))
+        .checked_add_signed(
+            chrono::Duration::try_minutes(minutes).expect("Failed to create duration"),
+        )
         .expect("valid timestamp")
         .timestamp();
 
@@ -61,8 +64,16 @@ pub fn verify_access_token(token: &str) -> Result<Token, ErrorKind> {
 
 // 新しいアクセストークンを発行し、リフレッシュトークンを更新する
 pub fn refresh_access_token(user_id: String) -> Result<TokenPare, jsonwebtoken::errors::Error> {
-    let access_token = create_token(&user_id, CONFIG.access_token_exp_minutes, "access_token".to_string())?;
-    let refresh_token = create_token(&user_id, CONFIG.refresh_token_exp_minutes, "refresh_token".to_string())?;
+    let access_token = create_token(
+        &user_id,
+        CONFIG.access_token_exp_minutes,
+        "access_token".to_string(),
+    )?;
+    let refresh_token = create_token(
+        &user_id,
+        CONFIG.refresh_token_exp_minutes,
+        "refresh_token".to_string(),
+    )?;
     let token_pare = TokenPare {
         access_token: access_token.clone(),
         refresh_token: refresh_token.clone(),

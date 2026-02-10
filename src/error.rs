@@ -1,4 +1,4 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -51,7 +51,10 @@ impl AppError {
             AppError::InternalServerError => self.to_string(),
 
             // その他は enum の Display をそのまま
-            AppError::NotFound | AppError::Conflict | AppError::UnsupportedMediaType | AppError::BadRequest => self.to_string(),
+            AppError::NotFound
+            | AppError::Conflict
+            | AppError::UnsupportedMediaType
+            | AppError::BadRequest => self.to_string(),
         }
     }
 }

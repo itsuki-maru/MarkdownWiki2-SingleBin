@@ -1,38 +1,32 @@
 use axum::{
+    Json,
+    extract::{Extension, Path},
     response::{Html, IntoResponse},
-    Json, extract::{Extension, Path},
 };
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash};
 
-use chrono::{TimeDelta, Utc};
-use serde_json::json;
-use sqlx::sqlite::SqlitePool;
-use sqlx::query_as;
-use uuid::Uuid;
-use std::collections::HashMap;
 use crate::error::AppError;
 use crate::scheme::{
-    ResponseUserData,
-    UpdateUserPasswordData,
+    IsExists, IsSuperuser, ResponseUserData, ReturningId, SignupPayload, UpdateUserPasswordData,
     UpdateUserPublicNameData,
-    ReturningId,
-    SignupPayload,
-    IsSuperuser,
-    IsExists,
 };
+use chrono::{TimeDelta, Utc};
 use rust_embed::RustEmbed;
+use serde_json::json;
+use sqlx::query_as;
+use sqlx::sqlite::SqlitePool;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(RustEmbed)]
 #[folder = "dist/"]
 struct Asset;
-
 
 // 管理者画面の取得
 pub async fn admin_index_get_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Html<String>, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -54,29 +48,27 @@ pub async fn admin_index_get_handler(
         match Asset::get("index-admin.html") {
             Some(content) => {
                 let html_content = String::from_utf8(content.data.into_owned()).unwrap();
-                return Ok(Html(html_content))
+                return Ok(Html(html_content));
             }
-            None => return Err(AppError::NotFound)
+            None => return Err(AppError::NotFound),
         }
     // 管理者以外
     } else {
         match Asset::get("index.html") {
             Some(content) => {
                 let html_content = String::from_utf8(content.data.into_owned()).unwrap();
-                return Ok(Html(html_content))
+                return Ok(Html(html_content));
             }
-            None => return Err(AppError::NotFound)
+            None => return Err(AppError::NotFound),
         }
     }
 }
-
 
 // ユーザー一覧を取得
 pub async fn get_users_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<HashMap<String, ResponseUserData>>, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -142,7 +134,6 @@ pub async fn update_users_password_handler(
     Path(update_user_id): Path<String>,
     Json(payload): Json<UpdateUserPasswordData>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -198,7 +189,6 @@ pub async fn update_public_name_handler(
     Path(update_user_id): Path<String>,
     Json(payload): Json<UpdateUserPublicNameData>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -250,7 +240,6 @@ pub async fn unlock_account_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(unlock_user_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -301,7 +290,6 @@ pub async fn create_users_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<SignupPayload>,
 ) -> Result<Json<ReturningId>, AppError> {
-
     // スーパーユーザー判定
     let super_user_exists = query_as!(
         IsSuperuser,
@@ -338,25 +326,25 @@ pub async fn create_users_handler(
 
         // `i64`を`bool`に変換
         let user_exists = user_exists.exists_flag != 0;
-        
+
         // 同名のユーザーが既に存在する場合はエラーを返す
         if user_exists {
             return Err(AppError::Conflict);
         }
-        
+
         // パスワードをハッシュ化(ソルト値はハッシュ値に組み込んで管理)
         let hashed_password = hash(payload.password, DEFAULT_COST).unwrap_or("".to_string());
         if hashed_password == "" {
             return Err(AppError::InternalServerError);
         }
-        
+
         // UTCで現在時刻を取得し、NaiveDateTimeに変換
         let now = Utc::now().naive_utc();
         let yesterday;
         match TimeDelta::try_days(1) {
             Some(one_day_delta) => {
                 yesterday = now - one_day_delta;
-            },
+            }
             None => {
                 tracing::error!("Initial Data Create Error.");
                 return Err(AppError::InternalServerError);
@@ -368,16 +356,16 @@ pub async fn create_users_handler(
             tracing::error!(error = %e, "failed to begin transaction");
             AppError::InternalServerError
         })?;
-        
+
         // 新規ID
         let new_user_id = Uuid::now_v7().to_string();
         let totp_secret = "".to_string();
         let totp_temp_secret = "".to_string();
-        
+
         // 新しいユーザーを追加（追加したユーザーのidを取得）
         let new_user_id = query_as!(
-        ReturningId,
-        r#"
+            ReturningId,
+            r#"
         INSERT INTO user_model (
             id,
             username,
@@ -397,20 +385,20 @@ pub async fn create_users_handler(
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
         "#,
-        new_user_id,
-        payload.username,
-        payload.public_name,
-        hashed_password,
-        now,
-        false,
-        0,
-        yesterday,
-        false,
-        true,
-        false,
-        yesterday,
-        totp_secret,
-        totp_temp_secret,
+            new_user_id,
+            payload.username,
+            payload.public_name,
+            hashed_password,
+            now,
+            false,
+            0,
+            yesterday,
+            false,
+            true,
+            false,
+            yesterday,
+            totp_secret,
+            totp_temp_secret,
         )
         .fetch_one(&mut *tx)
         .await
@@ -426,7 +414,7 @@ pub async fn create_users_handler(
         })?;
 
         Ok(Json(new_user_id))
-    
+
     // 管理者以外
     } else {
         Err(AppError::Unauthorized("Not Superuser.".into()))

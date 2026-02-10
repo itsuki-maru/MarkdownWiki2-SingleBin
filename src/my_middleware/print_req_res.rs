@@ -18,7 +18,7 @@ pub async fn print_request_response(
 
     let method = req.method().clone();
     let uri = req.uri().clone();
-    
+
     let res = next.run(req).await;
 
     let (parts, body) = res.into_parts();

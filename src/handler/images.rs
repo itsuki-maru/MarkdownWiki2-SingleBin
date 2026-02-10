@@ -1,30 +1,26 @@
-use axum::{
-    extract::{Path, Extension},
-    Json,
+use crate::config::CONFIG;
+use crate::error::AppError;
+use crate::image_ext_validator::check_file_extension;
+use crate::scheme::{
+    DeletedImageResponse, ImageData, ImageIdNameDeleted, ReturningId, UploadResponseImage,
 };
+use crate::utils::ensure_dir;
+use axum::{
+    Json,
+    extract::{Extension, Path},
+};
+use chrono::Utc;
 use futures_util::TryStreamExt as _;
-use sqlx::sqlite::SqlitePool;
+use image::{ImageFormat, io::Reader as ImageReader};
 use sqlx::query_as;
+use sqlx::sqlite::SqlitePool;
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::path::Path as StdPath;
+use std::path::PathBuf;
 use tokio::{fs::File, io::AsyncWriteExt};
 use tokio_util::io::StreamReader;
 use uuid::Uuid;
-use image::{ImageFormat, io::Reader as ImageReader};
-use std::io::Cursor;
-use std::collections::HashMap;
-use std::path::Path as StdPath;
-use std::path::PathBuf;
-use chrono::Utc;
-use crate::error::AppError;
-use crate::scheme::{
-    DeletedImageResponse,
-    ImageData,
-    ReturningId,
-    ImageIdNameDeleted,
-    UploadResponseImage,
-};
-use crate::image_ext_validator::check_file_extension;
-use crate::utils::ensure_dir;
-use crate::config::CONFIG;
 
 // GET IMAGES LIMIT
 pub async fn get_enable_images_limit_handler(
@@ -32,7 +28,6 @@ pub async fn get_enable_images_limit_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(limit): Path<i64>,
 ) -> Result<Json<HashMap<String, ImageData>>, AppError> {
-
     let images = query_as!(
         ImageData,
         r#"
@@ -68,7 +63,6 @@ pub async fn get_enable_images_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<HashMap<String, ImageData>>, AppError> {
-
     let images = query_as!(
         ImageData,
         r#"
@@ -104,7 +98,6 @@ pub async fn upload_image_handler(
     Extension(pool): Extension<SqlitePool>,
     mut payload: axum::extract::Multipart,
 ) -> Result<Json<UploadResponseImage>, AppError> {
-
     // 現在時刻を取得
     let now = Utc::now().naive_utc();
 
@@ -127,7 +120,7 @@ pub async fn upload_image_handler(
         let dir_path = PathBuf::from(CONFIG.upload_file_path.clone()).join(sub_dir);
 
         match ensure_dir(&dir_path).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(_) => return Err(AppError::InternalServerError),
         }
 
@@ -159,8 +152,9 @@ pub async fn upload_image_handler(
             };
 
             // 作成した一時ファイルにストリームでデータを流し込む
-            let mut stream =
-            StreamReader::new(field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
+            let mut stream = StreamReader::new(
+                field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+            );
 
             if let Err(_) = tokio::io::copy(&mut stream, &mut temp_file).await {
                 return Err(AppError::InternalServerError);
@@ -174,7 +168,8 @@ pub async fn upload_image_handler(
                 .with_guessed_format()
                 .map_err(|_| AppError::InternalServerError)?;
 
-            let img = &img_reader.decode()
+            let img = &img_reader
+                .decode()
                 .map_err(|_| AppError::InternalServerError)?;
 
             let format = match ImageFormat::from_path(&temp_file_path) {
@@ -192,7 +187,8 @@ pub async fn upload_image_handler(
             img.write_to(&mut Cursor::new(&mut output_data), format)
                 .map_err(|_| AppError::InternalServerError)?;
 
-            final_file.write_all(&output_data)
+            final_file
+                .write_all(&output_data)
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
 
@@ -201,12 +197,11 @@ pub async fn upload_image_handler(
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
 
-
         // PDFファイルや動画ファイルの処理
         } else {
             // 保存ファイル名を設定
             let file_path = format!("{}/{}.{}", dir_path.to_string_lossy(), uuid, valid_ext);
-            
+
             // ファイルを作成
             let mut file = match File::create(file_path).await {
                 Ok(file) => file,
@@ -214,9 +209,10 @@ pub async fn upload_image_handler(
             };
 
             // 作成したファイルにストリームでデータを流し込む
-            let mut stream =
-            StreamReader::new(field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
-            
+            let mut stream = StreamReader::new(
+                field.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+            );
+
             if let Err(_) = tokio::io::copy(&mut stream, &mut file).await {
                 return Err(AppError::InternalServerError);
             }
@@ -270,7 +266,6 @@ pub async fn delete_image_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(image_id): Path<String>,
 ) -> Result<Json<DeletedImageResponse>, AppError> {
-
     // UUID文字列から先頭5文字を取得
     let sub_dir = &image_id.to_string()[0..5];
 
@@ -294,16 +289,16 @@ pub async fn delete_image_handler(
         AppError::Sqlx(e)
     })?;
 
-    let file_path = format!("{}/{}", dir_path.to_string_lossy(), &deleted_image.uuid_filename);
+    let file_path = format!(
+        "{}/{}",
+        dir_path.to_string_lossy(),
+        &deleted_image.uuid_filename
+    );
     match std::fs::remove_file(file_path) {
-        Ok(_) => {
-            Ok(Json(DeletedImageResponse {
-                id: deleted_image.id,
-                message: "Delete Ok.".to_string(),
-            }))
-        }
-        Err(_) => {
-            Err(AppError::NotFound)
-        }
+        Ok(_) => Ok(Json(DeletedImageResponse {
+            id: deleted_image.id,
+            message: "Delete Ok.".to_string(),
+        })),
+        Err(_) => Err(AppError::NotFound),
     }
 }

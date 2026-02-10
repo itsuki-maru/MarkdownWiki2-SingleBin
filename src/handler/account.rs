@@ -1,32 +1,22 @@
+use crate::config::CONFIG;
 use axum::{
+    Extension, Json,
     http::{HeaderValue, StatusCode},
     response::{IntoResponse, Response},
-    Extension, Json,
 };
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{query, query_as};
 use uuid::Uuid;
-use crate::config::CONFIG;
 
-use crate::auth::{
-    create_token,
-    refresh_access_token,
-};
-use crate::scheme::{
-    MessageApi,
-    AuthenticatedUser,
-    LoginPayload,
-    SignupPayload,
-    UserAccountModel,
-    ReturningId,
-    UpdateAccountPrivacyPayload,
-    AccountPrivacyInfo,
-    IsExists
-};
+use crate::auth::{create_token, refresh_access_token};
 use crate::error::AppError;
+use crate::scheme::{
+    AccountPrivacyInfo, AuthenticatedUser, IsExists, LoginPayload, MessageApi, ReturningId,
+    SignupPayload, UpdateAccountPrivacyPayload, UserAccountModel,
+};
 
 // サインアップハンドラー
 pub async fn signup_handler(
@@ -45,9 +35,7 @@ pub async fn signup_handler(
     )
     .fetch_one(&pool)
     .await
-    .map_err(|e| {
-        AppError::Sqlx(e)
-    })?;
+    .map_err(|e| AppError::Sqlx(e))?;
 
     // `i64`を`bool`に変換
     let user_exists = user_exists.exists_flag != 0;
@@ -69,7 +57,7 @@ pub async fn signup_handler(
     match TimeDelta::try_days(1) {
         Some(one_day_delta) => {
             yesterday = now - one_day_delta;
-        },
+        }
         None => {
             tracing::error!("Initial Data Create Error.");
             return Err(AppError::InternalServerError);
@@ -139,7 +127,7 @@ pub async fn signup_handler(
         AppError::Sqlx(e)
     })?;
 
-    return Ok(Json(returning_user_id))
+    return Ok(Json(returning_user_id));
 }
 
 // ログインハンドラー
@@ -147,7 +135,6 @@ pub async fn token_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<LoginPayload>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // application_settingsの値を格納する構造体
     struct ApplicationSettings {
         setting_key: String,
@@ -167,21 +154,20 @@ pub async fn token_handler(
     .await;
 
     let mut parsed_login_limit = 15;
-    let mut parsed_minutes= 5;
-    let mut parsed_challenge_limit_start= 5;
+    let mut parsed_minutes = 5;
+    let mut parsed_challenge_limit_start = 5;
     if let Ok(setting) = result_settings {
         for row in setting {
             if row.setting_key == "login_attempts_limit" {
                 let login_attempts_limit = row.setting_value;
                 parsed_login_limit = parsed_i64_to_string(login_attempts_limit).unwrap_or(15);
-
             } else if row.setting_key == "next_challenge_minutes" {
                 let next_challenge_minutes = row.setting_value;
                 parsed_minutes = parsed_i64_to_string(next_challenge_minutes).unwrap_or(5);
-
             } else if row.setting_key == "challenge_limit_start" {
                 let challenge_limit_start = row.setting_value;
-                parsed_challenge_limit_start = parsed_i64_to_string(challenge_limit_start).unwrap_or(5);
+                parsed_challenge_limit_start =
+                    parsed_i64_to_string(challenge_limit_start).unwrap_or(5);
             }
         }
     }
@@ -266,7 +252,6 @@ pub async fn token_handler(
         return AppError::InternalServerError;
     })? == false
     {
-    
         let failed_count = user.failed_count;
         let failed_count = failed_count + 1;
 
@@ -295,7 +280,7 @@ pub async fn token_handler(
                     })?;
 
                     return Err(AppError::Unauthorized("UnauthorizedPleaseWait".into()));
-                },
+                }
                 None => {
                     tracing::error!("five_min_delta Get Error.");
                     return Err(AppError::InternalServerError);
@@ -350,16 +335,14 @@ pub async fn token_handler(
             "user": payload.username,
             "id": user.id,
             "totp_required": true,
-        }).to_string();
+        })
+        .to_string();
 
         // レスポンスの生成
         let response = builder
             .status(StatusCode::OK)
             .body(body)
-            .map_err(|_e| {
-                AppError::InternalServerError
-            }
-        )?;
+            .map_err(|_e| AppError::InternalServerError)?;
         return Ok(response);
     // TOTPが有効でなければそのままログイン成功
     } else {
@@ -381,52 +364,72 @@ pub async fn token_handler(
         })?;
 
         // アクセストークン生成
-        let access_token = create_token(&user.id, CONFIG.access_token_exp_minutes, "access_token".to_string()).map_err(|_e| {
-            AppError::InternalServerError
-        })?;
+        let access_token = create_token(
+            &user.id,
+            CONFIG.access_token_exp_minutes,
+            "access_token".to_string(),
+        )
+        .map_err(|_e| AppError::InternalServerError)?;
 
         // リフレッシュトークン生成
-        let refresh_token = create_token(&user.id, CONFIG.refresh_token_exp_minutes, "refresh_token".to_string()).map_err(|_e| {
-            AppError::InternalServerError
-        })?;
+        let refresh_token = create_token(
+            &user.id,
+            CONFIG.refresh_token_exp_minutes,
+            "refresh_token".to_string(),
+        )
+        .map_err(|_e| AppError::InternalServerError)?;
 
         // cookieヘッダーの生成
         let access_token_cookie;
         let refresh_token_cookie;
         if CONFIG.secure_cookie {
-            access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-            refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+            access_token_cookie = format!(
+                "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
+                access_token,
+                CONFIG.access_token_exp_minutes * 60
+            );
+            refresh_token_cookie = format!(
+                "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
+                refresh_token,
+                CONFIG.refresh_token_exp_minutes * 60
+            );
         } else {
-            access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-            refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+            access_token_cookie = format!(
+                "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
+                access_token,
+                CONFIG.access_token_exp_minutes * 60
+            );
+            refresh_token_cookie = format!(
+                "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
+                refresh_token,
+                CONFIG.refresh_token_exp_minutes * 60
+            );
         }
 
-        let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-            AppError::InternalServerError})?;
-        let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-            AppError::InternalServerError})?;
+        let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie)
+            .map_err(|_e| AppError::InternalServerError)?;
+        let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie)
+            .map_err(|_e| AppError::InternalServerError)?;
 
         let body = json!({
             "success": true,
             "user": payload.username,
             "id": user.id,
             "totp_required": false,
-        }).to_string();
+        })
+        .to_string();
 
         let mut builder = Response::builder();
         if let Some(headers) = builder.headers_mut() {
             headers.append("Set-Cookie", access_token_cookie_header);
             headers.append("Set-Cookie", refresh_token_cookie_header);
         }
-    
+
         // レスポンスの生成
         let response = builder
             .status(StatusCode::OK)
             .body(body)
-            .map_err(|_e| {
-                AppError::InternalServerError
-            }
-        )?;
+            .map_err(|_e| AppError::InternalServerError)?;
         Ok(response)
     }
 }
@@ -436,7 +439,6 @@ pub async fn auth_check_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<AuthenticatedUser>, AppError> {
-
     // SQLクエリの実行
     let user = query_as!(
         AuthenticatedUser,
@@ -447,9 +449,7 @@ pub async fn auth_check_handler(
     )
     .fetch_one(&pool)
     .await
-    .map_err(|e| {
-        AppError::Sqlx(e)
-    })?;
+    .map_err(|e| AppError::Sqlx(e))?;
 
     Ok(Json(user))
 }
@@ -457,7 +457,7 @@ pub async fn auth_check_handler(
 fn parsed_i64_to_string(string_int: String) -> Result<i64, std::num::ParseIntError> {
     match string_int.parse::<i64>() {
         Ok(parsed_int) => return Ok(parsed_int),
-        Err(e) => return Err(e)
+        Err(e) => return Err(e),
     };
 }
 
@@ -465,42 +465,52 @@ fn parsed_i64_to_string(string_int: String) -> Result<i64, std::num::ParseIntErr
 pub async fn refresh_token_handler(
     Extension(user_id): Extension<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     match refresh_access_token(user_id) {
         Ok(new_tokens) => {
             // cookieヘッダーの生成
             let access_token_cookie;
             let refresh_token_cookie;
             if CONFIG.secure_cookie {
-                access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", new_tokens.access_token, CONFIG.access_token_exp_minutes * 60);
-                refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", new_tokens.refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+                access_token_cookie = format!(
+                    "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
+                    new_tokens.access_token,
+                    CONFIG.access_token_exp_minutes * 60
+                );
+                refresh_token_cookie = format!(
+                    "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
+                    new_tokens.refresh_token,
+                    CONFIG.refresh_token_exp_minutes * 60
+                );
             } else {
-                access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", new_tokens.access_token, CONFIG.access_token_exp_minutes * 60);
-                refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", new_tokens.refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+                access_token_cookie = format!(
+                    "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
+                    new_tokens.access_token,
+                    CONFIG.access_token_exp_minutes * 60
+                );
+                refresh_token_cookie = format!(
+                    "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
+                    new_tokens.refresh_token,
+                    CONFIG.refresh_token_exp_minutes * 60
+                );
             }
 
             // cookieヘッダーの生成
-            let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-                AppError::InternalServerError
-            })?;
-            let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-                AppError::InternalServerError
-            })?;
-            
+            let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie)
+                .map_err(|_e| AppError::InternalServerError)?;
+            let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie)
+                .map_err(|_e| AppError::InternalServerError)?;
+
             let mut builder = Response::builder();
             if let Some(headers) = builder.headers_mut() {
                 headers.append("Set-Cookie", access_token_cookie_header);
                 headers.append("Set-Cookie", refresh_token_cookie_header);
             }
-            
+
             // レスポンスの生成
             let response = builder
                 .status(StatusCode::OK)
                 .body(axum::body::Body::empty())
-                .map_err(|_e| {
-                    AppError::InternalServerError
-                }
-            )?;
+                .map_err(|_e| AppError::InternalServerError)?;
             Ok(response)
         }
         Err(err) => {
@@ -534,7 +544,9 @@ pub async fn account_privacy_update_handler(
 
     let affected_rows = result.rows_affected();
     if affected_rows > 0 {
-        return Ok(Json(MessageApi { message: "User privacy successfully updated.".to_string() }));
+        return Ok(Json(MessageApi {
+            message: "User privacy successfully updated.".to_string(),
+        }));
     } else {
         return Err(AppError::BadRequest);
     }
@@ -585,32 +597,45 @@ fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
 pub async fn disable_token(
     Extension(user_id): Extension<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // アクセストークン生成
-    let access_token = create_token(&user_id, 0, "access_token".to_string()).map_err(|_e| {
-        AppError::InternalServerError
-    })?;
+    let access_token = create_token(&user_id, 0, "access_token".to_string())
+        .map_err(|_e| AppError::InternalServerError)?;
 
     // リフレッシュトークン生成
-    let refresh_token = create_token(&user_id, 0, "refresh_token".to_string()).map_err(|_e| {
-        AppError::InternalServerError
-    })?;
+    let refresh_token = create_token(&user_id, 0, "refresh_token".to_string())
+        .map_err(|_e| AppError::InternalServerError)?;
 
     // cookieヘッダーの生成
     let access_token_cookie;
     let refresh_token_cookie;
     if CONFIG.secure_cookie {
-        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+        access_token_cookie = format!(
+            "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
+            access_token,
+            CONFIG.access_token_exp_minutes * 60
+        );
+        refresh_token_cookie = format!(
+            "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
+            refresh_token,
+            CONFIG.refresh_token_exp_minutes * 60
+        );
     } else {
-        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+        access_token_cookie = format!(
+            "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
+            access_token,
+            CONFIG.access_token_exp_minutes * 60
+        );
+        refresh_token_cookie = format!(
+            "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
+            refresh_token,
+            CONFIG.refresh_token_exp_minutes * 60
+        );
     }
 
-    let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-        AppError::InternalServerError})?;
-    let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-        AppError::InternalServerError})?;
+    let access_token_cookie_header =
+        HeaderValue::from_str(&access_token_cookie).map_err(|_e| AppError::InternalServerError)?;
+    let refresh_token_cookie_header =
+        HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| AppError::InternalServerError)?;
 
     let mut builder = Response::builder();
     if let Some(headers) = builder.headers_mut() {
@@ -622,9 +647,6 @@ pub async fn disable_token(
     let response = builder
         .status(StatusCode::OK)
         .body(axum::body::Body::empty())
-        .map_err(|_e| {
-            AppError::InternalServerError
-        }
-    );
+        .map_err(|_e| AppError::InternalServerError);
     response
 }

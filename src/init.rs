@@ -1,22 +1,23 @@
+use super::scheme::ApplicationInitSetup;
+#[cfg(windows)]
+use super::utils::{ensure_console, hide_console};
+use dirs::home_dir;
 use serde::Deserialize;
 use serde::Serialize;
-use dirs::home_dir;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
-use super::scheme::ApplicationInitSetup;
-#[cfg(windows)]
-use super::utils::{ensure_console, hide_console};
-
 
 pub fn get_application_user_setup_path() -> PathBuf {
     let home_dir = home_dir().expect("User home directory get error.");
     let setup_file_dir = home_dir.join(".markdown-wiki2-single");
     if !setup_file_dir.exists() {
-        fs::create_dir(&setup_file_dir).expect("Directory `~/.markdown-wiki2-single` create error.");
+        fs::create_dir(&setup_file_dir)
+            .expect("Directory `~/.markdown-wiki2-single` create error.");
         let images_dir = &setup_file_dir.join("images");
-        fs::create_dir(images_dir).expect("Directory `~/.markdown-wiki2-single/images` create error.");
+        fs::create_dir(images_dir)
+            .expect("Directory `~/.markdown-wiki2-single/images` create error.");
         read_or_create_json_env(setup_file_dir.clone());
     }
     setup_file_dir
@@ -38,18 +39,14 @@ pub fn read_or_create_json_env(setup_file_dir: PathBuf) -> ApplicationInitSetup 
             let result = fs::remove_file(env_json_path);
             match result {
                 Ok(_) => read_or_create_json_env(setup_recover_path),
-                Err(_) => panic!("Json env load error.")
+                Err(_) => panic!("Json env load error."),
             }
-            
-        },
+        }
     };
     load_json_data
 }
 
-pub fn create_default_env(
-    application_user_setting_dir: PathBuf,
-) -> ApplicationInitSetup {
-
+pub fn create_default_env(application_user_setting_dir: PathBuf) -> ApplicationInitSetup {
     // Windows 環境下にて初回起動時のセットアップのみコンソール出力
     #[cfg(windows)]
     ensure_console();
@@ -100,8 +97,10 @@ pub fn create_default_env(
 }
 
 fn write_to_json_file<T: Serialize>(file_path: PathBuf, data: &T) -> io::Result<()> {
-    let file = fs::File::create(file_path).expect("`markdown-wiki2-single.env.json` fs create error.");
-    serde_json::to_writer_pretty(file, data).expect("`markdown-wiki2-single.env.json` write error.");
+    let file =
+        fs::File::create(file_path).expect("`markdown-wiki2-single.env.json` fs create error.");
+    serde_json::to_writer_pretty(file, data)
+        .expect("`markdown-wiki2-single.env.json` write error.");
     Ok(())
 }
 

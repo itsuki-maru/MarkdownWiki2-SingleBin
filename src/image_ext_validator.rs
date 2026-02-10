@@ -61,7 +61,6 @@ impl FromStr for FileAllowExtension {
             "mp4" => Ok(FileAllowExtension::Mp4),
             "MP4" => Ok(FileAllowExtension::MP4),
             ext => Ok(FileAllowExtension::Invalid(ext.to_string())),
-
         }
     }
 }

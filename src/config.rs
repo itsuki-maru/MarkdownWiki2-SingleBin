@@ -24,32 +24,37 @@ pub struct Config {
 }
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| Config {
-    app_title: env::var("APP_TITLE")
-        .expect("APP_TITLE must be set"),
+    app_title: env::var("APP_TITLE").expect("APP_TITLE must be set"),
     database_path: env::var("CREATEDATABASE_PATH").expect("CREATEDATABASE_PATH must be set."),
     database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set."),
     access_token_exp_minutes: env::var("ACCESS_TOKEN_EXP_MINUTUES")
         .expect("ACCESS_TOKEN_EXP_HOURS must be set.")
-        .parse::<i64>().expect("Failed Count Parse Error."),
+        .parse::<i64>()
+        .expect("Failed Count Parse Error."),
     refresh_token_exp_minutes: env::var("REFRESH_TOKEN_EXP_MINUTUES")
         .expect("REFRESH_TOKEN_EXP_MINUTUES must be set.")
-        .parse::<i64>().expect("Failed Count Parse Error."),
+        .parse::<i64>()
+        .expect("Failed Count Parse Error."),
     secret_key: env::var("SECRET_KEY").expect("SECRET_KEY must be set."),
     admin_user_name: env::var("ADMIN_USERNAME").expect("ADMIN_USERNAME must be set."),
     admin_user_password: env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set."),
     failed_count: env::var("FAILED_ACCOUNT_LOCK").expect("FAILED_ACCOUNT_LOCK must be set."),
-    next_challenge_minutes: env::var("NEXT_CHALLENGE_MINUTES").expect("NEXT_CHALLENGE_MINUTES must be set."),
-    challenge_limit_start: env::var("CHALLENGE_LIMIT_TIME_FAILEDCOUNT").expect("CHALLENGE_LIMIT_TIME_FAILEDCOUNT must be set."),
+    next_challenge_minutes: env::var("NEXT_CHALLENGE_MINUTES")
+        .expect("NEXT_CHALLENGE_MINUTES must be set."),
+    challenge_limit_start: env::var("CHALLENGE_LIMIT_TIME_FAILEDCOUNT")
+        .expect("CHALLENGE_LIMIT_TIME_FAILEDCOUNT must be set."),
     images_path: env::var("IMAGE_FILES_PATH").expect("IMAGE_FILES_PATH must be set"),
     upload_file_path: env::var("UPLOAD_FILE_PATH").expect("UPLOAD_FILE_PATH must be set"),
     cache_control: get_cache_control_from_env().to_header_value(),
     secure_cookie: env::var("SECURE_COOKIE")
         .expect("SECURE_COOKIE must be set")
-        .parse::<bool>().expect("SECURE_COOKIE Parse Error."),
+        .parse::<bool>()
+        .expect("SECURE_COOKIE Parse Error."),
     service_name: env::var("SERVICE_NAME").expect("SERVICE_NAME must be set"),
     allow_user_create_account: env::var("ALLOW_USER_CREATE_ACCOUNT")
         .expect("ALLOW_USER_CREATE_ACCOUNT must be set")
-        .parse::<bool>().expect("ALLOW_USER_CREATE_ACCOUNT Parse Error."),
+        .parse::<bool>()
+        .expect("ALLOW_USER_CREATE_ACCOUNT Parse Error."),
     allow_origins: env::var("ALLOW_ORIGINS").expect("ALLOW_ORIGINS must be set"),
 });
 
@@ -72,7 +77,8 @@ impl FromStr for CacheControl {
             // private, private=max-age=3600
             if let Some(pos) = lower.find("max-age=") {
                 let value = &lower[pos + 8..];
-                let secs = value.parse::<u64>()
+                let secs = value
+                    .parse::<u64>()
                     .map_err(|e| format!("Invalid max-age value: {}", e))?;
                 Ok(CacheControl::Private(Some(secs)))
             } else {

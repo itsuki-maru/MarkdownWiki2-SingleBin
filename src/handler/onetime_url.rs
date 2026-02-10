@@ -1,35 +1,32 @@
 use axum::{
-    extract::{Path, Extension, rejection::PathRejection},
-    response::{IntoResponse, Html},
-    http::{StatusCode, header::HeaderMap}, Json,
+    Json,
+    extract::{Extension, Path, rejection::PathRejection},
+    http::{StatusCode, header::HeaderMap},
+    response::{Html, IntoResponse},
 };
 use chrono::Utc;
-use tera::{Context, Tera};
-use sqlx::{sqlite::SqlitePool, query};
 use sqlx::query_as;
-use uuid::Uuid;
-use std::time::Duration;
-use std::sync::Arc;
+use sqlx::{query, sqlite::SqlitePool};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+use tera::{Context, Tera};
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
-use crate::scheme::{
-    CreatedTemporaryUrlResponse,
-    WikiTempDataTitleAndBody,
-    TemporaryUrl,
-    GenarateUrlSecondsPayload,
-    IssuedTemporaryUrls
-};
 use crate::error::AppError;
+use crate::scheme::{
+    CreatedTemporaryUrlResponse, GenarateUrlSecondsPayload, IssuedTemporaryUrls, TemporaryUrl,
+    WikiTempDataTitleAndBody,
+};
 
 // 一時URLの発行
 pub async fn generate_url_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
-    Json(payload): Json<GenarateUrlSecondsPayload>
+    Json(payload): Json<GenarateUrlSecondsPayload>,
 ) -> Result<Json<CreatedTemporaryUrlResponse>, AppError> {
-
     // 現在時刻を取得
     let now = Utc::now().naive_utc();
 
@@ -41,7 +38,6 @@ pub async fn generate_url_handler(
         WHERE wiki_id = $1
         "#,
         wiki_id,
-        
     )
     .fetch_one(&pool)
     .await
@@ -58,12 +54,12 @@ pub async fn generate_url_handler(
             "#,
             wiki_id
         )
-            .execute(&pool)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "database error.");
-                AppError::Sqlx(e)
-            })?;
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "database error.");
+            AppError::Sqlx(e)
+        })?;
     }
 
     // WikiをユーザーIDとWikiのIDから取得
@@ -98,7 +94,8 @@ pub async fn generate_url_handler(
         wiki.title.clone(),
         wiki.body.clone(),
         now.to_string(),
-    ).map_err(|_e| {
+    )
+    .map_err(|_e| {
         return AppError::InternalServerError;
     })?;
 
@@ -146,7 +143,6 @@ pub async fn temporary_wiki_get_handler(
     Extension(tera): Extension<Arc<Mutex<Tera>>>,
     url_id: Result<Path<String>, PathRejection>,
 ) -> Result<impl IntoResponse, AppError> {
-
     // User-Agentの取り出し
     let user_agent = headers.get("User-Agent").and_then(|ua| ua.to_str().ok());
 
@@ -223,7 +219,7 @@ pub async fn temporary_wiki_get_handler(
                             }
                         }
                     }
-                },
+                }
                 // DBから共有URLの取得に失敗した場合
                 Err(_) => {
                     let statuscode = "Not Found".to_string();
@@ -243,12 +239,14 @@ pub async fn temporary_wiki_get_handler(
                     }
                 }
             }
-        },
+        }
 
         // 不正な UUID が渡された場合
         Err(_rejection) => {
             let statuscode = "Not Found".to_string();
-            let message = "コンテンツが見つかりません。共有の期限切れやURLの入力間違いの可能性があります。".to_string();
+            let message =
+                "コンテンツが見つかりません。共有の期限切れやURLの入力間違いの可能性があります。"
+                    .to_string();
 
             let mut context = Context::new();
             context.insert("statuscode", &statuscode);
@@ -272,13 +270,13 @@ pub async fn invalidate_url_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<StatusCode, AppError> {
-
     query!(
         r#"
         DELETE FROM temporary_urls
         WHERE id = $1 AND user_id = $2
         "#,
-        url_id, user_id
+        url_id,
+        user_id
     )
     .execute(&pool)
     .await
@@ -292,7 +290,6 @@ pub async fn get_all_temporary_urls(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<HashMap<String, IssuedTemporaryUrls>>, AppError> {
-
     let urls = query_as!(
         IssuedTemporaryUrls,
         r#"

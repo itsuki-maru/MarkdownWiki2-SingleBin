@@ -1,19 +1,20 @@
+use crate::error::AppError;
+use crate::scheme::{
+    CreateWikiData, DownloadWikiData, ResponseWikiData, ResponseWikiId, ReturningId,
+    UpdateWikiData, UpdatedWikiResponse, WikiData, WikiOwner, WikiQueryParams,
+};
 use axum::{
-    response::IntoResponse,
-    response::Response, Json,
+    Json,
     extract::{Extension, Path, Query},
+    response::IntoResponse,
+    response::Response,
 };
 use chrono::Utc;
 use serde_json::json;
-use sqlx::sqlite::SqlitePool;
 use sqlx::query_as;
+use sqlx::sqlite::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::error::AppError;
-use crate::scheme::{
-    CreateWikiData, DownloadWikiData, WikiData, ReturningId, WikiOwner, ResponseWikiData,
-    ResponseWikiId, UpdateWikiData, UpdatedWikiResponse, WikiQueryParams,
-};
 
 // CREATE WIKI
 pub async fn create_wiki_handler(
@@ -21,7 +22,6 @@ pub async fn create_wiki_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<CreateWikiData>,
 ) -> Result<Json<ResponseWikiId>, AppError> {
-
     // UTCで現在時刻を取得し、NaiveDateTimeに変換
     let now = Utc::now().naive_utc();
 
@@ -73,7 +73,6 @@ pub async fn get_wiki_by_id_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
 ) -> Result<Json<WikiData>, AppError> {
-
     let wiki = query_as!(
         WikiData,
         r#"
@@ -115,7 +114,6 @@ pub async fn get_all_wiki_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<HashMap<String, ResponseWikiData>>, AppError> {
-
     let wikis = query_as!(
         WikiData,
         r#"
@@ -163,7 +161,6 @@ pub async fn get_wiki_limit_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(limit): Path<i64>,
 ) -> Result<Json<HashMap<String, WikiData>>, AppError> {
-
     let wikis = query_as!(
         WikiData,
         r#"
@@ -205,7 +202,6 @@ pub async fn get_wiki_owner_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     let owner = query_as!(
         WikiOwner,
         r#"
@@ -213,7 +209,7 @@ pub async fn get_wiki_owner_handler(
             user_model.id,
             user_model.username,
             user_model.public_name
-        FROM wiki_model 
+        FROM wiki_model
         JOIN user_model ON wiki_model.user_id = user_model.id
         WHERE (wiki_model.id = $1 AND wiki_model.user_id = $2)
         OR (wiki_model.id = $1 AND wiki_model.is_public = true)
@@ -249,7 +245,6 @@ pub async fn update_wiki_handler(
     Path(wiki_id): Path<String>,
     Json(payload): Json<UpdateWikiData>,
 ) -> Result<Json<UpdatedWikiResponse>, AppError> {
-
     let now = Utc::now().naive_utc();
 
     let returned_id = query_as!(
@@ -286,7 +281,6 @@ pub async fn delete_wiki_handler(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     let returned_id = query_as!(
         ReturningId,
         r#"
@@ -317,7 +311,6 @@ pub async fn wiki_query_handler(
     Extension(pool): Extension<SqlitePool>,
     Query(params): Query<WikiQueryParams>,
 ) -> Result<Json<HashMap<String, WikiData>>, AppError> {
-
     let query1 = params.query1;
     let query2 = params.query2;
 
@@ -466,7 +459,6 @@ pub async fn download_file(
     Extension(pool): Extension<SqlitePool>,
     Path(wiki_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-
     let wiki = query_as!(
         DownloadWikiData,
         r#"
@@ -492,7 +484,7 @@ pub async fn download_file(
             let title = markdown_data.title;
             let body = markdown_data.body;
             format!("# {}\n\n{}", title, body)
-        },
+        }
         None => return Err(AppError::NotFound),
     };
 
@@ -504,9 +496,7 @@ pub async fn download_file(
             "attachment; filename=\"download.md\"",
         )
         .body(markdown_text)
-        .map_err(|_e| {
-            AppError::InternalServerError
-        });
+        .map_err(|_e| AppError::InternalServerError);
 
     Ok(response)
 }

@@ -28,11 +28,11 @@ pub struct RefreshCookieValidatorMiddleware<S> {
     inner: S,
 }
 
-impl <S, B> Service<Request<B>> for RefreshCookieValidatorMiddleware<S>
-    where
-        S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static,
-        S::Future: Send + 'static,
-        B: Send + 'static,
+impl<S, B> Service<Request<B>> for RefreshCookieValidatorMiddleware<S>
+where
+    S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static,
+    S::Future: Send + 'static,
+    B: Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -89,7 +89,9 @@ impl <S, B> Service<Request<B>> for RefreshCookieValidatorMiddleware<S>
                         Ok(response) => return Ok(response),
                         Err(err) => {
                             tracing::error!("{}", err);
-                            let response = (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response();
+                            let response =
+                                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.")
+                                    .into_response();
                             return Ok(response);
                         }
                     }

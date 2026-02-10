@@ -1,6 +1,6 @@
+use std::path::Path;
 use tokio::fs;
 use tokio::io;
-use std::path::Path;
 
 pub async fn ensure_dir(path: &Path) -> io::Result<()> {
     match fs::create_dir_all(path).await {
@@ -13,9 +13,7 @@ pub async fn ensure_dir(path: &Path) -> io::Result<()> {
 // コンソール表示処理（Windowsのみ有効）
 #[cfg(windows)]
 pub fn ensure_console() {
-    use windows::Win32::System::Console::{
-        AttachConsole, AllocConsole, ATTACH_PARENT_PROCESS,
-    };
+    use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AllocConsole, AttachConsole};
 
     // 開発時のみ
     if !cfg!(debug_assertions) {
@@ -28,13 +26,12 @@ pub fn ensure_console() {
     }
 }
 
-
 // コンソール非表示処理（Windowsのみ有効）
 #[cfg(windows)]
 pub fn hide_console() {
     use windows::Win32::{
         System::Console::GetConsoleWindow,
-        UI::WindowsAndMessaging::{ShowWindow, SW_HIDE},
+        UI::WindowsAndMessaging::{SW_HIDE, ShowWindow},
     };
 
     unsafe {

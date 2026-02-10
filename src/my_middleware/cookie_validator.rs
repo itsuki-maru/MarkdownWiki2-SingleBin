@@ -1,10 +1,10 @@
 use crate::auth::verify_access_token;
 use axum::response::IntoResponse;
-use serde_json::json;
 use axum::{
     body::Body,
     http::{Request, Response, StatusCode},
 };
+use serde_json::json;
 use std::{
     future::Future,
     pin::Pin,
@@ -33,11 +33,11 @@ pub struct CookieValidatorMiddleware<S> {
 }
 
 // Serviceトレイトを実装して、リクエストを受け取り、処理を行い、レスポンスを返す機能を定義
-impl <S, B> Service<Request<B>> for CookieValidatorMiddleware<S>
-    where
-        S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static, // 制約を定義
-        S::Future: Send + 'static, // 非同期処理のためのFuture型がSendトレイトを実装している必要がある
-        B: Send + 'static, // リクエストボディもSendトレイトを実装している必要がある
+impl<S, B> Service<Request<B>> for CookieValidatorMiddleware<S>
+where
+    S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static, // 制約を定義
+    S::Future: Send + 'static, // 非同期処理のためのFuture型がSendトレイトを実装している必要がある
+    B: Send + 'static,         // リクエストボディもSendトレイトを実装している必要がある
 {
     type Response = S::Response; // SからResponse型を継承（レスポンス型を内部サービスのものに設定）
     type Error = S::Error; // エラー型も内部サービスから継承
@@ -95,7 +95,9 @@ impl <S, B> Service<Request<B>> for CookieValidatorMiddleware<S>
                         Ok(response) => return Ok(response),
                         Err(err) => {
                             tracing::error!("{}", err);
-                            let response = (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response();
+                            let response =
+                                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.")
+                                    .into_response();
                             return Ok(response);
                         }
                     }

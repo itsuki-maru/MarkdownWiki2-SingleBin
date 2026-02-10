@@ -3,13 +3,13 @@ use axum::{
     body::Body,
     http::{Request, Response},
 };
-use uuid::Uuid;
 use std::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
 };
 use tower::{Layer, Service};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct FlexibleCookieValidator;
@@ -27,11 +27,11 @@ pub struct FlexibleCookieValidatorMiddleware<S> {
     inner: S,
 }
 
-impl <S, B> Service<Request<B>> for FlexibleCookieValidatorMiddleware<S>
-    where
-        S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static,
-        S::Future: Send + 'static,
-        B: Send + 'static,
+impl<S, B> Service<Request<B>> for FlexibleCookieValidatorMiddleware<S>
+where
+    S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static,
+    S::Future: Send + 'static,
+    B: Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;

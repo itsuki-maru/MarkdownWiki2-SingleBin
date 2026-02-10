@@ -1,29 +1,24 @@
-use axum::{
-    http::{HeaderValue, StatusCode},
-    response::{IntoResponse, Response}, Json,
-    extract::Extension,
-};
-use sqlx::sqlite::SqlitePool;
-use sqlx::{query, query_as};
-use totp_rs::{TOTP, Algorithm};
-use base32::Alphabet;
-use rand::Rng;
-use serde_json::json;
-use chrono::{Duration, Utc};
-use crate::error::AppError;
-use crate::scheme::{
-    MessageApi,
-    TotpSetupResponse,
-    TotpVerifyRequest,
-    TotpTempSecret,
-    UserAccountModel,
-    TotpLoginPayload,
-    GetUserNameFromDb,
-};
-use chrono::NaiveDateTime;
 use crate::auth::create_token;
 use crate::config::CONFIG;
-
+use crate::error::AppError;
+use crate::scheme::{
+    GetUserNameFromDb, MessageApi, TotpLoginPayload, TotpSetupResponse, TotpTempSecret,
+    TotpVerifyRequest, UserAccountModel,
+};
+use axum::{
+    Json,
+    extract::Extension,
+    http::{HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
+};
+use base32::Alphabet;
+use chrono::NaiveDateTime;
+use chrono::{Duration, Utc};
+use rand::Rng;
+use serde_json::json;
+use sqlx::sqlite::SqlitePool;
+use sqlx::{query, query_as};
+use totp_rs::{Algorithm, TOTP};
 
 // TOTP有効化ハンドラー
 pub async fn totp_setup_handler(
@@ -54,9 +49,7 @@ pub async fn totp_setup_handler(
         CONFIG.service_name.clone().into(),
         user.username.clone(),
     )
-    .map_err(|_e| {
-        AppError::InternalServerError
-    });
+    .map_err(|_e| AppError::InternalServerError);
 
     match totp {
         Ok(totp) => {
@@ -82,8 +75,8 @@ pub async fn totp_setup_handler(
             } else {
                 Err(AppError::BadRequest)
             }
-        },
-        Err(_) => Err(AppError::BadRequest)
+        }
+        Err(_) => Err(AppError::BadRequest),
     }
 }
 
@@ -93,7 +86,6 @@ pub async fn totp_verify_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<TotpVerifyRequest>,
 ) -> Result<Json<MessageApi>, AppError> {
-
     let result = query_as!(
         TotpTempSecret,
         "SELECT totp_temp_secret FROM user_model WHERE id = $1",
@@ -117,11 +109,9 @@ pub async fn totp_verify_handler(
         30,
         result.totp_temp_secret.clone().into(),
         CONFIG.service_name.clone().into(),
-        user_id.to_string().into()
+        user_id.to_string().into(),
     )
-    .map_err(|_e| {
-        AppError::Unauthorized("Unauthorized".into())
-    })?;
+    .map_err(|_e| AppError::Unauthorized("Unauthorized".into()))?;
 
     if !totp.check_current(&payload.token).unwrap_or(false) {
         return Err(AppError::Unauthorized("Unauthorized".into()));
@@ -142,9 +132,10 @@ pub async fn totp_verify_handler(
         AppError::Sqlx(e)
     })?;
 
-    Ok(Json(MessageApi { message: "Success TOTP 2FA enabled.".to_string() }))
+    Ok(Json(MessageApi {
+        message: "Success TOTP 2FA enabled.".to_string(),
+    }))
 }
-
 
 // TOTPによるログインハンドラー
 pub async fn token_totp_handler(
@@ -200,7 +191,7 @@ pub async fn token_totp_handler(
             }
         }
     }
-    
+
     let totp = TOTP::new(
         Algorithm::SHA1,
         6,
@@ -210,9 +201,7 @@ pub async fn token_totp_handler(
         CONFIG.service_name.clone().into(),
         payload.user_id.clone().to_string(),
     )
-    .map_err(|_e| {
-        AppError::InternalServerError
-    })?;
+    .map_err(|_e| AppError::InternalServerError)?;
 
     if !totp.check_current(&payload.totp_token).unwrap_or(false) {
         return Err(AppError::Unauthorized("NoAuth".into()));
@@ -236,30 +225,52 @@ pub async fn token_totp_handler(
     })?;
 
     // アクセストークン生成
-    let access_token = create_token(&user.id, CONFIG.access_token_exp_minutes, "access_token".to_string()).map_err(|_e| {
-        AppError::InternalServerError
-    })?;
+    let access_token = create_token(
+        &user.id,
+        CONFIG.access_token_exp_minutes,
+        "access_token".to_string(),
+    )
+    .map_err(|_e| AppError::InternalServerError)?;
 
     // リフレッシュトークン生成
-    let refresh_token = create_token(&user.id, CONFIG.refresh_token_exp_minutes, "refresh_token".to_string()).map_err(|_e| {
-        AppError::InternalServerError
-    })?;
+    let refresh_token = create_token(
+        &user.id,
+        CONFIG.refresh_token_exp_minutes,
+        "refresh_token".to_string(),
+    )
+    .map_err(|_e| AppError::InternalServerError)?;
 
     // cookieヘッダーの生成
     let access_token_cookie;
     let refresh_token_cookie;
     if CONFIG.secure_cookie {
-        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+        access_token_cookie = format!(
+            "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
+            access_token,
+            CONFIG.access_token_exp_minutes * 60
+        );
+        refresh_token_cookie = format!(
+            "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
+            refresh_token,
+            CONFIG.refresh_token_exp_minutes * 60
+        );
     } else {
-        access_token_cookie = format!("access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/", access_token, CONFIG.access_token_exp_minutes * 60);
-        refresh_token_cookie = format!("refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh", refresh_token, CONFIG.refresh_token_exp_minutes * 60);
+        access_token_cookie = format!(
+            "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
+            access_token,
+            CONFIG.access_token_exp_minutes * 60
+        );
+        refresh_token_cookie = format!(
+            "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
+            refresh_token,
+            CONFIG.refresh_token_exp_minutes * 60
+        );
     }
 
-    let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie).map_err(|_e| {
-        AppError::InternalServerError})?;
-    let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| {
-        AppError::InternalServerError})?;
+    let access_token_cookie_header =
+        HeaderValue::from_str(&access_token_cookie).map_err(|_e| AppError::InternalServerError)?;
+    let refresh_token_cookie_header =
+        HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| AppError::InternalServerError)?;
 
     // レスポンスボディの情報
     let body = json!({
@@ -267,7 +278,8 @@ pub async fn token_totp_handler(
         "user": user.username,
         "id": user.id,
         "totp_required": false,
-    }).to_string();
+    })
+    .to_string();
 
     // ベーシック認証確認済みのフラグのフラグをfalseへ初期化
     query!(
@@ -296,9 +308,7 @@ pub async fn token_totp_handler(
     let response = builder
         .status(StatusCode::OK)
         .body(body)
-        .map_err(|_e| {
-            AppError::InternalServerError
-        })?;
+        .map_err(|_e| AppError::InternalServerError)?;
     Ok(response)
 }
 
@@ -328,7 +338,9 @@ pub async fn totp_disable_handler(
 
     let affected_rows = query_result.rows_affected();
     if affected_rows > 0 {
-        Ok(Json(MessageApi { message: "Success TOTP 2FA disabled.".to_string() }))
+        Ok(Json(MessageApi {
+            message: "Success TOTP 2FA disabled.".to_string(),
+        }))
     } else {
         Err(AppError::Unauthorized("Failed TOTP 2FA disable.".into()))
     }

@@ -1,9 +1,9 @@
-use std::{str::FromStr, time::Duration};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::Type;
 use std::path::PathBuf;
+use std::{str::FromStr, time::Duration};
 use thiserror::Error;
 
 // アプリケーション設定情報構造体
@@ -138,7 +138,6 @@ pub struct TokenPare {
     pub access_token: String,
     pub refresh_token: String,
 }
-
 
 // ユーザー名とIDを返す構造体
 #[derive(Debug, Serialize, Deserialize)]
@@ -332,27 +331,33 @@ impl TemporaryUrl {
         ttl: Duration,
         title: String,
         body: String,
-        create_at: String
+        create_at: String,
     ) -> Result<Self, TempUrlError> {
-        let expiration = Utc::now().naive_utc()
+        let expiration = Utc::now()
+            .naive_utc()
             .checked_add_signed(
-                chrono::Duration::from_std(ttl)
-                    .map_err(|_| TempUrlError::DurationOverflow)?
+                chrono::Duration::from_std(ttl).map_err(|_| TempUrlError::DurationOverflow)?,
             )
-            .ok_or(TempUrlError::DurationOverflow)?.to_string();
-        Ok(Self { id: uuid, user_id, wiki_id, url, expiration, title, body, create_at}) // idはデータベースで生成
+            .ok_or(TempUrlError::DurationOverflow)?
+            .to_string();
+        Ok(Self {
+            id: uuid,
+            user_id,
+            wiki_id,
+            url,
+            expiration,
+            title,
+            body,
+            create_at,
+        }) // idはデータベースで生成
     }
 
     pub fn is_expired(&self) -> bool {
         // SQLiteでの文字列から日付型に戻す
         let expiration = NaiveDateTime::parse_from_str(&self.expiration, "%Y-%m-%d %H:%M:%S");
         match expiration {
-            Ok(exp) => {
-                exp < Utc::now().naive_utc()
-            },
-            Err(_e) => {
-                false
-            }
+            Ok(exp) => exp < Utc::now().naive_utc(),
+            Err(_e) => false,
         }
     }
 }
@@ -401,9 +406,9 @@ pub struct EditWikiRequest {
 
 // 編集リクエストの状態管理（REJECT: 却下、REQUESTNOW: 返答待ち、DRAFT: 下書き）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[sqlx(type_name="TEXT")]
-#[sqlx(rename_all="UPPERCASE")]
-#[serde(rename_all="UPPERCASE")]
+#[sqlx(type_name = "TEXT")]
+#[sqlx(rename_all = "UPPERCASE")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum EditRequestStatus {
     #[sqlx(rename = "REJECT")]
     Reject,
@@ -422,7 +427,7 @@ impl EditRequestStatus {
             EditRequestStatus::Reject => "REJECT",
             EditRequestStatus::RequestNow => "REQUESTNOW",
             EditRequestStatus::Draft => "DRAFT",
-            EditRequestStatus::Applied => "APPLIED"
+            EditRequestStatus::Applied => "APPLIED",
         }
     }
 }

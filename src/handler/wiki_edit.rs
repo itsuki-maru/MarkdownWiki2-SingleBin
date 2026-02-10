@@ -1,13 +1,7 @@
 use crate::error::AppError;
 use crate::scheme::{
-    EditResponseStatus,
-    EditWikiListFromDb,
-    EditWikiOwnerRequest,
-    EditWikiOwnerResponse,
-    EditWikiRequest, EditWikiStatusResponse,
-    ReturningId,
-    WikiData,
-    IsExists,
+    EditResponseStatus, EditWikiListFromDb, EditWikiOwnerRequest, EditWikiOwnerResponse,
+    EditWikiRequest, EditWikiStatusResponse, IsExists, ReturningId, WikiData,
 };
 use axum::{
     Json,
@@ -16,11 +10,10 @@ use axum::{
 };
 use chrono::Utc;
 use serde_json::json;
-use sqlx::sqlite::SqlitePool;
 use sqlx::query_as;
+use sqlx::sqlite::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
-
 
 // Wikiの更新リクエスト
 pub async fn request_wiki_edit(
@@ -29,7 +22,6 @@ pub async fn request_wiki_edit(
     Path(wiki_id): Path<String>,
     Json(payload): Json<EditWikiRequest>,
 ) -> Result<Json<EditWikiStatusResponse>, AppError> {
-
     // UTCで現在時刻を取得し、NaiveDateTimeに変換
     let now = Utc::now().naive_utc();
 
@@ -174,13 +166,11 @@ pub async fn request_wiki_edit(
     Ok(Json(status))
 }
 
-
 // 更新リクエスト中のWiki（オーナー側又は申請側）の一覧取得
 pub async fn get_edit_request_wikis(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
 ) -> Result<Json<HashMap<String, EditWikiListFromDb>>, AppError> {
-
     // オーナーかリクエスト者のいずれかを取得
     let edit_request_wikis = query_as!(
         EditWikiListFromDb,
@@ -238,7 +228,6 @@ pub async fn edit_request_owner_result(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<EditWikiOwnerRequest>,
 ) -> Result<Json<EditWikiOwnerResponse>, AppError> {
-
     // 更新リクエストWikiの取得
     let edit_wiki = query_as!(
         EditWikiListFromDb,
@@ -395,7 +384,6 @@ pub async fn edit_request_owner_result(
     }
 }
 
-
 // 申請の取り下げ
 pub async fn disable_edit_request(
     Extension(user_id): Extension<String>,
@@ -422,7 +410,7 @@ pub async fn disable_edit_request(
     })?;
 
     match query_result {
-        Some(_) => {},
+        Some(_) => {}
         None => return Err(AppError::NotFound),
     };
 

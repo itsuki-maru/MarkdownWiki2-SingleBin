@@ -1,19 +1,18 @@
-use sqlx::sqlite::{SqlitePool, Sqlite};
-use sqlx::{Error, Pool};
-use sqlx::query_as;
-use chrono::{TimeDelta, Utc};
-use bcrypt::{hash, DEFAULT_COST};
-use uuid::Uuid;
-use tracing::info;
-use std::path::Path;
-use std::fs;
 use crate::config::CONFIG;
+use bcrypt::{DEFAULT_COST, hash};
+use chrono::{TimeDelta, Utc};
+use sqlx::query_as;
+use sqlx::sqlite::{Sqlite, SqlitePool};
+use sqlx::{Error, Pool};
+use std::fs;
+use std::path::Path;
+use tracing::info;
+use uuid::Uuid;
 
 use super::scheme::ReturningId;
 
 // データベース接続の確立
 pub async fn setup_database_pool() -> Result<SqlitePool, Error> {
-
     if !Path::new(&CONFIG.database_path).exists() {
         info!("The SQLite database file does not exists so create it.");
         fs::File::create(&CONFIG.database_path).expect("Faild to create SQLite database file.");
@@ -49,7 +48,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
             totp_temp_secret CHARACTER VARYING(256) NOT NULL
         );
         "#,
-
         r#"
         CREATE TABLE IF NOT EXISTS wiki_model (
             id TEXT PRIMARY KEY NOT NULL,
@@ -64,7 +62,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
             FOREIGN KEY (user_id) REFERENCES user_model(id) ON DELETE CASCADE
         );
         "#,
-
         r#"
         CREATE TABLE IF NOT EXISTS image_model (
             id TEXT PRIMARY KEY NOT NULL,
@@ -75,7 +72,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
             FOREIGN KEY (user_id) REFERENCES user_model(id) ON DELETE CASCADE
         );
         "#,
-
         r#"
         CREATE TABLE IF NOT EXISTS temporary_urls (
             id TEXT PRIMARY KEY NOT NULL,
@@ -88,7 +84,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
             create_at TEXT NOT NULL
         );
         "#,
-
         r#"
         CREATE TABLE IF NOT EXISTS edit_request_wiki_model (
             id TEXT PRIMARY KEY NOT NULL,
@@ -105,7 +100,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
             FOREIGN KEY (request_wiki_id) REFERENCES wiki_model(id) ON DELETE CASCADE
         );
         "#,
-
         r#"
         CREATE TABLE IF NOT EXISTS application_settings (
             id TEXT PRIMARY KEY NOT NULL,
@@ -132,16 +126,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Error> {
 }
 
 // 初期データの存在確認
-pub async fn check_and_insert_initial_data(
-    pool: &Pool<Sqlite>,
-) -> Result<(), sqlx::Error> {
-
+pub async fn check_and_insert_initial_data(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     // 管理者アカウント初期データの存在確認を確認
-    let row: (i64, ) = query_as(
-        "SELECT COUNT(*) FROM user_model"
-    )
-    .fetch_one(pool)
-    .await?;
+    let row: (i64,) = query_as("SELECT COUNT(*) FROM user_model")
+        .fetch_one(pool)
+        .await?;
 
     if row.0 == 0 {
         insert_initial_admin_data(pool).await?;
@@ -153,10 +142,7 @@ pub async fn check_and_insert_initial_data(
 }
 
 // 管理者アカウント作成、アカウントロック回数設定
-async fn insert_initial_admin_data(
-    pool: &Pool<Sqlite>
-) -> Result<(), sqlx::Error> {
-
+async fn insert_initial_admin_data(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     // トランザクションの開始
     let mut tx = pool.begin().await?;
 
@@ -165,7 +151,7 @@ async fn insert_initial_admin_data(
     match TimeDelta::try_days(1) {
         Some(one_day_delta) => {
             yesterday = now - one_day_delta;
-        },
+        }
         None => {
             tracing::error!("Initial Data Create Error.");
             panic!("Initial Data Create Error.");
@@ -173,7 +159,8 @@ async fn insert_initial_admin_data(
     }
 
     // パスワードをハッシュ化(ソルト値はハッシュ値に組み込んで管理)
-    let hashed_password = hash(&CONFIG.admin_user_password, DEFAULT_COST).expect("Admin Password Hash Error.");
+    let hashed_password =
+        hash(&CONFIG.admin_user_password, DEFAULT_COST).expect("Admin Password Hash Error.");
 
     // 新規ID
     let new_admin_id = Uuid::now_v7().to_string();
@@ -221,21 +208,25 @@ async fn insert_initial_admin_data(
     .await;
 
     match result {
-        Ok(_user_id) => {},
+        Ok(_user_id) => {}
         Err(e) => {
             tracing::error!("Master Layer Create Error: {}.", e);
         }
     }
 
     // アカウントロックまでの時間を設定
-    let failed_count_parsed = CONFIG.failed_count.parse::<u32>().expect("Failed Count Parse Error.");
+    let failed_count_parsed = CONFIG
+        .failed_count
+        .parse::<u32>()
+        .expect("Failed Count Parse Error.");
 
     // 新規ID
     let new_settings_id = Uuid::now_v7().to_string();
 
     // 設定項目と説明
     let setting_value = "login_attempts_limit".to_string();
-    let description = "Number of allowed failed login attempts before locking the account".to_string();
+    let description =
+        "Number of allowed failed login attempts before locking the account".to_string();
 
     let result = query_as!(
         ReturningId,
@@ -267,7 +258,10 @@ async fn insert_initial_admin_data(
     }
 
     // 複数回のログインに失敗した際の時間制限（分）を設定
-    let next_challenge_minutes_parsed = CONFIG.next_challenge_minutes.parse::<u32>().expect("Failed Count Parse Error."); // 検証のみ
+    let next_challenge_minutes_parsed = CONFIG
+        .next_challenge_minutes
+        .parse::<u32>()
+        .expect("Failed Count Parse Error."); // 検証のみ
 
     // 新規ID
     let new_settings_id = Uuid::now_v7().to_string();
@@ -306,7 +300,10 @@ async fn insert_initial_admin_data(
     }
 
     // ログイン試行時間制限を開始するまでの回数を設定
-    let challenge_limit_start_parsed = CONFIG.challenge_limit_start.parse::<u32>().expect("Failed Count Parse Error."); // 検証のみ
+    let challenge_limit_start_parsed = CONFIG
+        .challenge_limit_start
+        .parse::<u32>()
+        .expect("Failed Count Parse Error."); // 検証のみ
 
     // 新規ID
     let new_settings_id = Uuid::now_v7().to_string();
@@ -340,7 +337,10 @@ async fn insert_initial_admin_data(
     .await;
 
     match result {
-        Ok(_) => tracing::info!("Next Challenge Limit Start: {}", challenge_limit_start_parsed),
+        Ok(_) => tracing::info!(
+            "Next Challenge Limit Start: {}",
+            challenge_limit_start_parsed
+        ),
         Err(_) => tracing::error!("Initial Data Create Error."),
     }
 

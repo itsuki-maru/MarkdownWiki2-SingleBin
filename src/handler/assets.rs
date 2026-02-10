@@ -1,25 +1,24 @@
+use crate::config::CONFIG;
+use crate::error::AppError;
 use axum::{
-    body::Body, extract::{Extension, Path},
-    http::{header::CONTENT_TYPE, HeaderValue, Response, StatusCode},
+    body::Body,
+    extract::{Extension, Path},
+    http::{HeaderValue, Response, StatusCode, header::CONTENT_TYPE},
     response::Response as HttpResponse,
 };
-use sqlx::sqlite::SqlitePool;
+use rust_embed::RustEmbed;
 use sqlx::query_as;
+use sqlx::sqlite::SqlitePool;
+use std::path::PathBuf;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use std::path::PathBuf;
-use crate::config::CONFIG;
-use rust_embed::RustEmbed;
-use crate::error::AppError;
 
 #[derive(RustEmbed)]
 #[folder = "dist/assets"]
 struct Asset;
 
 // 静的ファイルのレスポンスハンドラー
-pub async fn serve_static_file(
-    Path(uri): Path<String>,
-) -> Result<Response<Body>, AppError> {
+pub async fn serve_static_file(Path(uri): Path<String>) -> Result<Response<Body>, AppError> {
     match Asset::get(&uri) {
         Some(content) => {
             // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
@@ -33,7 +32,7 @@ pub async fn serve_static_file(
                     // 他の拡張子があれば適宜追加
                     _ => "application/octet-stream", // 不明なファイルタイプ
                 };
-                
+
                 let body = content.data.into_owned();
                 let response = Response::builder()
                     .status(StatusCode::OK)
@@ -45,7 +44,7 @@ pub async fn serve_static_file(
                 Err(AppError::NotFound)
             }
         }
-        None => Err(AppError::NotFound)
+        None => Err(AppError::NotFound),
     }
 }
 
@@ -55,10 +54,8 @@ pub async fn serve_image_file(
     Extension(pool): Extension<SqlitePool>,
     Path(image_name): Path<String>,
 ) -> Result<Response<Body>, AppError> {
-
     // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
     if let Some(safe_file_name) = sanitoze_filename(&image_name) {
-
         struct ImageOwner {
             user_id: String,
         }
@@ -142,7 +139,10 @@ pub async fn serve_image_file(
 
         let mut builder = HttpResponse::builder();
         if let Some(headers) = builder.headers_mut() {
-            headers.append("Cache-Control", HeaderValue::from_static(&CONFIG.cache_control));
+            headers.append(
+                "Cache-Control",
+                HeaderValue::from_static(&CONFIG.cache_control),
+            );
             headers.append(CONTENT_TYPE, parsed_content_type);
         }
 
