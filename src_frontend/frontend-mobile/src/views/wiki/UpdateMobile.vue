@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import type { UpdateWikiData, WikiData, ImageData } from "@/interface";
-import { ref, computed, watch, onUnmounted, onMounted, nextTick } from "vue";
-import { useRouter } from "vue-router";
-import { updateWikiUrl } from "@/router/urls";
-import { AxiosError } from "axios";
-import { useWikiStore } from "@/stores/wikis";
-import { useImageStore } from "@/stores/images";
-import { useEditRequestWikiStore } from "@/stores/editWikis";
-import { imageUploadUrl, imageDeleteUrl, wikiOwnerGetUrl, postEditWikiRequestUrl, getUserUrl } from "@/router/urls";
-import { baseUrl, assetsUrl } from "@/setting";
-import { marked, Renderer } from "marked";
-import { videoToken } from "@/utils/markedSetup";
-import apiClient from "@/axiosClient";
-
+import type { UpdateWikiData, WikiData, ImageData } from '@/interface';
+import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import { updateWikiUrl } from '@/router/urls';
+import { AxiosError } from 'axios';
+import { useWikiStore } from '@/stores/wikis';
+import { useImageStore } from '@/stores/images';
+import { useEditRequestWikiStore } from '@/stores/editWikis';
+import {
+  imageUploadUrl,
+  imageDeleteUrl,
+  wikiOwnerGetUrl,
+  postEditWikiRequestUrl,
+  getUserUrl,
+} from '@/router/urls';
+import { baseUrl, assetsUrl } from '@/setting';
+import { marked, Renderer } from 'marked';
+import { videoToken } from '@/utils/markedSetup';
+import apiClient from '@/axiosClient';
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -20,15 +25,13 @@ const renderer = new Renderer();
 // markedの設定をカスタマイズ
 marked.setOptions({
   renderer,
-  async: false
+  async: false,
 });
 
 // Markedにカスタムトークンを追加
-marked.use(
-  {
-    extensions: [videoToken],
-  }
-);
+marked.use({
+  extensions: [videoToken],
+});
 
 // アプリケーションの通信プロトコル
 const isHttpsProtocol = ref(false);
@@ -40,9 +43,10 @@ const url = new URL(currentUrl);
 const protocol = url.protocol;
 const hostname = url.hostname;
 // HTTPSかlocalhost通信の場合の設定
-if (protocol === "https:") {
+if (protocol === 'https:') {
   isHttpsProtocol.value = true;
-} if (hostname === "localhost") {
+}
+if (hostname === 'localhost') {
   isHttpsProtocol.value = true;
 }
 
@@ -61,27 +65,25 @@ watch(isAuthToken, (): void => {
 const imageStore = useImageStore();
 imageStore.initList();
 // ImageStoreから取得したデータをMapオブジェクトとして保持
-const imageList = computed(
-  (): Map<string, ImageData> => {
-    return imageStore.imageList;
-  }
-);
+const imageList = computed((): Map<string, ImageData> => {
+  return imageStore.imageList;
+});
 
 // Preview.vueへのリダイレクト
 const router = useRouter();
 const previewRedirect = (id: string): void => {
   router.push(`/wiki/preview/${id}`);
-}
+};
 
 // Login.vueへのリダイレクト
 const loginRedirect = (): void => {
-  router.push("/account/login");
-}
+  router.push('/account/login');
+};
 
 // List.vueへリダイレクト
 const listRedirect = (): void => {
-  router.push("/wiki/list");
-}
+  router.push('/wiki/list');
+};
 
 interface Props {
   id: string;
@@ -93,32 +95,26 @@ const props = defineProps<Props>();
 const isOwner = ref<boolean | null>(null);
 const getWikiOwner = async (id: string): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      wikiOwnerGetUrl + `/${id}`,
-    );
-    const ownerPublicName = response.data["public_name"];
-    if (
-      response.data["is_owner"] === "true" ||
-      response.data["is_owner"] === true ) {
+    const response = await apiClient.get(wikiOwnerGetUrl + `/${id}`);
+    const ownerPublicName = response.data['public_name'];
+    if (response.data['is_owner'] === 'true' || response.data['is_owner'] === true) {
       isOwner.value = true;
     } else {
       messageModalOpenClose(`${ownerPublicName} さんへの変更申請画面です。`);
     }
   } catch (error) {
-    console.error("Owner Get Error");
+    console.error('Owner Get Error');
     loginRedirect();
   }
 };
 getWikiOwner(props.id);
 
 // 現在ユーザーの取得
-const currentUser = ref("");
+const currentUser = ref('');
 const getCurrentUser = async (): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["public_name"];
+    const response = await apiClient.get(getUserUrl);
+    currentUser.value = response.data['public_name'];
   } catch (error) {
     loginRedirect();
   }
@@ -126,18 +122,16 @@ const getCurrentUser = async (): Promise<void> => {
 getCurrentUser();
 
 const wikiStore = useWikiStore();
-const wiki = computed(
-  (): WikiData => {
-    return wikiStore.getById(props.id);
-  }
-);
+const wiki = computed((): WikiData => {
+  return wikiStore.getById(props.id);
+});
 
 // 更新対象Wikiデータの初期化
 const updateWikiDataInit: UpdateWikiData = {
   id: wiki.value.id,
   title: wiki.value.title,
   body: wiki.value.body,
-  is_public: wiki.value.is_public
+  is_public: wiki.value.is_public,
 };
 const updateWikiData = ref(updateWikiDataInit);
 
@@ -148,7 +142,10 @@ const editConfirmationBody = updateWikiDataInit.body;
 // 初期データと現在のデータに変更があるか比較する関数
 // 変更があればtrueを返却
 function checkingEditConfirm(): boolean {
-  if (editConfirmationTitle === updateWikiData.value.title && editConfirmationBody === updateWikiData.value.body) {
+  if (
+    editConfirmationTitle === updateWikiData.value.title &&
+    editConfirmationBody === updateWikiData.value.body
+  ) {
     return false;
   }
   return true;
@@ -156,29 +153,29 @@ function checkingEditConfirm(): boolean {
 
 // データに変更がある場合の画面遷移制御
 const showYesNoMessageContent = ref(false);
-const redirectTargetRef = ref("list");
-const onOutCheck = (redirectTarget: string = "list"): void => {
+const redirectTargetRef = ref('list');
+const onOutCheck = (redirectTarget: string = 'list'): void => {
   redirectTargetRef.value = redirectTarget;
   const isConfirm = checkingEditConfirm();
   if (isConfirm) {
     showYesNoMessageContent.value = true;
   } else {
-    if (redirectTarget === "list") {
+    if (redirectTarget === 'list') {
       listRedirect();
-    } else if (redirectTarget === "preview") {
+    } else if (redirectTarget === 'preview') {
       previewRedirect(updateWikiData.value.id);
     } else {
       return;
     }
   }
-}
+};
 
 // 作成中のデータ存在時の画面遷移を確認後の処理
 const onCloseModal = (res: number): void => {
   if (res === 1) {
-    if (redirectTargetRef.value === "list") {
+    if (redirectTargetRef.value === 'list') {
       listRedirect();
-    } else if (redirectTargetRef.value === "preview") {
+    } else if (redirectTargetRef.value === 'preview') {
       previewRedirect(updateWikiData.value.id);
     }
   } else {
@@ -193,7 +190,7 @@ const isUpdateOkModal = ref(false);
 const isWikiUpdateSendNow = ref(false);
 const showProgressModal = ref(false);
 watch(isWikiUpdateSendNow, (): void => {
-  if(isWikiUpdateSendNow.value) {
+  if (isWikiUpdateSendNow.value) {
     showProgressModal.value = true;
   } else {
     showProgressModal.value = false;
@@ -220,57 +217,53 @@ const updateWiki = async (): Promise<void> => {
     is_public = false;
   }
 
-  if (title == "" || body == "") {
-    messageModalOpenClose("入力データがありません。");
+  if (title == '' || body == '') {
+    messageModalOpenClose('入力データがありません。');
     isWikiUpdateSendNow.value = false;
     return;
   }
 
   const data = {
-    "title": title,
-    "body": body,
-    "is_public": is_public,
-  }
+    title: title,
+    body: body,
+    is_public: is_public,
+  };
 
   try {
-    const response = await apiClient.put(
-      updateWikiUrl + `/${id}`,
-      data,
-    );
+    const response = await apiClient.put(updateWikiUrl + `/${id}`, data);
     const updateData = {
       id: id,
       title: title,
       body: body,
-      is_public: is_public
+      is_public: is_public,
     };
     const wikiStore = useWikiStore();
     wikiStore.updateWiki(updateData);
     isUpdateOkModal.value = true;
-
   } catch (error: unknown) {
-    if (typeof error === "object" && error !== null) {
+    if (typeof error === 'object' && error !== null) {
       const axiosError = error as AxiosError;
 
       if (axiosError.response) {
-        console.error("Status code:", axiosError.response.status);
-        console.error("Error data:", axiosError.response.data);
+        console.error('Status code:', axiosError.response.status);
+        console.error('Error data:', axiosError.response.data);
         if (axiosError.response.status === 401) {
-          window.alert("不正な操作です。\nオーナーでないデータは編集できません。");
-          localStorage.setItem("loginUser", "");
-          localStorage.setItem("isAuthenticate", "false");
+          window.alert('不正な操作です。\nオーナーでないデータは編集できません。');
+          localStorage.setItem('loginUser', '');
+          localStorage.setItem('isAuthenticate', 'false');
         }
       } else if (axiosError.request) {
-        console.error("No response was received", axiosError.request);
+        console.error('No response was received', axiosError.request);
       } else {
-        console.error("Error", axiosError.message);
+        console.error('Error', axiosError.message);
       }
     } else {
-      console.error("An unknown error occurred.");
+      console.error('An unknown error occurred.');
     }
   } finally {
     isWikiUpdateSendNow.value = false;
   }
-}
+};
 
 // 更新申請完了メッセージモーダル
 const isEditRequestOkModal = ref(false);
@@ -281,23 +274,23 @@ const requestMessage = ref<string | null>(null);
 
 const handleOpenCloseRequestMessageModal = (): void => {
   if (!checkingEditConfirm()) {
-    messageModalOpenClose("変更はありません。");
+    messageModalOpenClose('変更はありません。');
     return;
-  };
+  }
 
   if (isRequestMessageModal.value) {
     isRequestMessageModal.value = false;
   } else {
     isRequestMessageModal.value = true;
   }
-}
+};
 
 // Wikiの更新リクエスト処理
-const editRequestWiki  = async (): Promise<void> => {
+const editRequestWiki = async (): Promise<void> => {
   if (!checkingEditConfirm()) {
-    messageModalOpenClose("変更はありません。");
+    messageModalOpenClose('変更はありません。');
     return;
-  };
+  }
 
   if (isWikiUpdateSendNow.value === true) {
     return;
@@ -311,12 +304,12 @@ const editRequestWiki  = async (): Promise<void> => {
   const message = requestMessage.value;
 
   // 入力項目の検証
-  if (title === "") {
-    messageModalOpenClose("Wikiのタイトルが入力されていません。");
+  if (title === '') {
+    messageModalOpenClose('Wikiのタイトルが入力されていません。');
     isWikiUpdateSendNow.value = false;
     return;
-  } else if (body === "") {
-    messageModalOpenClose("Wikiのコンテンツが入力されていません。");
+  } else if (body === '') {
+    messageModalOpenClose('Wikiのコンテンツが入力されていません。');
     isWikiUpdateSendNow.value = false;
     return;
   }
@@ -325,36 +318,34 @@ const editRequestWiki  = async (): Promise<void> => {
     edit_request_title: title,
     edit_request_body: body,
     request_message: message,
-    status: "REQUESTNOW",
-  }
+    status: 'REQUESTNOW',
+  };
 
   // axiosによるPUT
   try {
-    const response = await apiClient.put(
-      postEditWikiRequestUrl + `${id}`,
-      data,
-    );
+    const response = await apiClient.put(postEditWikiRequestUrl + `${id}`, data);
     const editRequestWikiStore = useEditRequestWikiStore();
     editRequestWikiStore.initList();
     isRequestMessageModal.value = false;
     isEditRequestOkModal.value = true;
-
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
       const axiosError = error as AxiosError<any>;
       const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 409) {
-        messageModalOpenClose("現在、更新リクエストを申請中のWikiであるため、新たに申請することができません。");
+        messageModalOpenClose(
+          '現在、更新リクエストを申請中のWikiであるため、新たに申請することができません。',
+        );
         return;
       }
     } else {
-      console.error("An unknown error occurred.");
+      console.error('An unknown error occurred.');
     }
   } finally {
     isWikiUpdateSendNow.value = false;
   }
-}
+};
 
 // 画像アップロード
 // 画像アップロードのモーダル表示・非表示を管理
@@ -365,11 +356,11 @@ const openCloseImageUpModal = (): void => {
   } else {
     showImageUploadModal.value = true;
   }
-}
+};
 
 const isImageSendNow = ref(false); // クリック連打の抑制とプログレス表示
 watch(isImageSendNow, (): void => {
-  if(isImageSendNow.value) {
+  if (isImageSendNow.value) {
     showProgressModal.value = true;
   } else {
     showProgressModal.value = false;
@@ -377,42 +368,49 @@ watch(isImageSendNow, (): void => {
 });
 
 const selectedImageBlob = ref<Blob | null>(null); // リサイズ後のBlobを保持
-const selectedFileName = ref<string>("");
+const selectedFileName = ref<string>('');
 
 // 画像選択時にリサイズ処理
 const onImageSelect = async (): Promise<void> => {
-  const element = document.getElementById("image1")! as HTMLInputElement;
-  if (element.value === "" || element.value === null) {
-    messageModalOpenClose("画像ファイルを選択してください。");
+  const element = document.getElementById('image1')! as HTMLInputElement;
+  if (element.value === '' || element.value === null) {
+    messageModalOpenClose('画像ファイルを選択してください。');
     return;
   }
 
   // ファイルオブジェクトを取得してペイロードに追加
-  const file = element.files!
+  const file = element.files!;
   const fileObj = file[0]!;
   const fileName = fileObj.name;
 
   // mime-typeで許可ファイルをフィルタリング
-  const arrowMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf"];
+  const arrowMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'video/mp4',
+    'application/pdf',
+  ];
   if (!arrowMimeTypes.includes(fileObj.type)) {
-    messageModalOpenClose("許可されていない形式のファイルです。");
+    messageModalOpenClose('許可されていない形式のファイルです。');
     imageCrear();
     return;
   }
 
   // 画像ファイルの場合
-  if (fileObj.type.startsWith("image/")) {
+  if (fileObj.type.startsWith('image/')) {
     try {
       showProgressModal.value = true;
       // ブラウザネイティブでリサイズ
       selectedImageBlob.value = await resizeImageWithCanvas(fileObj);
     } catch (error) {
-      console.error("リサイズエラー: ", error);
+      console.error('リサイズエラー: ', error);
       selectedImageBlob.value = null;
     } finally {
       showProgressModal.value = false;
     }
-  // 画像ファイル以外の場合
+    // 画像ファイル以外の場合
   } else {
     selectedImageBlob.value = fileObj;
   }
@@ -424,43 +422,51 @@ const resizeImageWithCanvas = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      
       // リサイズ対象の画像の最大幅と高さを定義（2K）
       const maxWidth = 1280;
       const maxHeight = 720;
-      
+
       // リサイズ後のサイズを計算
       const { width, height } = caluculateDimensions(img.width, img.height, maxWidth, maxHeight);
-      
+
       // Canvas作成
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
 
       // Canvasに描画
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error("Canvas contextの取得に失敗しました。"));
+        reject(new Error('Canvas contextの取得に失敗しました。'));
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
 
       // Blobとして出力
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Blobの生成に失敗しました。"))
-        }
-      }, file.type, 0.8); // 画質80%
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Blobの生成に失敗しました。'));
+          }
+        },
+        file.type,
+        0.8,
+      ); // 画質80%
     };
-    img.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+    img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
     img.src = URL.createObjectURL(file); // ローカルファイルのURL
-  })
+  });
 };
 
 // リサイズ後の幅と高さを計算
-const caluculateDimensions = (width: number, height: number, maxWidth: number, maxHeight: number) => {
+const caluculateDimensions = (
+  width: number,
+  height: number,
+  maxWidth: number,
+  maxHeight: number,
+) => {
   // 横長画像の場合
   if (height < width) {
     if (width > maxWidth || height > maxHeight) {
@@ -474,8 +480,8 @@ const caluculateDimensions = (width: number, height: number, maxWidth: number, m
     }
     // サイズがすでに範囲内の場合
     return { width, height };
-  
-  // 縦長画像の場合
+
+    // 縦長画像の場合
   } else {
     if (height > maxWidth || width > maxHeight) {
       const widthRatio = maxWidth / height;
@@ -487,7 +493,7 @@ const caluculateDimensions = (width: number, height: number, maxWidth: number, m
       };
     }
     // サイズがすでに範囲内の場合
-    return { width, height }; 
+    return { width, height };
   }
 };
 
@@ -500,36 +506,33 @@ const uploadImage = async (): Promise<void> => {
   }
 
   if (!selectedImageBlob.value) {
-    messageModalOpenClose("ファイルを選択してください。");
+    messageModalOpenClose('ファイルを選択してください。');
     isImageSendNow.value = false;
     return;
   }
 
   // FormDataを初期化作成
   const payload = new FormData();
-  
+
   if (selectedImageBlob.value) {
-    payload.append("upload_file", selectedImageBlob.value, selectedFileName.value);
+    payload.append('upload_file', selectedImageBlob.value, selectedFileName.value);
   }
 
   // axiosによる送信処理
   try {
-    const response = await apiClient.post(
-      imageUploadUrl,
-      payload,
-    );
-    
+    const response = await apiClient.post(imageUploadUrl, payload);
+
     const newImageData: ImageData = {
-      id: response.data["new_image_id"],
-      user_id: response.data["user_id"],
-      filename: response.data["filename"],
-      uuid_filename: response.data["uuid_filename"],
-    }
+      id: response.data['new_image_id'],
+      user_id: response.data['user_id'],
+      filename: response.data['filename'],
+      uuid_filename: response.data['uuid_filename'],
+    };
     imageStore.addImage(newImageData);
 
-    const uniqueFileName = response.data["uuid_filename"];
+    const uniqueFileName = response.data['uuid_filename'];
 
-    let imageUrlMarkdown = "";
+    let imageUrlMarkdown = '';
     if (isMP4(uniqueFileName)) {
       imageUrlMarkdown = `?[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
     } else {
@@ -540,16 +543,15 @@ const uploadImage = async (): Promise<void> => {
       }
     }
 
-    const textarea = document.getElementById("wiki-detail")! as HTMLTextAreaElement;
+    const textarea = document.getElementById('wiki-detail')! as HTMLTextAreaElement;
     if (textarea) {
-      updateWikiData.value.body = updateWikiData.value.body + imageUrlMarkdown + "\n\n";
-      messageModalOpenClose("アップロード完了。画像を挿入しました。");
-    }    
-    
+      updateWikiData.value.body = updateWikiData.value.body + imageUrlMarkdown + '\n\n';
+      messageModalOpenClose('アップロード完了。画像を挿入しました。');
+    }
+
     imageStore.initList();
     imageCrear();
     return;
-
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
@@ -560,10 +562,10 @@ const uploadImage = async (): Promise<void> => {
         switch (status) {
           case 400:
             messageModalOpenClose(`${axiosError.response.data}`);
-            console.error("Please remove spaces from the file name.", axiosError.response.data);
+            console.error('Please remove spaces from the file name.', axiosError.response.data);
             break;
           case 401:
-            console.error("No token provided.", axiosError.response.data);
+            console.error('No token provided.', axiosError.response.data);
             break;
           case 500:
             messageModalOpenClose(`${axiosError.response.data}`);
@@ -578,15 +580,15 @@ const uploadImage = async (): Promise<void> => {
     }
   } finally {
     selectedImageBlob.value = null;
-    selectedFileName.value = "";
+    selectedFileName.value = '';
     isImageSendNow.value = false;
   }
-}
+};
 
 // アップロード完了モーダル機能
 const isUploadedMessageModal = ref(false);
-const uploadedUrl = ref("");
-const uploadedUniqueFileName = ref("");
+const uploadedUrl = ref('');
+const uploadedUniqueFileName = ref('');
 const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void => {
   if (!isUploadedMessageModal.value) {
     uploadedUrl.value = url;
@@ -594,22 +596,22 @@ const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void 
     isUploadedMessageModal.value = true;
   } else {
     isUploadedMessageModal.value = false;
-    uploadedUrl.value = "";
-    uploadedUniqueFileName.value = "";
+    uploadedUrl.value = '';
+    uploadedUniqueFileName.value = '';
   }
 };
 
 /** 選択した画像ファイルをクリア */
 const imageCrear = (): void => {
-  selectedFileName.value = "";
+  selectedFileName.value = '';
   selectedImageBlob.value = null;
-  let imageContent = document.getElementById("image1")! as HTMLInputElement;
+  let imageContent = document.getElementById('image1')! as HTMLInputElement;
   if (imageContent.value === null) {
-    return
+    return;
   } else {
-    imageContent.value = "";
+    imageContent.value = '';
   }
-}
+};
 
 // 画像一覧モーダルの表示・非表示管理（HTTPS or Localhost）
 const showImageListHttpsModal = ref(false);
@@ -619,7 +621,7 @@ const openCloseImageListHttpsModal = (): void => {
   } else {
     showImageListHttpsModal.value = true;
   }
-}
+};
 // 画像一覧モーダルの表示・非表示管理（HTTP）
 const showImageListModal = ref(false);
 const openCloseImageListModal = (): void => {
@@ -628,16 +630,16 @@ const openCloseImageListModal = (): void => {
   } else {
     showImageListModal.value = true;
   }
-}
+};
 
 /** 画像とPDF、動画のプレビュー */
 const imagePreviewModal = ref(false);
-const imageFileSrc = ref("");
-const previewSelectedImageId = ref("");
-const openImagePreviewModal = (filename: string = "notpreview", imageId: string = ""): void => {
+const imageFileSrc = ref('');
+const previewSelectedImageId = ref('');
+const openImagePreviewModal = (filename: string = 'notpreview', imageId: string = ''): void => {
   // PDFファイルの場合は別タブで開く
   if (isPDF(filename)) {
-    window.open(`${baseUrl}/static/images/${filename}`, "_blank", "noopener noreferrer");
+    window.open(`${baseUrl}/static/images/${filename}`, '_blank', 'noopener noreferrer');
     return;
   }
   if (imagePreviewModal.value === true) {
@@ -659,20 +661,20 @@ const openImagePreviewModal = (filename: string = "notpreview", imageId: string 
 const imageDeleteCheckModal = ref(false);
 const onOpenImageDeleteModal = (): void => {
   imageDeleteCheckModal.value = true;
-}
+};
 
 // 画像削除の最終確認
 const onCloseImageDeleteModal = (res: number): void => {
-  if (previewSelectedImageId.value === "") {
+  if (previewSelectedImageId.value === '') {
     imageDeleteCheckModal.value = false;
-    return
+    return;
   }
   if (res === 1) {
     onImageDelete(previewSelectedImageId.value);
   }
   imageDeleteCheckModal.value = false;
   imagePreviewModal.value = false;
-  previewSelectedImageId.value = "";
+  previewSelectedImageId.value = '';
 };
 
 // テーブルから削除する際の画像IDの記録処理（ミドルウェアとして機能）
@@ -684,12 +686,9 @@ function selectedIdFromTable(selectId: string) {
 /** 画像削除 */
 const onImageDelete = async (id: string): Promise<void> => {
   try {
-    const response = await apiClient.delete(
-      imageDeleteUrl + `/${id}`
-    );
+    const response = await apiClient.delete(imageDeleteUrl + `/${id}`);
     imageStore.deleteImage(id);
-    messageModalOpenClose("削除しました");
-
+    messageModalOpenClose('削除しました');
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
@@ -700,10 +699,10 @@ const onImageDelete = async (id: string): Promise<void> => {
         switch (status) {
           case 400:
             messageModalOpenClose(`${axiosError.response.data}`);
-            console.error("Image Delete Error.", axiosError.response.data);
+            console.error('Image Delete Error.', axiosError.response.data);
             break;
           case 401:
-            console.error("No token provided.", axiosError.response.data);
+            console.error('No token provided.', axiosError.response.data);
             isAuthToken.value = false;
             break;
           case 500:
@@ -718,39 +717,39 @@ const onImageDelete = async (id: string): Promise<void> => {
       }
     }
   }
-}
+};
 
 /** 画像の検索 */
-const queryFormData = ref("");
+const queryFormData = ref('');
 // 検索実行関数
 const onSearch = (reset: boolean = false): void => {
   try {
     if (reset) {
-      imageStore.queryImage("");
+      imageStore.queryImage('');
     } else {
       imageStore.queryImage(queryFormData.value);
     }
   } catch (error) {
     console.error(error);
   }
-}
+};
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
 // QRコード作成モーダルの描画
 const showQRContent = ref(false);
-const qrCodeText = ref("");
+const qrCodeText = ref('');
 const isGenerateOk = ref(false);
 // TypeScript でグローバル変数を使用する場合、型アサーションが必要
 // QRCodeはindex.htmlでCDN経由で読み込み、既にページにグローバルとして存在するため、これを明示
@@ -759,22 +758,22 @@ const QRCode: any = (window as any).QRCode;
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;
 onMounted(() => {
-  qrcode = new QRCode(document.getElementById("qrcode"), {
+  qrcode = new QRCode(document.getElementById('qrcode'), {
     text: qrCodeText.value,
     width: 128,
     height: 128,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H,
   });
 });
 
 watch(qrCodeText, () => {
-  if (qrCodeText.value === "") {
-    let qrElement = document.getElementById("qrcode") as HTMLElement | null;
+  if (qrCodeText.value === '') {
+    let qrElement = document.getElementById('qrcode') as HTMLElement | null;
     if (qrElement !== null) {
-      const images = qrElement.querySelectorAll("img");
-      images.forEach(img => img.style.display = "none");
+      const images = qrElement.querySelectorAll('img');
+      images.forEach((img) => (img.style.display = 'none'));
     }
     isGenerateOk.value = false;
   } else {
@@ -790,15 +789,15 @@ const onOpenCloseQRCodeCreateModal = (): void => {
     showQRContent.value = true;
     // カーソルのフォーカスがエディタ描画完了後になるようにsetTimeoutで遅延させる
     setTimeout(() => {
-      document.getElementById("qr-input-text")!.focus();
+      document.getElementById('qr-input-text')!.focus();
     }, 300);
   }
-}
+};
 
 // QRCode作成関数
 function generateQRCode(): void {
   const text = qrCodeText.value;
-  if (text === "") {
+  if (text === '') {
     return;
   }
 
@@ -808,13 +807,13 @@ function generateQRCode(): void {
 
 // QRCode保存関数
 function saveQRCode(): void {
-  const canvas: any = document.querySelector("#qrcode canvas");
+  const canvas: any = document.querySelector('#qrcode canvas');
   if (canvas) {
     // canvas要素から画像のURLを生成
-    const imageUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    const imageUrl = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
     // ダウンロードリンクを作成
-    const link = document.createElement("a");
-    link.download = "qrcode.png";
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
     link.href = imageUrl;
     link.click();
   }
@@ -824,14 +823,14 @@ function saveQRCode(): void {
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとヘルプの内容を取得
-  const imgUploadModal = document.getElementById("overlay-fileup");
-  const imgUploadModalContent = document.getElementById("content-fileup");
+  const imgUploadModal = document.getElementById('overlay-fileup');
+  const imgUploadModalContent = document.getElementById('content-fileup');
 
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (imgUploadModal) {
-    imgUploadModal.addEventListener("click", function (event) {
+    imgUploadModal.addEventListener('click', function (event) {
       if (showImageUploadModal.value === true) {
-        showImageUploadModal.value = false
+        showImageUploadModal.value = false;
       } else {
         return;
       }
@@ -840,7 +839,7 @@ onMounted(() => {
 
   // 灰色の部分以外（content-fileup）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (imgUploadModalContent) {
-    imgUploadModalContent.addEventListener("click", function (event) {
+    imgUploadModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -850,14 +849,14 @@ onMounted(() => {
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとヘルプの内容を取得
-  const imgListModal = document.getElementById("overlay-imagelist");
-  const imgListModalContent = document.getElementById("content-image");
+  const imgListModal = document.getElementById('overlay-imagelist');
+  const imgListModalContent = document.getElementById('content-image');
 
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (imgListModal) {
-    imgListModal.addEventListener("click", function (event) {
+    imgListModal.addEventListener('click', function (event) {
       if (showImageListModal.value === true) {
-        showImageListModal.value = false
+        showImageListModal.value = false;
       } else {
         return;
       }
@@ -866,7 +865,7 @@ onMounted(() => {
 
   // 灰色の部分以外（content-image）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (imgListModalContent) {
-    imgListModalContent.addEventListener("click", function (event) {
+    imgListModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -876,13 +875,13 @@ onMounted(() => {
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとヘルプの内容を取得
-  const imgPreviewModal = document.getElementById("overlay-image-preview");
-  const imgPreviewModalContent = document.getElementById("content-image-view");
+  const imgPreviewModal = document.getElementById('overlay-image-preview');
+  const imgPreviewModalContent = document.getElementById('content-image-view');
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (imgPreviewModal) {
-    imgPreviewModal.addEventListener("click", function (event) {
+    imgPreviewModal.addEventListener('click', function (event) {
       if (imagePreviewModal.value === true) {
-        imagePreviewModal.value = false
+        imagePreviewModal.value = false;
       } else {
         return;
       }
@@ -890,7 +889,7 @@ onMounted(() => {
   }
   // 灰色の部分以外（content-image-view）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (imgPreviewModalContent) {
-    imgPreviewModalContent.addEventListener("click", function (event) {
+    imgPreviewModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -898,19 +897,19 @@ onMounted(() => {
 
 // QRコード生成モーダル
 onMounted(() => {
-  const genQRCodeModal = document.getElementById("overlay-gen-qrcode");
-  const genQRCodeModalContent = document.getElementById("content-gen-qrcode");
+  const genQRCodeModal = document.getElementById('overlay-gen-qrcode');
+  const genQRCodeModalContent = document.getElementById('content-gen-qrcode');
   if (genQRCodeModal) {
-    genQRCodeModal.addEventListener("click", function (event) {
+    genQRCodeModal.addEventListener('click', function (event) {
       if (showQRContent.value === true) {
-        showQRContent.value = false
+        showQRContent.value = false;
       } else {
         return;
       }
     });
   }
   if (genQRCodeModalContent) {
-    genQRCodeModalContent.addEventListener("click", function (event) {
+    genQRCodeModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -936,21 +935,21 @@ function selectTextOrClipboardCopy(elementId: string) {
 
   if (isHttpsProtocol.value) {
     navigator.clipboard.writeText(element.textContent);
-    messageModalOpenClose("クリップボードにコピーしました。");
+    messageModalOpenClose('クリップボードにコピーしました。');
   } else {
     if (window.getSelection) {
-    let selection = window.getSelection();
-    let range = document.createRange();
-    try {
-      range.selectNodeContents(element);
-    } catch (e) {
-      console.error(`Error selecting contents of element: ${e}`);
+      let selection = window.getSelection();
+      let range = document.createRange();
+      try {
+        range.selectNodeContents(element);
+      } catch (e) {
+        console.error(`Error selecting contents of element: ${e}`);
+      }
+      if (selection) {
+        selection.removeAllRanges(); // 現在の選択をクリア
+        selection.addRange(range); // 新しい範囲を選択
+      }
     }
-    if (selection) {
-      selection.removeAllRanges();  // 現在の選択をクリア
-      selection.addRange(range);  // 新しい範囲を選択
-    }
-  }
   }
 }
 
@@ -962,39 +961,39 @@ const onImageCopyPath = (id: string) => {
   const imageName = imageData.filename;
   const uuidName = imageData.uuid_filename;
   // 静止画か動画か判定してマークダウンを切り替え
-  let imageUrlMarkdown = ""
+  let imageUrlMarkdown = '';
   if (isMP4(imageData.filename)) {
     imageUrlMarkdown = `?[${imageName}](${baseUrl}/static/images/${uuidName})`;
   } else {
     if (isPDF(imageData.filename)) {
-      imageUrlMarkdown = `[${imageName}](${baseUrl}/static/images/${uuidName})`;  
+      imageUrlMarkdown = `[${imageName}](${baseUrl}/static/images/${uuidName})`;
     } else {
       imageUrlMarkdown = `![${imageName}](${baseUrl}/static/images/${uuidName})`;
     }
   }
   navigator.clipboard.writeText(imageUrlMarkdown);
-  messageModalOpenClose("クリップボードにコピーしました。")
-}
+  messageModalOpenClose('クリップボードにコピーしました。');
+};
 
 // キーボードショートカットを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // Preview.vueへ移動
-  if (event.ctrlKey && event.key === "1") {
+  if (event.ctrlKey && event.key === '1') {
     event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
-    onOutCheck("preview");
+    onOutCheck('preview');
 
     // Preview.vueへ移動
-  } else if (event.ctrlKey && event.key === "2") {
+  } else if (event.ctrlKey && event.key === '2') {
     event.preventDefault();
     onOutCheck();
 
-  // 画像挿入モーダル
-  } else if (event.ctrlKey && event.key === "3") {
+    // 画像挿入モーダル
+  } else if (event.ctrlKey && event.key === '3') {
     event.preventDefault();
     openCloseImageUpModal();
 
     // 画像一覧モーダル
-  } else if (event.ctrlKey && event.key === "4") {
+  } else if (event.ctrlKey && event.key === '4') {
     event.preventDefault();
     if (isHttpsProtocol) {
       openCloseImageListHttpsModal();
@@ -1002,21 +1001,21 @@ const handleKeyDown = (event: KeyboardEvent) => {
       openCloseImageListModal();
     }
 
-  // QRコード生成モーダル
-  } else if (event.ctrlKey && event.key === "5") {
+    // QRコード生成モーダル
+  } else if (event.ctrlKey && event.key === '5') {
     event.preventDefault();
     onOpenCloseQRCodeCreateModal();
 
     // title入力欄にフォーカス
-  } else if (event.ctrlKey && event.key === "i") {
+  } else if (event.ctrlKey && event.key === 'i') {
     event.preventDefault();
-    const inputTitleElement = document.getElementById("title-input-text");
+    const inputTitleElement = document.getElementById('title-input-text');
     if (inputTitleElement) {
       inputTitleElement.focus();
     }
 
     // 作成
-  } else if (event.ctrlKey && event.key === "m") {
+  } else if (event.ctrlKey && event.key === 'm') {
     event.preventDefault();
     if (isOwner.value) {
       updateWiki();
@@ -1027,8 +1026,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
       handleOpenCloseRequestMessageModal();
     }
 
-  // Escapeキーでモーダルウィンドウをクローズ
-  } else if (event.key === "Escape") {
+    // Escapeキーでモーダルウィンドウをクローズ
+  } else if (event.key === 'Escape') {
     event.preventDefault();
     if (isMessageModal.value) {
       isMessageModal.value = false;
@@ -1038,18 +1037,18 @@ const handleKeyDown = (event: KeyboardEvent) => {
       previewRedirect(props.id);
     }
   }
-}
+};
 
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);
 });
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 
 function insertMarkdown(text: string) {
   // textareaを取得
-  const textarea = document.getElementById("wiki-detail")! as HTMLTextAreaElement;
+  const textarea = document.getElementById('wiki-detail')! as HTMLTextAreaElement;
 
   // 現在のカーソル位置を取得
   const startPos = textarea.selectionStart;
@@ -1070,7 +1069,7 @@ function insertMarkdown(text: string) {
   if (isHttpsProtocol.value) {
     navigator.clipboard.writeText(text);
   }
-};
+}
 
 // マークダウン入力支援ボタンの表示・非表示
 const isShowMarkdownInputButton = ref(true);
@@ -1085,38 +1084,59 @@ function handleMarkdownInputButtons() {
 
 <template>
   <div class="head-btn-zone">
-    <button class="btn-head-img" v-on:click="onOutCheck('preview')"><img
-      :src="`${assetsUrl}preview_24.png`" class="btn-img"
-      alt="preview_24.png"></button>
-    <button class="btn-head-img" v-on:click="onOutCheck()"><img :src="`${assetsUrl}home_24.png`"
-      class="btn-img" alt="home_24.png"></button>
-    <button class="btn-head-img" v-on:click="openCloseImageUpModal"><img :src="`${assetsUrl}smartphone_line24.png`"
-      class="btn-img" alt="smartphone_line24.png"></button>
-    <button v-if="isHttpsProtocol" class="btn-head-img" v-on:click="openCloseImageListHttpsModal"><img :src="`${assetsUrl}documents_line24.png`"
-      class="btn-img" alt="documents_line24.png"></button>
-    <button v-else="isHttpsProtocol" class="btn-head-img" v-on:click="openCloseImageListModal"><img :src="`${assetsUrl}documents_line24.png`"
-      class="btn-img" alt="documents_line24.png"></button>
-    <button class="btn-head-img" v-on:click="onOpenCloseQRCodeCreateModal"><img
-      :src="`${assetsUrl}code_reader_line24.png`" class="btn-img" alt="code_reader_line24.png"></button>
-    <button class="btn-head-img" v-on:click="handleMarkdownInputButtons"><img
-      :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png"></button>
+    <button class="btn-head-img" v-on:click="onOutCheck('preview')">
+      <img :src="`${assetsUrl}preview_24.png`" class="btn-img" alt="preview_24.png" />
+    </button>
+    <button class="btn-head-img" v-on:click="onOutCheck()">
+      <img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png" />
+    </button>
+    <button class="btn-head-img" v-on:click="openCloseImageUpModal">
+      <img :src="`${assetsUrl}smartphone_line24.png`" class="btn-img" alt="smartphone_line24.png" />
+    </button>
+    <button v-if="isHttpsProtocol" class="btn-head-img" v-on:click="openCloseImageListHttpsModal">
+      <img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png" />
+    </button>
+    <button v-else="isHttpsProtocol" class="btn-head-img" v-on:click="openCloseImageListModal">
+      <img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png" />
+    </button>
+    <button class="btn-head-img" v-on:click="onOpenCloseQRCodeCreateModal">
+      <img
+        :src="`${assetsUrl}code_reader_line24.png`"
+        class="btn-img"
+        alt="code_reader_line24.png"
+      />
+    </button>
+    <button class="btn-head-img" v-on:click="handleMarkdownInputButtons">
+      <img :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png" />
+    </button>
   </div>
 
   <!-- 入力フォーム -->
   <div class="main-container">
     <h3 id="title_h3_1">Editor</h3>
     <div class="title-row">
-      <input class="title" id="title-input-text" type="text" required v-model="updateWikiData.title">
+      <input
+        class="title"
+        id="title-input-text"
+        type="text"
+        required
+        v-model="updateWikiData.title"
+      />
     </div>
-    <textarea class="textarea" ref="formArea" rows="45" required v-model="updateWikiData.body" id="wiki-detail"></textarea>
-    <div class="form-footer">
-      
-    </div>
+    <textarea
+      class="textarea"
+      ref="formArea"
+      rows="45"
+      required
+      v-model="updateWikiData.body"
+      id="wiki-detail"
+    ></textarea>
+    <div class="form-footer"></div>
     <div class="form-footer">
       <p class="switch-btn-container">
         <label for="switch" class="switch-label">
           <div class="switch">
-            <input type="checkbox" id="switch" v-model="updateWikiData.is_public">
+            <input type="checkbox" id="switch" v-model="updateWikiData.is_public" />
             <div class="base"></div>
             <div class="circle"></div>
             <div class="slider"></div>
@@ -1125,27 +1145,115 @@ function handleMarkdownInputButtons() {
           <span v-else class="switch-title">プライベート</span>
         </label>
       </p>
-      <button v-show="isOwner" type="submit" class="btn-post" v-on:click.prevent="updateWiki">+ 更新</button>
-      <button v-show="!isOwner" type="submit" class="btn-post"
-          v-on:click.prevent="handleOpenCloseRequestMessageModal">+ 変更をリクエスト</button>
+      <button v-show="isOwner" type="submit" class="btn-post" v-on:click.prevent="updateWiki">
+        + 更新
+      </button>
+      <button
+        v-show="!isOwner"
+        type="submit"
+        class="btn-post"
+        v-on:click.prevent="handleOpenCloseRequestMessageModal"
+      >
+        + 変更をリクエスト
+      </button>
     </div>
     <div class="input-tools" v-if="isShowMarkdownInputButton">
-      <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')"><img :src="`${assetsUrl}format_h2_24.png`" class="btn-input-tools-img" alt="format_h2_24.png"></button>
-      <button class="btn-input-tools" title="### を挿入" v-on:click="insertMarkdown('### ')"><img :src="`${assetsUrl}format_h3_24.png`" class="btn-input-tools-img" alt="format_h3_24.png"></button>
-      <button class="btn-input-tools" title="** を挿入" v-on:click="insertMarkdown('**')"><img :src="`${assetsUrl}format_bold_24.png`" class="btn-input-tools-img" alt="format_bold_24.png"></button>
-      <button class="btn-input-tools" title="- を挿入" v-on:click="insertMarkdown('- ')"><img :src="`${assetsUrl}format_list_bulleted_24.png`" class="btn-input-tools-img" alt="format_list_bulleted_24.png"></button>
-      <button class="btn-input-tools" title="1. を挿入" v-on:click="insertMarkdown('1. ')"><img :src="`${assetsUrl}format_list_numbered_24.png`" class="btn-input-tools-img" alt="format_list_numbered_24.png"></button>
-      <button class="btn-input-tools" title="|を挿入" v-on:click="insertMarkdown('|')"><img :src="`${assetsUrl}table_24.png`" class="btn-input-tools-img" alt="table_24.png"></button>
-      <button class="btn-input-tools" title="---を挿入" v-on:click="insertMarkdown('---')"><img :src="`${assetsUrl}more_horiz_24.png`" class="btn-input-tools-img" alt="more_horiz_24.png"></button>
-      <button class="btn-input-tools" title="~を挿入" v-on:click="insertMarkdown('~')"><img :src="`${assetsUrl}strikethrough_24.png`" class="btn-input-tools-img" alt="strikethrough_24.png"></button>
-      <button class="btn-input-tools" title="```を挿入" v-on:click="insertMarkdown('```')"><img :src="`${assetsUrl}code_24.png`" class="btn-input-tools-img" alt="code_24.png"></button>
-      <button class="btn-input-tools" title="`を挿入" v-on:click="insertMarkdown('`')"><img :src="`${assetsUrl}ink_highlighter_24.png`" class="btn-input-tools-img" alt="ink_highlighter_24.png"></button>
-      <button class="btn-input-tools" title=">を挿入" v-on:click="insertMarkdown('>')"><img :src="`${assetsUrl}chat_24.png`" class="btn-input-tools-img" alt="chat_24.png"></button>
-      <button class="btn-input-tools" title="[ Title ]( URL )を挿入" v-on:click="insertMarkdown('[ Title ]( URL )')"><img :src="`${assetsUrl}link_24.png`" class="btn-input-tools-img" alt="link_24.png"></button>
-      <button class="btn-input-tools" title=":::detailsを挿入" v-on:click="insertMarkdown(':::details タイトル\n非表示にする内容\n:::')"><img :src="`${assetsUrl}more_24.png`" class="btn-input-tools-img" alt="more_24.png"></button>
-      <button class="btn-input-tools" title=":::noteを挿入" v-on:click="insertMarkdown(':::note タイトル\n内容\n:::')"><img :src="`${assetsUrl}info_24.png`" class="btn-input-tools-img" alt="info_24.png"></button>
-      <button class="btn-input-tools" title=":::warningを挿入" v-on:click="insertMarkdown(':::warning タイトル\n内容\n:::')"><img :src="`${assetsUrl}warning_24.png`" class="btn-input-tools-img" alt="warning_24.png"></button>
-      <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')"><img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png"></button>
+      <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')">
+        <img
+          :src="`${assetsUrl}format_h2_24.png`"
+          class="btn-input-tools-img"
+          alt="format_h2_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="### を挿入" v-on:click="insertMarkdown('### ')">
+        <img
+          :src="`${assetsUrl}format_h3_24.png`"
+          class="btn-input-tools-img"
+          alt="format_h3_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="** を挿入" v-on:click="insertMarkdown('**')">
+        <img
+          :src="`${assetsUrl}format_bold_24.png`"
+          class="btn-input-tools-img"
+          alt="format_bold_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="- を挿入" v-on:click="insertMarkdown('- ')">
+        <img
+          :src="`${assetsUrl}format_list_bulleted_24.png`"
+          class="btn-input-tools-img"
+          alt="format_list_bulleted_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="1. を挿入" v-on:click="insertMarkdown('1. ')">
+        <img
+          :src="`${assetsUrl}format_list_numbered_24.png`"
+          class="btn-input-tools-img"
+          alt="format_list_numbered_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="|を挿入" v-on:click="insertMarkdown('|')">
+        <img :src="`${assetsUrl}table_24.png`" class="btn-input-tools-img" alt="table_24.png" />
+      </button>
+      <button class="btn-input-tools" title="---を挿入" v-on:click="insertMarkdown('---')">
+        <img
+          :src="`${assetsUrl}more_horiz_24.png`"
+          class="btn-input-tools-img"
+          alt="more_horiz_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="~を挿入" v-on:click="insertMarkdown('~')">
+        <img
+          :src="`${assetsUrl}strikethrough_24.png`"
+          class="btn-input-tools-img"
+          alt="strikethrough_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title="```を挿入" v-on:click="insertMarkdown('```')">
+        <img :src="`${assetsUrl}code_24.png`" class="btn-input-tools-img" alt="code_24.png" />
+      </button>
+      <button class="btn-input-tools" title="`を挿入" v-on:click="insertMarkdown('`')">
+        <img
+          :src="`${assetsUrl}ink_highlighter_24.png`"
+          class="btn-input-tools-img"
+          alt="ink_highlighter_24.png"
+        />
+      </button>
+      <button class="btn-input-tools" title=">を挿入" v-on:click="insertMarkdown('>')">
+        <img :src="`${assetsUrl}chat_24.png`" class="btn-input-tools-img" alt="chat_24.png" />
+      </button>
+      <button
+        class="btn-input-tools"
+        title="[ Title ]( URL )を挿入"
+        v-on:click="insertMarkdown('[ Title ]( URL )')"
+      >
+        <img :src="`${assetsUrl}link_24.png`" class="btn-input-tools-img" alt="link_24.png" />
+      </button>
+      <button
+        class="btn-input-tools"
+        title=":::detailsを挿入"
+        v-on:click="insertMarkdown(':::details タイトル\n非表示にする内容\n:::')"
+      >
+        <img :src="`${assetsUrl}more_24.png`" class="btn-input-tools-img" alt="more_24.png" />
+      </button>
+      <button
+        class="btn-input-tools"
+        title=":::noteを挿入"
+        v-on:click="insertMarkdown(':::note タイトル\n内容\n:::')"
+      >
+        <img :src="`${assetsUrl}info_24.png`" class="btn-input-tools-img" alt="info_24.png" />
+      </button>
+      <button
+        class="btn-input-tools"
+        title=":::warningを挿入"
+        v-on:click="insertMarkdown(':::warning タイトル\n内容\n:::')"
+      >
+        <img :src="`${assetsUrl}warning_24.png`" class="btn-input-tools-img" alt="warning_24.png" />
+      </button>
+      <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')">
+        <img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png" />
+      </button>
     </div>
   </div>
 
@@ -1163,13 +1271,19 @@ function handleMarkdownInputButtons() {
           <tbody>
             <tr>
               <td>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
-                  id="image1" v-on:change="onImageSelect"/>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
+                  id="image1"
+                  v-on:change="onImageSelect"
+                />
               </td>
             </tr>
           </tbody>
         </table>
-        <button type="submit" class="btn-file-upload" v-on:click.prevent="uploadImage()">アップロード</button>
+        <button type="submit" class="btn-file-upload" v-on:click.prevent="uploadImage()">
+          アップロード
+        </button>
       </div>
       <div class="btn-zone">
         <button v-on:click.prevent="openCloseImageUpModal()">閉じる</button>
@@ -1178,36 +1292,49 @@ function handleMarkdownInputButtons() {
     </div>
   </div>
 
-      <!-- アップロード完了モーダル -->
-      <div id="overlay-uploaded-message" v-show="isUploadedMessageModal">
-        <div id="content-uploaded-message">
-          <h2 class="modal-h2">メッセージ</h2>
-          <div class="input-text-zone" v-if="isHttpsProtocol">
-            <p><strong>アップロード完了。</strong></p>
-            <pre :id=uploadedUniqueFileName class="hidden-code-text"><code :id=uploadedUniqueFileName>{{ uploadedUrl }}</code></pre>
-            <button id="link-copy-btn" v-on:click="selectTextOrClipboardCopy(`${uploadedUniqueFileName}`)">画像のリンクを取得</button>
-          </div>
-          <div class="input-text-zone" v-else="isHttpsProtocol">
-            <p><strong>アップロード完了。<br>次のテキストリンクをコピーして使用してください。</strong></p>
-            <pre><code :id=uploadedUniqueFileName v-on:click="selectTextOrClipboardCopy(`${uploadedUniqueFileName}`)">{{ uploadedUrl }}</code></pre>
-          </div>
-          <div class="btn-close">
-            <button id="message-close-btn" v-on:click="uploadMessageModalOpenClose('', '')">閉じる</button>
-          </div>
-        </div>
+  <!-- アップロード完了モーダル -->
+  <div id="overlay-uploaded-message" v-show="isUploadedMessageModal">
+    <div id="content-uploaded-message">
+      <h2 class="modal-h2">メッセージ</h2>
+      <div class="input-text-zone" v-if="isHttpsProtocol">
+        <p><strong>アップロード完了。</strong></p>
+        <pre
+          :id="uploadedUniqueFileName"
+          class="hidden-code-text"
+        ><code :id=uploadedUniqueFileName>{{ uploadedUrl }}</code></pre>
+        <button
+          id="link-copy-btn"
+          v-on:click="selectTextOrClipboardCopy(`${uploadedUniqueFileName}`)"
+        >
+          画像のリンクを取得
+        </button>
       </div>
-
+      <div class="input-text-zone" v-else="isHttpsProtocol">
+        <p>
+          <strong>アップロード完了。<br />次のテキストリンクをコピーして使用してください。</strong>
+        </p>
+        <pre><code :id=uploadedUniqueFileName v-on:click="selectTextOrClipboardCopy(`${uploadedUniqueFileName}`)">{{ uploadedUrl }}</code></pre>
+      </div>
+      <div class="btn-close">
+        <button id="message-close-btn" v-on:click="uploadMessageModalOpenClose('', '')">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- 画像一覧モーダルウィンドウ（http） -->
   <div id="overlay-imagelist" v-show="showImageListModal">
     <div id="content-image">
-      <h2 style="text-align: center;">画像・PDF・動画</h2>
+      <h2 style="text-align: center">画像・PDF・動画</h2>
       <div class="search-tool-area">
-        <input type="text" class="query-input" placeholder="検索ワード" v-model="queryFormData">
-          <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(false)"><img
-            :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
-          <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(true)"><img
-            :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
+        <input type="text" class="query-input" placeholder="検索ワード" v-model="queryFormData" />
+        <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(false)">
+          <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+        </button>
+        <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(true)">
+          <img :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png" />
+        </button>
       </div>
       <div class="table_sticky_imagelist">
         <table>
@@ -1220,22 +1347,50 @@ function handleMarkdownInputButtons() {
           </thead>
           <tbody>
             <tr v-for="[id, image] in imageList" v-bind:key="id">
-              <td v-if="isPDF(image.uuid_filename)" :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">[{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-              <td v-else-if="isMP4(image.uuid_filename)" :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">?[{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-              <td v-else :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">![{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-                
-              <td v-if="isPDF(image.filename)"
-                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img
-                  :src="`${assetsUrl}picture_as_pdf.png`" class="btn-img-table" alt="picture_as_pdf.png"></td>
-              <td v-else="isPDF(image.filename)"
-                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img
-                  :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png"></td>
+              <td
+                v-if="isPDF(image.uuid_filename)"
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                [{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+              <td
+                v-else-if="isMP4(image.uuid_filename)"
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                ?[{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+              <td
+                v-else
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                ![{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+
+              <td
+                v-if="isPDF(image.filename)"
+                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img
+                  :src="`${assetsUrl}picture_as_pdf.png`"
+                  class="btn-img-table"
+                  alt="picture_as_pdf.png"
+                />
+              </td>
+              <td
+                v-else="isPDF(image.filename)"
+                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png" />
+              </td>
 
               <td v-on:click.prevent="selectedIdFromTable(image.id)" class="td-img">
-                  <img :src="`${assetsUrl}delete.png`" class="btn-img-table" alt="delete.png"></td>
+                <img :src="`${assetsUrl}delete.png`" class="btn-img-table" alt="delete.png" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1249,13 +1404,15 @@ function handleMarkdownInputButtons() {
   <!-- 画像一覧モーダルウィンドウ（https or localhost） -->
   <div id="overlay-image-https-list" v-show="showImageListHttpsModal">
     <div id="content-image-https-list">
-      <h2 style="text-align: center;">画像・PDF・動画</h2>
+      <h2 style="text-align: center">画像・PDF・動画</h2>
       <div class="search-tool-area">
-        <input type="text" class="query-input" placeholder="検索ワード" v-model="queryFormData">
-          <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(false)"><img
-            :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
-          <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(true)"><img
-            :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
+        <input type="text" class="query-input" placeholder="検索ワード" v-model="queryFormData" />
+        <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(false)">
+          <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+        </button>
+        <button class="btn-search-start" type="submit" v-on:click.prevent="onSearch(true)">
+          <img :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png" />
+        </button>
       </div>
       <div class="table_sticky_imagelist">
         <table>
@@ -1269,14 +1426,27 @@ function handleMarkdownInputButtons() {
           <tbody>
             <tr v-for="[id, image] in imageList" v-bind:key="id">
               <td v-on:click="onImageCopyPath(image.id)">{{ image.filename }}</td>
-              <td v-if="isPDF(image.filename)"
-                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img
-                  :src="`${assetsUrl}picture_as_pdf.png`" class="btn-img-table" alt="picture_as_pdf.png"></td>
-              <td v-else="isPDF(image.filename)"
-                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img
-                  :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png"></td>
+              <td
+                v-if="isPDF(image.filename)"
+                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img
+                  :src="`${assetsUrl}picture_as_pdf.png`"
+                  class="btn-img-table"
+                  alt="picture_as_pdf.png"
+                />
+              </td>
+              <td
+                v-else="isPDF(image.filename)"
+                v-on:click.prevent="openImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png" />
+              </td>
               <td v-on:click.prevent="selectedIdFromTable(image.id)" class="td-img">
-                  <img :src="`${assetsUrl}delete.png`" class="btn-img-table" alt="delete.png"></td>
+                <img :src="`${assetsUrl}delete.png`" class="btn-img-table" alt="delete.png" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1339,7 +1509,9 @@ function handleMarkdownInputButtons() {
     <div id="content-message">
       <h2 class="modal-h2">メッセージ</h2>
       <div class="input-text-zone">
-        <p><strong>{{ messageText }}</strong></p>
+        <p>
+          <strong>{{ messageText }}</strong>
+        </p>
       </div>
       <div class="btn-close">
         <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
@@ -1351,7 +1523,11 @@ function handleMarkdownInputButtons() {
   <div id="overlay-warn-message" v-show="showYesNoMessageContent">
     <div id="content-warn-message">
       <h2 class="modal-h2">メッセージ</h2>
-      <p><strong>変更されたデータがあります。<br>画面を移動した場合、変更は失われますがよろしいですか？</strong></p>
+      <p>
+        <strong
+          >変更されたデータがあります。<br />画面を移動した場合、変更は失われますがよろしいですか？</strong
+        >
+      </p>
       <div class="btn-zone">
         <button v-on:click="onCloseModal(1)">はい</button>
         <button v-on:click="onCloseModal(0)">いいえ</button>
@@ -1367,8 +1543,16 @@ function handleMarkdownInputButtons() {
         <div id="qrcode" class="qrcode"></div>
         <div class="init-latlng-zone">
           <div class="latitude-zone">
-            <input type="text" maxlength="150" title="" id="qr-input-text" placeholder="Input Text."
-              class="input-textbox" required v-model="qrCodeText" />
+            <input
+              type="text"
+              maxlength="150"
+              title=""
+              id="qr-input-text"
+              placeholder="Input Text."
+              class="input-textbox"
+              required
+              v-model="qrCodeText"
+            />
           </div>
           <div :class="{ 'btn-zone': isGenerateOk, 'btn-close': !isGenerateOk }">
             <button v-if="isGenerateOk" v-on:click="saveQRCode()">保存</button>
@@ -1396,9 +1580,16 @@ function handleMarkdownInputButtons() {
   <div id="overlay-progress-bar" v-show="showProgressModal">
     <svg class="spinner" width="50" height="50" view-box="0 0 50 50" aria-hidden="true">
       <g transform="rotate(-90 25 25)">
-        <circle cx="25" cy="25" r="20" fill="none"
-                stroke="#76c7c0" stroke-width="5" stroke-linecap="round"
-                stroke-dasharray="31.4 31.4" />
+        <circle
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke="#76c7c0"
+          stroke-width="5"
+          stroke-linecap="round"
+          stroke-dasharray="31.4 31.4"
+        />
       </g>
     </svg>
   </div>
@@ -1451,7 +1642,6 @@ function handleMarkdownInputButtons() {
   text-align: center;
 }
 
-
 #overlay-request-message {
   z-index: 1;
   position: fixed;
@@ -1478,7 +1668,7 @@ function handleMarkdownInputButtons() {
   min-height: 150px;
   padding: 1em;
   margin: 1em 0;
-  font-family: "Consolas", "Menlo", monospace;
+  font-family: 'Consolas', 'Menlo', monospace;
   font-size: 0.95rem;
   line-height: 1.6;
   color: #222;

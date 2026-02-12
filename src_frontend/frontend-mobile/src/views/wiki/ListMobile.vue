@@ -1,50 +1,48 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick} from 'vue';
-import type { Ref } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick } from 'vue';
+import type { Ref } from 'vue';
+import { useRouter } from 'vue-router';
 import type { WikiData, QueryForm, EditRequestWiki } from '@/interface';
-import { assetsUrl } from "@/setting";
-import { useWikiStore } from "@/stores/wikis";
-import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
-import { AxiosError } from "axios";
+import { assetsUrl } from '@/setting';
+import { useWikiStore } from '@/stores/wikis';
+import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
+import { AxiosError } from 'axios';
 import { postOwnerResultUrl, disableEditWikiUrl, getUserUrl } from '@/router/urls';
-import { useEditRequestWikiStore } from "@/stores/editWikis";
-import { FilterXSS, getDefaultWhiteList } from "xss";
-import type { IFilterXSSOptions } from "xss";
-import apiClient from "@/axiosClient";
+import { useEditRequestWikiStore } from '@/stores/editWikis';
+import { FilterXSS, getDefaultWhiteList } from 'xss';
+import type { IFilterXSSOptions } from 'xss';
+import apiClient from '@/axiosClient';
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
-const isShowMemoIcon = inject("isShowMemoIcon") as Ref<boolean>;
+const isShowMemoIcon = inject('isShowMemoIcon') as Ref<boolean>;
 // サインアップ・ログイン画面では非表示にする
 isShowMemoIcon.value = true;
 
 // Login.vueへのリダイレクト
 const router = useRouter();
 const loginRedirect = (): void => {
-  router.push("/account/login");
+  router.push('/account/login');
 };
 
 // Preview.vueへのリダイレクト
 const previewRedirect = (id: string): void => {
-  localStorage.setItem("prev-table-data", `table-dataid-${id}`);
+  localStorage.setItem('prev-table-data', `table-dataid-${id}`);
   router.push(`/wiki/preview/${id}`);
 };
 
 // Create.vueへのリダイレクト
 const createRedirect = (): void => {
-  router.push("/wiki/create");
-}
+  router.push('/wiki/create');
+};
 
 // 現在ユーザーの取得
-const currentUser = ref("");
-const currenrUserId = ref("");
+const currentUser = ref('');
+const currenrUserId = ref('');
 const getCurrentUser = async (): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["public_name"];
-    currenrUserId.value = response.data["id"];
+    const response = await apiClient.get(getUserUrl);
+    currentUser.value = response.data['public_name'];
+    currenrUserId.value = response.data['id'];
   } catch (error) {
     loginRedirect();
   }
@@ -52,11 +50,9 @@ const getCurrentUser = async (): Promise<void> => {
 getCurrentUser();
 
 const wikiStore = useWikiStore();
-const wikiList = computed(
-  (): Map<string, WikiData> => {
-    return wikiStore.wikiList;
-  }
-);
+const wikiList = computed((): Map<string, WikiData> => {
+  return wikiStore.wikiList;
+});
 
 // wikiデータが存在しなければ再取得
 if (wikiList.value.size === 0) {
@@ -65,15 +61,13 @@ if (wikiList.value.size === 0) {
 
 // 変更リクエストストア
 const editRequestWikiStore = useEditRequestWikiStore();
-const editRequestWikiList = computed(
-  (): Map<string, EditRequestWiki> => {
-    return editRequestWikiStore.editRequestWikiList;
-  }
-)
+const editRequestWikiList = computed((): Map<string, EditRequestWiki> => {
+  return editRequestWikiStore.editRequestWikiList;
+});
 
 const queryFormDataInit: QueryForm = {
-  query1: "",
-  query2: "",
+  query1: '',
+  query2: '',
 };
 
 const queryFormData = ref(queryFormDataInit);
@@ -83,17 +77,17 @@ watch(queryFormData.value, (): void => {
 
 // 検索実行関数
 const onSearch = (reset: boolean = false): void => {
-  localStorage.setItem("prev-table-data", "");
+  localStorage.setItem('prev-table-data', '');
   try {
     if (reset) {
-      wikiStore.queryWiki("", "");
+      wikiStore.queryWiki('', '');
     } else {
       wikiStore.queryWiki(queryFormData.value.query1, queryFormData.value.query2);
     }
   } catch (error) {
     console.log(error);
   }
-}
+};
 
 // 更新リクエスト一覧モーダル
 const isOpenEditRequestWikis = ref(false);
@@ -104,19 +98,19 @@ const openCloseEditRequestWikis = (): void => {
   } else {
     isOpenEditRequestWikis.value = true;
   }
-}
+};
 
 // 更新リクエストステータス対応
 const statusTable = {
-  "REJECT": "却下",
-  "REQUESTNOW": "申請中",
-  "DRAFT": "下書き",
-  "APPLIED": "承認",
-}
+  REJECT: '却下',
+  REQUESTNOW: '申請中',
+  DRAFT: '下書き',
+  APPLIED: '承認',
+};
 
 // Diff表示モーダルの表示非表示
 const showDiffPreviewModal = ref(false);
-const clickedRequestWikiId = ref("");
+const clickedRequestWikiId = ref('');
 
 const originalAreaRef = ref<HTMLElement | null>(null);
 const modifiedAreaRef = ref<HTMLElement | null>(null);
@@ -124,8 +118,8 @@ const modifiedAreaRef = ref<HTMLElement | null>(null);
 const onOpenCloseDiffModal = async (
   id: string,
   text1: string,
-  text2: string,  
-  isClose: boolean = false
+  text2: string,
+  isClose: boolean = false,
 ) => {
   clickedRequestWikiId.value = id;
 
@@ -158,16 +152,16 @@ function displayDiffs(text1: string, text2: string) {
     const operation = diff[0];
     const text = diff[1];
 
-    const span = document.createElement("span");
+    const span = document.createElement('span');
     span.textContent = text;
 
     switch (operation) {
       case -1:
-        span.classList.add("delete");
+        span.classList.add('delete');
         containerOriginal.appendChild(span);
         break;
       case 1:
-        span.classList.add("added");
+        span.classList.add('added');
         containerModified.appendChild(span);
         break;
       case 0:
@@ -181,23 +175,20 @@ function displayDiffs(text1: string, text2: string) {
 // 承認・却下
 const resultOwnerRequest = async (isReject: boolean): Promise<void> => {
   const payload = {
-    "id": clickedRequestWikiId.value,
-    "reject": isReject, 
-  }
+    id: clickedRequestWikiId.value,
+    reject: isReject,
+  };
 
   try {
-    await apiClient.post(
-      postOwnerResultUrl,
-      payload
-    );
-    onOpenCloseDiffModal("", "", "", true);
+    await apiClient.post(postOwnerResultUrl, payload);
+    onOpenCloseDiffModal('', '', '', true);
     editRequestWikiStore.initList();
     wikiStore.initList();
 
     if (isReject) {
-      messageModalOpenClose("却下しました。");
+      messageModalOpenClose('却下しました。');
     } else {
-      messageModalOpenClose("承認しました。");
+      messageModalOpenClose('承認しました。');
     }
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
@@ -205,7 +196,7 @@ const resultOwnerRequest = async (isReject: boolean): Promise<void> => {
       const axiosError = error as AxiosError<any>;
       const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose("すでに申請者が取り下げた申請のため、変更は適用されませんでした。");
+        messageModalOpenClose('すでに申請者が取り下げた申請のため、変更は適用されませんでした。');
         showDiffPreviewModal.value = false;
         editRequestWikiStore.initList();
         return;
@@ -219,19 +210,17 @@ const disableEditRequest = async (id: string): Promise<void> => {
   const url = `${disableEditWikiUrl}${id}`;
   console.log(url);
   try {
-    await apiClient.delete(
-      url,
-    );
-    onOpenCloseDiffModal("", "", "", true);
+    await apiClient.delete(url);
+    onOpenCloseDiffModal('', '', '', true);
     editRequestWikiStore.initList();
-    messageModalOpenClose("更新申請を取り下げました。")
+    messageModalOpenClose('更新申請を取り下げました。');
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
       const axiosError = error as AxiosError<any>;
       const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose("既に承認または取り下げが行われています。");
+        messageModalOpenClose('既に承認または取り下げが行われています。');
         showDiffPreviewModal.value = false;
         editRequestWikiStore.initList();
         return;
@@ -243,16 +232,16 @@ const disableEditRequest = async (id: string): Promise<void> => {
 // 更新日時を取得
 const getUpdateAt = (dateStr: string, datetimeStr: string): string => {
   if (areDatesSame(dateStr, datetimeStr)) {
-    return "";
+    return '';
   }
-  const dateStrSplit = datetimeStr.split("T")[0];
-  const timeStrSplit = datetimeStr.split("T")[1];
+  const dateStrSplit = datetimeStr.split('T')[0];
+  const timeStrSplit = datetimeStr.split('T')[1];
   return ` 【更新：${dateStrSplit} ${timeStrSplit!.substring(0, 5)} 】`;
-}
+};
 
 // 日付時刻から日付のみを取り出す関数
 function getDateForDateTime(dateTimeString: string): string {
-  return dateTimeString.split("T")[0]!;
+  return dateTimeString.split('T')[0]!;
 }
 
 // 日付を比較する関数
@@ -266,44 +255,49 @@ function areDatesSame(dateString1: string, dateString2: string): boolean {
 }
 
 // ISO形式の日付を変換
-function formatDateJP(isoString: string, isDayOnly: boolean = false, isJpFormat: boolean = false, addMinutes: number = 540): string {
+function formatDateJP(
+  isoString: string,
+  isDayOnly: boolean = false,
+  isJpFormat: boolean = false,
+  addMinutes: number = 540,
+): string {
   const date = new Date(isoString);
   // UTC時間を取得し、9時間（540分）加算してJSTに変換
   date.setMinutes(date.getMinutes() + addMinutes);
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // 月は0始まりのため+1
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 月は0始まりのため+1
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
   if (isDayOnly) {
     if (isJpFormat) {
-      return `${year}年${month}月${day}日`
+      return `${year}年${month}月${day}日`;
     } else {
-      return `${year}-${month}-${day}`
+      return `${year}-${month}-${day}`;
     }
   } else {
     if (isJpFormat) {
-      return `${year}年${month}月${day}日 ${hours}時${minutes}分`
+      return `${year}年${month}月${day}日 ${hours}時${minutes}分`;
     } else {
-      return `${year}-${month}-${day} ${hours}:${minutes}`
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
     }
   }
 }
 
 // テーブルスクロール
-const scrolledTableId = localStorage.getItem("prev-table-data");
+const scrolledTableId = localStorage.getItem('prev-table-data');
 onMounted(() => {
   if (scrolledTableId) {
-    if (scrolledTableId != "") {
+    if (scrolledTableId != '') {
       let targetTableRowIdElm = document.getElementById(scrolledTableId);
       targetTableRowIdElm?.scrollIntoView({
-        block: "start"
+        block: 'start',
       });
-      let tableElm = document.getElementById("wiki-table");
-      if (scrolledTableId !== "table-dataid-1") {
+      let tableElm = document.getElementById('wiki-table');
+      if (scrolledTableId !== 'table-dataid-1') {
         tableElm?.scrollBy({
           top: -50,
-        })
+        });
       }
     }
   }
@@ -312,43 +306,43 @@ onMounted(() => {
 // キーボードショートカットを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // Createへ遷移
-  if (event.ctrlKey && event.key == "1") {
+  if (event.ctrlKey && event.key == '1') {
     event.preventDefault();
     createRedirect();
 
     // 検索Word1にフォーカス
-  } else if (event.ctrlKey && event.key == "3") {
+  } else if (event.ctrlKey && event.key == '3') {
     event.preventDefault();
-    const textElement = document.getElementById("query1");
+    const textElement = document.getElementById('query1');
     if (textElement) {
       textElement.focus();
     }
 
     // 検索Word2にフォーカス
-  } else if (event.ctrlKey && event.key == "4") {
+  } else if (event.ctrlKey && event.key == '4') {
     event.preventDefault();
-    const textElement = document.getElementById("query2");
+    const textElement = document.getElementById('query2');
     if (textElement) {
       textElement.focus();
     }
 
     // 検索の実行
-  } else if (event.ctrlKey && event.key == "5") {
+  } else if (event.ctrlKey && event.key == '5') {
     event.preventDefault();
     onSearch(false);
 
     // 検索のクリア
-  } else if (event.ctrlKey && event.key == "6") {
+  } else if (event.ctrlKey && event.key == '6') {
     event.preventDefault();
     onSearch(true);
   }
-}
+};
 
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);
 });
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 
 // テーブルのソート
@@ -366,7 +360,7 @@ const myXss = new FilterXSS(xssOptions);
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string | null): void => {
   if (!message) return;
   const cleanMessage = myXss.process(message);
@@ -376,7 +370,7 @@ const messageModalOpenClose = (message: string | null): void => {
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
@@ -390,29 +384,54 @@ const userPrivacySettingFunction = () => {
   if (userSettingModalRef.value) {
     userSettingModalRef.value.openCloseUserSettingModal();
   }
-}
+};
 
-watch(() => userSettingModalRef.value?.isUserPrivate,
+watch(
+  () => userSettingModalRef.value?.isUserPrivate,
   (newValue, oldValue) => {
     if (!userSettingModalRef.value?.isInitialized) return; // 子コンポーネントでモーダルを起動していない場合は発火しない
     if (newValue) {
-      messageModalOpenClose("プライバシーモードが ON になりました。他のユーザーはあなたのデータにアクセスできません。");
+      messageModalOpenClose(
+        'プライバシーモードが ON になりました。他のユーザーはあなたのデータにアクセスできません。',
+      );
     } else {
-      messageModalOpenClose("プライバシーモードが OFF になりました。 他のユーザーにあなたの画像などをシェアすることができます。");
+      messageModalOpenClose(
+        'プライバシーモードが OFF になりました。 他のユーザーにあなたの画像などをシェアすることができます。',
+      );
     }
-  });
+  },
+);
 </script>
 
 <template>
   <div v-if="isShowMemoIcon" id="privacy-setting">
-    <button title="更新リクエスト" v-on:click="openCloseEditRequestWikis()" class="btn-privacy-icon">
-      <img :src="`${assetsUrl}edit_notifications_24.png`" class="btn-img" alt="edit_notifications_24.png"></button>
-    <button v-if="userSettingModalRef?.isUserPrivate" v-on:click="userPrivacySettingFunction()" class="btn-privacy-icon"
-      title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。">
-      <img :src="`${assetsUrl}lock_24.png`" class="btn-img" alt="lock_24.png"></button>
-    <button v-if="!userSettingModalRef?.isUserPrivate" v-on:click="userPrivacySettingFunction()"
-      class="btn-privacy-icon" title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。">
-      <img :src="`${assetsUrl}lock_open_24.png`" class="btn-img" alt="lock_open_24.png"></button>
+    <button
+      title="更新リクエスト"
+      v-on:click="openCloseEditRequestWikis()"
+      class="btn-privacy-icon"
+    >
+      <img
+        :src="`${assetsUrl}edit_notifications_24.png`"
+        class="btn-img"
+        alt="edit_notifications_24.png"
+      />
+    </button>
+    <button
+      v-if="userSettingModalRef?.isUserPrivate"
+      v-on:click="userPrivacySettingFunction()"
+      class="btn-privacy-icon"
+      title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。"
+    >
+      <img :src="`${assetsUrl}lock_24.png`" class="btn-img" alt="lock_24.png" />
+    </button>
+    <button
+      v-if="!userSettingModalRef?.isUserPrivate"
+      v-on:click="userPrivacySettingFunction()"
+      class="btn-privacy-icon"
+      title="ユーザー設定&#10;アカウントのプライバシー設定を変更します。"
+    >
+      <img :src="`${assetsUrl}lock_open_24.png`" class="btn-img" alt="lock_open_24.png" />
+    </button>
   </div>
 
   <!-- ユーザー設定変更モーダル -->
@@ -422,7 +441,9 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
   <div id="overlay-edit-request-list" v-show="isOpenEditRequestWikis">
     <div id="content-edit-request-wikis">
       <h2 class="modal-h2">更新リクエスト一覧</h2>
-      <div v-if="editRequestWikiList.size === 0"><p style="text-align: center;">申請中及び受け付けた変更リクエストはありません。</p></div>
+      <div v-if="editRequestWikiList.size === 0">
+        <p style="text-align: center">申請中及び受け付けた変更リクエストはありません。</p>
+      </div>
       <div v-else class="table_sticky_edit_requests">
         <table>
           <thead>
@@ -436,18 +457,31 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
           <tbody>
             <tr v-for="[id, editRequestWiki] in editRequestWikiList" v-bind:key="id">
               <td>{{ editRequestWiki.request_public_user_name }}</td>
-              <td v-if="currenrUserId === editRequestWiki.wiki_owner_id"
-                v-on:click="messageModalOpenClose(`${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`)" style="cursor: pointer;">
+              <td
+                v-if="currenrUserId === editRequestWiki.wiki_owner_id"
+                v-on:click="
+                  messageModalOpenClose(
+                    `${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`,
+                  )
+                "
+                style="cursor: pointer"
+              >
                 {{ editRequestWiki.original_title }}
               </td>
               <td v-else>{{ editRequestWiki.original_title }}</td>
               <td>{{ statusTable[editRequestWiki.status] }}</td>
               <td v-if="currenrUserId === editRequestWiki.wiki_owner_id">
-                <button v-on:click="onOpenCloseDiffModal(
-                  editRequestWiki.id,
-                  `${editRequestWiki.original_title}\n\n${editRequestWiki.original_body}`,
-                  `${editRequestWiki.edit_request_title}\n\n${editRequestWiki.edit_request_body}`,
-                  )">確認する</button>
+                <button
+                  v-on:click="
+                    onOpenCloseDiffModal(
+                      editRequestWiki.id,
+                      `${editRequestWiki.original_title}\n\n${editRequestWiki.original_body}`,
+                      `${editRequestWiki.edit_request_title}\n\n${editRequestWiki.edit_request_body}`,
+                    )
+                  "
+                >
+                  確認する
+                </button>
               </td>
               <td v-if="currenrUserId !== editRequestWiki.wiki_owner_id">
                 <button v-on:click="disableEditRequest(editRequestWiki.id)">取り下げ</button>
@@ -476,9 +510,7 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
         <div class="diff-header__title">
           <h4 id="diff-title">差分比較</h4>
         </div>
-        <button type="button" v-on:click="onOpenCloseDiffModal('', '', '', true)">
-          閉じる
-        </button>
+        <button type="button" v-on:click="onOpenCloseDiffModal('', '', '', true)">閉じる</button>
       </header>
 
       <div class="diff-grid">
@@ -512,7 +544,9 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
     <div id="content-message">
       <h2 class="modal-h2">メッセージ</h2>
       <div class="input-text-zone">
-        <p><strong>{{ messageText }}</strong></p>
+        <p>
+          <strong>{{ messageText }}</strong>
+        </p>
       </div>
       <div class="btn-close">
         <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
@@ -522,14 +556,28 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
 
   <div class="head-btn-zone">
     <div class="btn-area">
-      <button class="btn-head-img" v-on:click="createRedirect()"><img :src="`${assetsUrl}add_fill24.png`"
-          class="btn-img" alt="add_fill24.png"></button>
-      <button class="btn-head-img" type="submit" v-on:click="onSearch(true)"><img :src="`${assetsUrl}update_fill24.png`"
-          class="btn-img" alt="update_fill24.png"></button>
+      <button class="btn-head-img" v-on:click="createRedirect()">
+        <img :src="`${assetsUrl}add_fill24.png`" class="btn-img" alt="add_fill24.png" />
+      </button>
+      <button class="btn-head-img" type="submit" v-on:click="onSearch(true)">
+        <img :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png" />
+      </button>
     </div>
     <div class="form-area">
-      <input type="text" id="query1" class="query-input" placeholder="検索ワード1" v-model="queryFormData.query1">
-      <input type="text" id="query2" class="query-input" placeholder="検索ワード2" v-model="queryFormData.query2">
+      <input
+        type="text"
+        id="query1"
+        class="query-input"
+        placeholder="検索ワード1"
+        v-model="queryFormData.query1"
+      />
+      <input
+        type="text"
+        id="query2"
+        class="query-input"
+        placeholder="検索ワード2"
+        v-model="queryFormData.query2"
+      />
     </div>
   </div>
 
@@ -542,8 +590,9 @@ watch(() => userSettingModalRef.value?.isUserPrivate,
       </thead>
       <tbody>
         <tr v-for="[id, wiki] in wikiList" v-bind:key="id">
-          <td :id="`table-dataid-${id}`" v-on:click="previewRedirect(id)">{{ formatDateJP(wiki.date) }}<br>{{ wiki.title
-            }}</td>
+          <td :id="`table-dataid-${id}`" v-on:click="previewRedirect(id)">
+            {{ formatDateJP(wiki.date) }}<br />{{ wiki.title }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -606,7 +655,6 @@ td {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -631,8 +679,8 @@ td {
   border-radius: 14px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   transition: background-color 0.3s;
   margin: 5px 5px 10px 5px;
 }
@@ -800,7 +848,9 @@ td {
   font-size: 14px;
 
   /* “コードビュー”っぽさ */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
 }
 
 /* ===== Footer ===== */

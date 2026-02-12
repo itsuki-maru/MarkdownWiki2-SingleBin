@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import { ref, inject } from "vue";
-import type { Ref } from "vue";
-import axios from "axios";
-import { useRouter } from "vue-router";
-import { signupUrl, licensesGetUrl } from "@/router/urls";
+import { ref, inject } from 'vue';
+import type { Ref } from 'vue';
+import axios from 'axios';
+import { useRouter } from 'vue-router';
+import { signupUrl, licensesGetUrl } from '@/router/urls';
 
 // サインアップ完了後のログイン画面へリダイレクト
 const router = useRouter();
 const signupRedirect = (): void => {
-  router.push("/account/login")
-}
+  router.push('/account/login');
+};
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
-const isShowMemoIcon = inject("isShowMemoIcon") as Ref<boolean>;
+const isShowMemoIcon = inject('isShowMemoIcon') as Ref<boolean>;
 // サインアップ・ログイン画面では非表示にする
 isShowMemoIcon.value = false;
 
 // 処理結果のメッセージ表示モーダル
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
@@ -35,28 +35,24 @@ const signupPost = async (): Promise<void> => {
   const public_name = signupInfoInit.public_name;
   const password = signupInfoInit.password;
 
-  if (username == "" || password == "" || public_name == "") {
-    messageModalOpenClose("入力は全て必須です。");
-    return
+  if (username == '' || password == '' || public_name == '') {
+    messageModalOpenClose('入力は全て必須です。');
+    return;
   }
 
   const data = {
-    "username": username,
-    "public_name": public_name,
-    "password": password,
-  }
+    username: username,
+    public_name: public_name,
+    password: password,
+  };
 
   try {
-    const response = await axios.post(
-      signupUrl,
-      data
-    );
+    const response = await axios.post(signupUrl, data);
     signupRedirect();
-
   } catch (error) {
-    signupInfo.value.username = "";
-    messageModalOpenClose("使用できないユーザー名です。");
-    return
+    signupInfo.value.username = '';
+    messageModalOpenClose('使用できないユーザー名です。');
+    return;
   }
 };
 
@@ -67,9 +63,9 @@ interface typeSignup {
 }
 
 const signupInfoInit: typeSignup = {
-  username: "",
-  public_name: "",
-  password: "",
+  username: '',
+  public_name: '',
+  password: '',
 };
 
 const signupInfo = ref(signupInfoInit);
@@ -81,12 +77,34 @@ const signupInfo = ref(signupInfoInit);
       <h1>SignUp</h1>
       <!-- v-on:submit.prevent="メソッド"でリロード回避 -->
       <form method="post" v-on:submit.prevent="signupPost">
-        <input type="text" pattern="^[A-Za-z0-9]{3,}$" title="3文字以上。半角英数字が使用可能。"
-          placeholder="ユーザー名（3文字以上、半角英数字が使用可）" autocomplete="username" required v-model="signupInfo.username" />
-        <input type="password" pattern=".{8,}" title="8文字以上で入力してください。" placeholder="パスワード（8文字以上）" autocomplete="current-password" required
-          v-model="signupInfo.password" />
-        <input type="text" title="2文字以上10文字以下" placeholder="表記ユーザー名" name="public_name" required
-          minlength="2" maxlength="10" v-model="signupInfo.public_name" />
+        <input
+          type="text"
+          pattern="^[A-Za-z0-9]{3,}$"
+          title="3文字以上。半角英数字が使用可能。"
+          placeholder="ユーザー名（3文字以上、半角英数字が使用可）"
+          autocomplete="username"
+          required
+          v-model="signupInfo.username"
+        />
+        <input
+          type="password"
+          pattern=".{8,}"
+          title="8文字以上で入力してください。"
+          placeholder="パスワード（8文字以上）"
+          autocomplete="current-password"
+          required
+          v-model="signupInfo.password"
+        />
+        <input
+          type="text"
+          title="2文字以上10文字以下"
+          placeholder="表記ユーザー名"
+          name="public_name"
+          required
+          minlength="2"
+          maxlength="10"
+          v-model="signupInfo.public_name"
+        />
         <button type="submit" class="btn btn-primary btn-block btn-large">アカウント作成</button>
       </form>
       <p>
@@ -99,7 +117,9 @@ const signupInfo = ref(signupInfoInit);
       <div id="content-message">
         <h2 class="modal">メッセージ</h2>
         <div class="input-text-zone">
-          <p><strong>{{ messageText }}</strong></p>
+          <p>
+            <strong>{{ messageText }}</strong>
+          </p>
         </div>
         <div class="btn-close">
           <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
@@ -110,8 +130,7 @@ const signupInfo = ref(signupInfoInit);
 
   <!-- フッターゾーン -->
   <footer class="footer-zone">
-    <div class="left-footer-zone">
-    </div>
+    <div class="left-footer-zone"></div>
     <div class="right-footer-zone">
       <a :href="licensesGetUrl" target="_blank" rel="noopener noreferrer">OSS Licenses</a>
     </div>
@@ -146,9 +165,15 @@ const signupInfo = ref(signupInfoInit);
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
-  -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+  -webkit-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
@@ -203,7 +228,9 @@ const signupInfo = ref(signupInfoInit);
   filter: progid:dximagetransform.microsoft.gradient(startColorstr=#6eb6de, endColorstr=#4a77d4, GradientType=0);
   border: 1px solid #3762bc;
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.4);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .btn-primary:hover,
@@ -239,11 +266,51 @@ body {
   height: 100%;
   font-family: 'Open Sans', sans-serif;
   background: #092756;
-  background: -moz-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -moz-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -moz-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -webkit-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -webkit-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -webkit-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -o-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -o-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -o-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -ms-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -ms-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -ms-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -webkit-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), linear-gradient(to bottom, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), linear-gradient(135deg, #670d10 0%, #092756 100%);
+  background:
+    -moz-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -moz-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -moz-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -webkit-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -webkit-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -webkit-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -o-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -o-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -o-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -ms-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -ms-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -ms-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -webkit-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    linear-gradient(to bottom, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    linear-gradient(135deg, #670d10 0%, #092756 100%);
   filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#3E1D6D', endColorstr='#092756', GradientType=1);
 }
 
@@ -275,22 +342,25 @@ input {
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 4px;
-  box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.2), 0 1px 1px rgba(255, 255, 255, 0.2);
-  -webkit-transition: box-shadow .5s ease;
-  -moz-transition: box-shadow .5s ease;
-  -o-transition: box-shadow .5s ease;
-  -ms-transition: box-shadow .5s ease;
-  transition: box-shadow .5s ease;
+  box-shadow:
+    inset 0 -5px 45px rgba(100, 100, 100, 0.2),
+    0 1px 1px rgba(255, 255, 255, 0.2);
+  -webkit-transition: box-shadow 0.5s ease;
+  -moz-transition: box-shadow 0.5s ease;
+  -o-transition: box-shadow 0.5s ease;
+  -ms-transition: box-shadow 0.5s ease;
+  transition: box-shadow 0.5s ease;
 }
 
 input:focus {
-  box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.4), 0 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 -5px 45px rgba(100, 100, 100, 0.4),
+    0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 .signup p {
   text-align: center;
 }
-
 
 /* メッセージモーダル */
 #overlay-message {
@@ -302,7 +372,6 @@ input:focus {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -326,8 +395,8 @@ input:focus {
   border-radius: 5px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 5px 5px 10px 5px;
 }
 

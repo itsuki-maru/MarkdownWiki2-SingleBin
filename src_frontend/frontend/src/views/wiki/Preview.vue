@@ -1,43 +1,48 @@
 <script setup lang="ts">
-import { marked, Renderer } from "marked";
-import type { Tokens, MarkedOptions } from "marked";
-import { computed, ref, onMounted, onUnmounted, nextTick, watch, onBeforeUnmount } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import type { WikiData, TypeWikiOwner } from "@/interface";
-import { assetsUrl } from "@/setting";
-import { useWikiStore } from "@/stores/wikis";
-import { downloadFileUrl, wikiOwnerGetUrl, generateOnetimeWikiUrl, invalidateOntimeWikiUrl } from "@/router/urls";
+import { marked, Renderer } from 'marked';
+import type { Tokens, MarkedOptions } from 'marked';
+import { computed, ref, onMounted, onUnmounted, nextTick, watch, onBeforeUnmount } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import type { WikiData, TypeWikiOwner } from '@/interface';
+import { assetsUrl } from '@/setting';
+import { useWikiStore } from '@/stores/wikis';
+import {
+  downloadFileUrl,
+  wikiOwnerGetUrl,
+  generateOnetimeWikiUrl,
+  invalidateOntimeWikiUrl,
+} from '@/router/urls';
 import '@/assets/github.css';
-import { FilterXSS, getDefaultWhiteList } from "xss";
-import type { IFilterXSSOptions } from "xss";
-import { 
+import { FilterXSS, getDefaultWhiteList } from 'xss';
+import type { IFilterXSSOptions } from 'xss';
+import {
   videoToken,
   detailsToken,
   noteToken,
   warningToken,
   mathExtentionToken,
   youtubeToken,
-  renderIframe
-} from "@/utils/markedSetup";
-import apiClient from "@/axiosClient";
-import Prism from "prismjs";
-import "prismjs/themes/prism-okaidia.css";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-rust";
-import "prismjs/components/prism-markup";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-markdown.js";
-import "prismjs/components/prism-powershell.js";
-import "prismjs/components/prism-sql.js";
-import "prismjs/components/prism-toml.js";
-import "prismjs/components/prism-yaml.js";
-import "prismjs/components/prism-uri.js";
-import "prismjs/components/prism-c.js";
-import "prismjs/components/prism-docker.js";
-import "katex/dist/katex.min.css";
+  renderIframe,
+} from '@/utils/markedSetup';
+import apiClient from '@/axiosClient';
+import Prism from 'prismjs';
+import 'prismjs/themes/prism-okaidia.css';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-markdown.js';
+import 'prismjs/components/prism-powershell.js';
+import 'prismjs/components/prism-sql.js';
+import 'prismjs/components/prism-toml.js';
+import 'prismjs/components/prism-yaml.js';
+import 'prismjs/components/prism-uri.js';
+import 'prismjs/components/prism-c.js';
+import 'prismjs/components/prism-docker.js';
+import 'katex/dist/katex.min.css';
 import FindBar from '@/components/FindBar.vue';
 
 // アプリケーションの通信プロトコル
@@ -52,12 +57,13 @@ const protocol = url.protocol;
 const hostname = url.hostname;
 const port = url.port;
 // HTTPSかlocalhost通信の場合の設定
-if (protocol === "https:") {
+if (protocol === 'https:') {
   isHttpsProtocol.value = true;
-} if (hostname === "localhost") {
+}
+if (hostname === 'localhost') {
   isHttpsProtocol.value = true;
   // 開発環境の処理
-  if (port === "4080") {
+  if (port === '4080') {
     isDevelopLocalhost.value = true;
   }
 }
@@ -65,7 +71,7 @@ if (protocol === "https:") {
 const mermaid: any = (window as any).mermaid;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
-mermaid.initialize({startOnLoad: false});
+mermaid.initialize({ startOnLoad: false });
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -83,7 +89,11 @@ const originalLinkRenderer = renderer.link.bind(renderer);
 function isLocalhost(url: string) {
   try {
     const parsedUrl = new URL(url);
-    return parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1" || parsedUrl.hostname === "[::1]";
+    return (
+      parsedUrl.hostname === 'localhost' ||
+      parsedUrl.hostname === '127.0.0.1' ||
+      parsedUrl.hostname === '[::1]'
+    );
   } catch (e) {
     return false;
   }
@@ -102,14 +112,20 @@ renderer.link = (tokens: Tokens.Link) => {
   const html = originalLinkRenderer(tokens);
   if (isExternal) {
     if (isLocal && isPDFHref) {
-      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+      return html.replace(
+        /^<a /,
+        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+      );
     }
     // 外部リンクの場合、targetとrel属性を追加
     return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
   } else {
     // 内部リンクかつPDFの場合
     if (isPDFHref) {
-      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+      return html.replace(
+        /^<a /,
+        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+      );
     }
     // 内部リンクの場合、元の処理を使用
     return originalLinkRenderer(tokens);
@@ -121,10 +137,10 @@ const originalCodeRenderer = renderer.code.bind(renderer);
 renderer.code = (tokens: Tokens.Code) => {
   let html = originalCodeRenderer(tokens);
   // mermaidの処理
-  if (tokens.lang == "mermaid") {
+  if (tokens.lang == 'mermaid') {
     return '<pre class="mermaid">' + escapeHtml(tokens.text) + '\n</pre>';
 
-  // 通常のコードブロック + コピー機能
+    // 通常のコードブロック + コピー機能
   } else {
     const id = `code-${Math.random().toString(36).substr(2, 9)}`;
     const lang = tokens.lang;
@@ -134,84 +150,75 @@ renderer.code = (tokens: Tokens.Code) => {
       <button class="copy-btn" data-target="${id}" style="position: absolute; top: 5px; right: 5px; z-index: 1;">コピー</button>
       <pre><code id="${id}" class="language-${lang}">${escapedCode}</code></pre>
     </div>
-    `
+    `;
   }
-}
+};
 
 const originalImageRenderer = renderer.image;
 renderer.image = (tokens: Tokens.Image) => {
-  let width = "";
+  let width = '';
   let href = tokens.href;
   let text = tokens.text;
   const match = tokens.href.match(/\s*=(\d+)(x)?$/);
   if (match) {
     width = match[1]!;
-    href  = href.replace(/\s*=.*$/, "");
+    href = href.replace(/\s*=.*$/, '');
   }
-  const widthAttr = width ? ` width="${width}px"` : "";
+  const widthAttr = width ? ` width="${width}px"` : '';
   return `<img src="${href}" alt="${text}" ${widthAttr}>`;
 };
 
 // codeタグにコピー機能を実装
 onMounted(() => {
-  document.addEventListener("click", (e) => {
+  document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
-    if (target.classList.contains("copy-btn")) {
+    if (target.classList.contains('copy-btn')) {
       const codeId = target.dataset.target;
-      const codeElem = document.getElementById(codeId || "")
+      const codeElem = document.getElementById(codeId || '');
       if (codeElem && isHttpsProtocol.value) {
-        navigator.clipboard.writeText(codeElem.textContent || "");
+        navigator.clipboard.writeText(codeElem.textContent || '');
 
         // すでにメッセージがあれば削除
-        const existingTooltip = target.parentElement?.querySelector(".copy-tooltip");
+        const existingTooltip = target.parentElement?.querySelector('.copy-tooltip');
         if (existingTooltip) existingTooltip.remove();
 
         // メッセージを作成
-        const tooltip = document.createElement("div");
-        tooltip.textContent = "コピーしました";
-        tooltip.className = "copy-tooltip";
+        const tooltip = document.createElement('div');
+        tooltip.textContent = 'コピーしました';
+        tooltip.className = 'copy-tooltip';
 
         // ボタンの親要素（code-container）に追加
         target.parentElement?.appendChild(tooltip);
 
         // 一定時間後に非表示
         setTimeout(() => {
-          tooltip.style.opacity = "0";
+          tooltip.style.opacity = '0';
           setTimeout(() => tooltip.remove(), 300);
         }, 1000);
       }
     }
-  })
+  });
 });
 
 // Markedにカスタムトークンを追加
-marked.use(
-  {
-    extensions: [
-      videoToken,
-      detailsToken,
-      noteToken,
-      warningToken,
-      mathExtentionToken,
-      youtubeToken
-    ],
-  }
-);
+marked.use({
+  extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
+});
 
 // HTMLエスケープ関数
 function escapeHtml(html: string) {
   return html
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 // markedの設定をカスタマイズ
 marked.setOptions({
   renderer,
-  async: false
+  async: false,
 });
 
 // XSSフィルタの設定をカスタマイズする
@@ -231,11 +238,11 @@ let xssOptions: IFilterXSSOptions = {
     div: ['class'],
     p: ['class'],
     span: ['class', 'aria-hidden', 'style'],
-    "app-youtube": ['video-id', 'data-src']
+    'app-youtube': ['video-id', 'data-src'],
   },
   // iframeの確認（念のため、iframeはここで不許可）
   onTag(tag, html) {
-    if (tag === "iframe") return "Not Allow iframe ";
+    if (tag === 'iframe') return 'Not Allow iframe ';
   },
   // Katexでサニタイズされてしまうスタイルを再定義
   css: {
@@ -245,9 +252,11 @@ let xssOptions: IFilterXSSOptions = {
       top: true,
       width: true,
       'margin-left': true,
-      left: true, right: true, bottom: true,
-    }
-  }
+      left: true,
+      right: true,
+      bottom: true,
+    },
+  },
 };
 const myXss = new FilterXSS(xssOptions);
 
@@ -255,29 +264,29 @@ const myXss = new FilterXSS(xssOptions);
 const router = useRouter();
 const updateViewRedirect = (id: string): void => {
   router.push(`/wiki/update/${id}`);
-}
+};
 
 // Login.vueへのリダイレクト
 const loginRedirect = (): void => {
-  router.push("/account/login");
-}
+  router.push('/account/login');
+};
 
 // List.vueへリダイレクト
 const listRedirect = (): void => {
-  router.push("/wiki/list");
-}
+  router.push('/wiki/list');
+};
 
 // Delete.vueへのリダイレクト
 const deleteRedirect = (id: string): void => {
   router.push(`/wiki/delete/${id}`);
-}
+};
 
 // 画面遷移時に確実にハイライトを実行
 const route = useRoute();
 const highlight = async () => {
   await nextTick();
   Prism.highlightAll();
-}
+};
 
 onMounted(highlight);
 watch(() => route.fullPath, highlight);
@@ -288,14 +297,12 @@ interface Props {
 
 const props = defineProps<Props>();
 const wikiStore = useWikiStore();
-const wiki = computed(
-  (): WikiData => {
-    return wikiStore.getById(props.id);
-  }
-);
+const wiki = computed((): WikiData => {
+  return wikiStore.getById(props.id);
+});
 
 // マークダウンへのパース処理
-const textTitleData = "# " + wiki.value.title + "\n\n";
+const textTitleData = '# ' + wiki.value.title + '\n\n';
 const textBodyData = wiki.value.body;
 const markdownData = textTitleData + textBodyData;
 const options: MarkedOptions = { async: false };
@@ -307,36 +314,33 @@ Prism.highlightAll();
 
 // Wikiデータのオーナー取得
 const wikiOwnerInit: TypeWikiOwner = {
-  wikiOwner: "",
-  publicName: "",
+  wikiOwner: '',
+  publicName: '',
   isOwner: false,
-}
+};
 const wikiOwner = ref(wikiOwnerInit);
 const isOwner = ref(false);
 const getWikiOwner = async (id: string): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      wikiOwnerGetUrl + `/${id}`,
-    );
-    wikiOwner.value.wikiOwner = response.data["WikiOwner"];
-    wikiOwner.value.publicName = response.data["public_name"];
-    if (response.data["is_owner"] === "true" || response.data["is_owner"] === true ) {
+    const response = await apiClient.get(wikiOwnerGetUrl + `/${id}`);
+    wikiOwner.value.wikiOwner = response.data['WikiOwner'];
+    wikiOwner.value.publicName = response.data['public_name'];
+    if (response.data['is_owner'] === 'true' || response.data['is_owner'] === true) {
       wikiOwner.value.isOwner = true;
       isOwner.value = true;
     }
   } catch (error) {
-    console.error("Owner Get Error");
+    console.error('Owner Get Error');
     loginRedirect();
   }
 };
 getWikiOwner(props.id);
 
-
 // Wikiデータの更新処理
 const updateWikiData = (id: string): void => {
   getWikiOwner(id);
   if (!wikiOwner.value.wikiOwner) {
-    messageModalOpenClose("オーナーではないため、編集の権限がありません。");
+    messageModalOpenClose('オーナーではないため、編集の権限がありません。');
     return;
   } else {
     updateViewRedirect(id);
@@ -346,16 +350,14 @@ const updateWikiData = (id: string): void => {
 /** ダウンロード処理 */
 const downloadFile = async (id: string): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      downloadFileUrl + `/${id}`,
-    );
+    const response = await apiClient.get(downloadFileUrl + `/${id}`);
     // FILE DOWNLOAD
-    let blob = new Blob([response.data], { "type": "text/markdown" });
+    let blob = new Blob([response.data], { type: 'text/markdown' });
     const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = downloadUrl;
     const fileName = `${id}.md`;
-    link.setAttribute("download", fileName);
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -402,7 +404,7 @@ const getToc = (): string[] => {
   // 入力文字列を行に分解
   const lines = textBodyData.split('\n');
   // 各行をループして、`#`で始まる行で、かつバッククォートの数が2個以下の行だけをフィルタリング
-  const headings = lines.filter(line => {
+  const headings = lines.filter((line) => {
     // 三重引用符が1行内に2つ以上あった場合
     const lenBackQoute = countBackticksInLine(line);
     if (lenBackQoute >= 2) {
@@ -427,11 +429,11 @@ const getToc = (): string[] => {
 const createNestedList = (headings: string[]): string => {
   // 見出しの配列に要素が一つもない場合
   if (headings.length === 0) {
-    return "No Table Of Contents.";
+    return 'No Table Of Contents.';
   }
 
   // 最終的なマークダウンテキスト
-  let result = "";
+  let result = '';
 
   // 見出しの最初のレベルが2であることを確認するフラグ
   let isFirstTocLebelOk = false;
@@ -439,7 +441,7 @@ const createNestedList = (headings: string[]): string => {
   // 見出しマークダウンの作成処理
   headings.forEach((heading, index) => {
     // '#'の数を取得
-    const level = heading.split(" ").shift()!.length;
+    const level = heading.split(' ').shift()!.length;
 
     // レベル1なら見出しから除外
     if (level === 1) {
@@ -456,11 +458,11 @@ const createNestedList = (headings: string[]): string => {
     }
 
     // '#'を除去
-    let text = heading.replace(/#/g, "").trim();
+    let text = heading.replace(/#/g, '').trim();
     // '`'を除去
     text = text.replace(/`/g, '').trim();
     // インデントを付ける
-    const indents = "  ".repeat(level - 1);
+    const indents = '  '.repeat(level - 1);
 
     const id = createId(index);
     // 目次のエントリにリンクを追加
@@ -470,25 +472,23 @@ const createNestedList = (headings: string[]): string => {
 };
 
 // 目次（マークダウン）からHTMLへ変換
-const tocToHtml = computed(
-  (): string => {
-    const tocListString = getToc();
-    const mdTocStr = createNestedList(tocListString);
-    const tocHtml = marked.parse(mdTocStr);
-    return tocHtml as string;
-  }
-);
+const tocToHtml = computed((): string => {
+  const tocListString = getToc();
+  const mdTocStr = createNestedList(tocListString);
+  const tocHtml = marked.parse(mdTocStr);
+  return tocHtml as string;
+});
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
@@ -523,91 +523,86 @@ function selectTextOrClipboardCopy(elementId: string) {
 
   if (isHttpsProtocol.value) {
     navigator.clipboard.writeText(element.textContent);
-    messageModalOpenClose("クリップボードにコピーしました。");
+    messageModalOpenClose('クリップボードにコピーしました。');
   } else {
     if (window.getSelection) {
       let selection = window.getSelection();
       let range = document.createRange();
-    try {
-      range.selectNodeContents(element);
-    } catch (e) {
-      console.log(`Error selecting contents of element: ${e}`);
-    }
-    if (selection) {
-      selection.removeAllRanges();  // 現在の選択をクリア
-      selection.addRange(range);  // 新しい範囲を選択
+      try {
+        range.selectNodeContents(element);
+      } catch (e) {
+        console.log(`Error selecting contents of element: ${e}`);
+      }
+      if (selection) {
+        selection.removeAllRanges(); // 現在の選択をクリア
+        selection.addRange(range); // 新しい範囲を選択
+      }
     }
   }
 }
-}
 
-const oneTimeUrl = ref("");
-const oneTimeUuid = ref("");
+const oneTimeUrl = ref('');
+const oneTimeUuid = ref('');
 const onetimeDurationMinits = ref(60);
 const genOnetimeWikiUrl = async (): Promise<void> => {
   try {
     if (Number.isInteger(onetimeDurationMinits.value) === false) {
-      messageModalOpenClose("数値を入力してください。");
+      messageModalOpenClose('数値を入力してください。');
       return;
     }
     if (onetimeDurationMinits.value < 10) {
-      messageModalOpenClose("10分以上の設定が必要です。");
+      messageModalOpenClose('10分以上の設定が必要です。');
       return;
     }
     const payload = {
       minutes: onetimeDurationMinits.value,
-    }
+    };
     const url = generateOnetimeWikiUrl + `${props.id}`;
-    const response = await apiClient.post(
-      url,
-      payload,
-    );
+    const response = await apiClient.post(url, payload);
 
     if (isDevelopLocalhost.value) {
-      oneTimeUrl.value = `${protocol}//${hostname}:4080${response.data["url"]}`;
+      oneTimeUrl.value = `${protocol}//${hostname}:4080${response.data['url']}`;
     } else {
-      if (port === "") {
+      if (port === '') {
         // 本番環境（HTTPS + ドメイン時）
-        oneTimeUrl.value = `${protocol}//${hostname}${port}${response.data["url"]}`;
+        oneTimeUrl.value = `${protocol}//${hostname}${port}${response.data['url']}`;
       } else {
         // 開発環境（HTTP or LOCALHOST時）
-        oneTimeUrl.value = `${protocol}//${hostname}:${port}${response.data["url"]}`;
+        oneTimeUrl.value = `${protocol}//${hostname}:${port}${response.data['url']}`;
       }
     }
-    
-    oneTimeUuid.value = response.data["id"];
+
+    oneTimeUuid.value = response.data['id'];
     openCloseOnetimeUrl();
   } catch (error) {
-    console.error("Error");
+    console.error('Error');
   }
-}
+};
 
 const invalidateOneTimeWiki = async (): Promise<void> => {
   try {
     const url = invalidateOntimeWikiUrl + `${oneTimeUuid.value}`;
-    const response = await apiClient.delete(
-      url,
-    );
+    const response = await apiClient.delete(url);
     openCloseOnetimeUrl();
-    messageModalOpenClose("共有を停止しました。");
+    messageModalOpenClose('共有を停止しました。');
   } catch (error) {
-    console.error("Error");
+    console.error('Error');
   }
-}
+};
 
 // 画面上部（id=application-title）へスクロール
 const scrollAppTitle = (): void => {
-  const element = document.getElementById("application-title");
+  const element = document.getElementById('application-title');
   if (element) {
-    element.scrollIntoView({ behavior: "smooth" });
+    element.scrollIntoView({ behavior: 'smooth' });
   }
-}
+};
 
 // id="heading--1"までスクロールされたらページ上部までスクロールさせるボタンを出現
 const showScrollBtn = ref(false);
-document.addEventListener("scroll", function () {
+document.addEventListener('scroll', function () {
   let scrollPosition = window.scrollY;
-  let targetElement = document.getElementById("heading--1");
+  let targetElement = document.getElementById('heading--1');
   if (targetElement) {
     // 特定の位置に達したかどうかをチェック
     if (scrollPosition >= targetElement.offsetTop) {
@@ -626,20 +621,20 @@ const onOpenDeleteViewModal = (): void => {
   } else {
     isDeleteModal.value = true;
   }
-}
+};
 
 // 削除ビュー遷移確認モーダル表示時に灰色の部分のクリック時にも削除ビュー遷移確認モーダルを閉じる処理
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとヘルプの内容を取得
-  const deleteViewCheckModal = document.getElementById("overlay-delete-check");
-  const deleteViewCheckModalContent = document.getElementById("content-delete-check");
+  const deleteViewCheckModal = document.getElementById('overlay-delete-check');
+  const deleteViewCheckModalContent = document.getElementById('content-delete-check');
 
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (deleteViewCheckModal) {
-    deleteViewCheckModal.addEventListener("click", function (event) {
+    deleteViewCheckModal.addEventListener('click', function (event) {
       if (isDeleteModal.value === true) {
-        isDeleteModal.value = false
+        isDeleteModal.value = false;
       } else {
         return;
       }
@@ -648,7 +643,7 @@ onMounted(() => {
 
   // 灰色の部分以外（content-delete-check）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (deleteViewCheckModalContent) {
-    deleteViewCheckModalContent.addEventListener("click", function (event) {
+    deleteViewCheckModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -656,11 +651,11 @@ onMounted(() => {
 
 // 灰色の部分をクリックし共有モーダルの非表示処理
 onMounted(() => {
-  const onetimeSettingModal = document.getElementById("overlay-onetime-setting");
-  const onetimeSettingModalContent = document.getElementById("content-onetime-setting");
+  const onetimeSettingModal = document.getElementById('overlay-onetime-setting');
+  const onetimeSettingModalContent = document.getElementById('content-onetime-setting');
 
   if (onetimeSettingModal) {
-    onetimeSettingModal.addEventListener("click", function (event) {
+    onetimeSettingModal.addEventListener('click', function (event) {
       if (isOnetimeSettingModal.value === true) {
         openCloseOnetimeSetting();
       } else {
@@ -671,7 +666,7 @@ onMounted(() => {
 
   // 灰色の部分以外（content-delete-check）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (onetimeSettingModalContent) {
-    onetimeSettingModalContent.addEventListener("click", function (event) {
+    onetimeSettingModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -680,36 +675,34 @@ onMounted(() => {
 // ショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // List.vueへ移動
-  if (event.ctrlKey && event.key === "1") {
+  if (event.ctrlKey && event.key === '1') {
     event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
     listRedirect();
     // Update.vueへ移動
-  } else if (event.ctrlKey && event.key === "2") {
+  } else if (event.ctrlKey && event.key === '2') {
     event.preventDefault();
     updateViewRedirect(wiki.value.id);
     // ファイルダウンロード
-  } else if (event.ctrlKey && event.key === "3") {
+  } else if (event.ctrlKey && event.key === '3') {
     event.preventDefault();
     downloadFile(wiki.value.id);
     // 表示切替
-  } else if (event.ctrlKey && event.key === "4") {
+  } else if (event.ctrlKey && event.key === '4') {
     event.preventDefault();
     changePrintMode();
     // 目次の表示切替
-  } else if (event.ctrlKey && event.key === "5") {
+  } else if (event.ctrlKey && event.key === '5') {
     event.preventDefault();
     changeShowToc();
-  
-  } else if (event.ctrlKey && event.key === "6") {
+  } else if (event.ctrlKey && event.key === '6') {
     event.preventDefault();
     openCloseOnetimeSetting();
-
-  } else if (event.ctrlKey && event.key === "7") {
+  } else if (event.ctrlKey && event.key === '7') {
     event.preventDefault();
-    openCloseSearchBar(); 
-  
+    openCloseSearchBar();
+
     // 上部へスクロール
-  } else if (event.altKey && event.key === "u") {
+  } else if (event.altKey && event.key === 'u') {
     event.preventDefault();
     scrollAppTitle();
   }
@@ -717,13 +710,13 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 // コンポーネントマウント時にイベントリスナーを追加し、mermaid.jsを発動
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);
   mermaid.init();
 });
 
 // コンポーネントがアンマウントされた際にイベントリスナーを削除
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 
 // 拡張子でPDFファイルか判定する関数
@@ -741,17 +734,17 @@ function useWindowSize() {
     height.value = window.innerHeight;
   };
   onMounted(() => {
-    window.addEventListener("resize", updateSize);
+    window.addEventListener('resize', updateSize);
   });
 
   onBeforeUnmount(() => {
-    window.removeEventListener("resize", updateSize);
+    window.removeEventListener('resize', updateSize);
   });
   return { width, height };
 }
 
 const { width } = useWindowSize();
-if (width.value < 770 ) {
+if (width.value < 770) {
   showTocContent.value = false;
 }
 
@@ -769,7 +762,7 @@ const findBarRef = ref<InstanceType<typeof FindBar> | null>(null);
 const focusFindBar = async () => {
   await nextTick();
   findBarRef.value?.focusInput?.();
-}
+};
 
 // 検索バー
 const isShowSearchBar = ref(false);
@@ -785,32 +778,122 @@ const openCloseSearchBar = (): void => {
 
 <template>
   <div class="btn-head-left">
-    <button class="btn-head-image" title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="listRedirect()"><img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
-    <button v-if="isOwner" class="btn-head-image" title="更新画面へ遷移します。&#10;ショートカット: Ctrl + 2" v-on:click="updateWikiData(wiki.id)"><img :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
-    <button v-else class="btn-head-image" title="更新申請画面へ遷移します。&#10;ショートカット: Ctrl + 2" v-on:click="updateWikiData(wiki.id)"><img :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
-    <button class="btn-head-image" title="マークダウンファイルをダウンロード&#10;ショートカット: Ctrl + 3" v-on:click="downloadFile(wiki.id)"><img :src="`${assetsUrl}download_fill24.png`" class="btn-img" alt="download_fill24.png"></button>
-    <button class="btn-head-image" title="スクロール表示の切替&#10;ショートカット: Ctrl + 4" v-if="isPrintMode" v-on:click="changePrintMode()"><img :src="`${assetsUrl}close_fullscreen_24.png`" class="btn-img" alt="close_fullscreen_24.png"></button>
-    <button class="btn-head-image" title="スクロール表示の切替&#10;ショートカット: Ctrl + 4" v-else="isPrintMode" v-on:click="changePrintMode()"><img :src="`${assetsUrl}fullscreen_24.png`" class="btn-img" alt="fullscreen_24.png"></button>
-    <button class="btn-head-image" title="目次の表示・非表示&#10;ショートカット: Ctrl + 5" v-on:click="changeShowToc()"><img :src="`${assetsUrl}toc_24.png`" class="btn-img" alt="toc_24.png"></button>
-    <button class="btn-head-image" title="Wikiの共有URLを作成&#10;ショートカット: Ctrl + 6" v-if="isOwner" v-on:click="openCloseOnetimeSetting()"><img :src="`${assetsUrl}family_line24.png`" class="btn-img" alt="family_line24.png"></button>
-    <button class="btn-head-image" title="ページ内検索&#10;ショートカット: Ctrl + 7" v-on:click="openCloseSearchBar()"><img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
+    <button
+      class="btn-head-image"
+      title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1"
+      v-on:click="listRedirect()"
+    >
+      <img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png" />
+    </button>
+    <button
+      v-if="isOwner"
+      class="btn-head-image"
+      title="更新画面へ遷移します。&#10;ショートカット: Ctrl + 2"
+      v-on:click="updateWikiData(wiki.id)"
+    >
+      <img :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png" />
+    </button>
+    <button
+      v-else
+      class="btn-head-image"
+      title="更新申請画面へ遷移します。&#10;ショートカット: Ctrl + 2"
+      v-on:click="updateWikiData(wiki.id)"
+    >
+      <img :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png" />
+    </button>
+    <button
+      class="btn-head-image"
+      title="マークダウンファイルをダウンロード&#10;ショートカット: Ctrl + 3"
+      v-on:click="downloadFile(wiki.id)"
+    >
+      <img :src="`${assetsUrl}download_fill24.png`" class="btn-img" alt="download_fill24.png" />
+    </button>
+    <button
+      class="btn-head-image"
+      title="スクロール表示の切替&#10;ショートカット: Ctrl + 4"
+      v-if="isPrintMode"
+      v-on:click="changePrintMode()"
+    >
+      <img
+        :src="`${assetsUrl}close_fullscreen_24.png`"
+        class="btn-img"
+        alt="close_fullscreen_24.png"
+      />
+    </button>
+    <button
+      class="btn-head-image"
+      title="スクロール表示の切替&#10;ショートカット: Ctrl + 4"
+      v-else="isPrintMode"
+      v-on:click="changePrintMode()"
+    >
+      <img :src="`${assetsUrl}fullscreen_24.png`" class="btn-img" alt="fullscreen_24.png" />
+    </button>
+    <button
+      class="btn-head-image"
+      title="目次の表示・非表示&#10;ショートカット: Ctrl + 5"
+      v-on:click="changeShowToc()"
+    >
+      <img :src="`${assetsUrl}toc_24.png`" class="btn-img" alt="toc_24.png" />
+    </button>
+    <button
+      class="btn-head-image"
+      title="Wikiの共有URLを作成&#10;ショートカット: Ctrl + 6"
+      v-if="isOwner"
+      v-on:click="openCloseOnetimeSetting()"
+    >
+      <img :src="`${assetsUrl}family_line24.png`" class="btn-img" alt="family_line24.png" />
+    </button>
+    <button
+      class="btn-head-image"
+      title="ページ内検索&#10;ショートカット: Ctrl + 7"
+      v-on:click="openCloseSearchBar()"
+    >
+      <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+    </button>
   </div>
   <transition>
     <div class="btn-scrolled-show" v-show="showScrollBtn">
-      <button class="btn-scroll-to-list scroll-btn-hover" title="Wiki一覧" v-on:click="listRedirect()"><img
-          :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
-      <button class="btn-scroll-to-top scroll-btn-hover" title="画面上部へ移動&#10;ショートカット: Alt + U" v-on:click="scrollAppTitle()"><img
-          :src="`${assetsUrl}arrow_upward_24.png`" class="btn-img" alt="arrow_upward_24.png"></button>
-      <button v-if="isOwner" class="btn-scroll-to-update scroll-btn-hover" title="更新" v-on:click="updateWikiData(wiki.id)"><img
-          :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png"></button>
-      <button v-else class="btn-scroll-to-update scroll-btn-hover" title="更新リクエスト" v-on:click="updateWikiData(wiki.id)"><img
-          :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png"></button>
-      <button class="btn-scroll-to-update scroll-btn-hover" title="ページ内検索&#10;ショートカット: Ctrl + 7" v-on:click="openCloseSearchBar()"><img 
-          :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
+      <button
+        class="btn-scroll-to-list scroll-btn-hover"
+        title="Wiki一覧"
+        v-on:click="listRedirect()"
+      >
+        <img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png" />
+      </button>
+      <button
+        class="btn-scroll-to-top scroll-btn-hover"
+        title="画面上部へ移動&#10;ショートカット: Alt + U"
+        v-on:click="scrollAppTitle()"
+      >
+        <img :src="`${assetsUrl}arrow_upward_24.png`" class="btn-img" alt="arrow_upward_24.png" />
+      </button>
+      <button
+        v-if="isOwner"
+        class="btn-scroll-to-update scroll-btn-hover"
+        title="更新"
+        v-on:click="updateWikiData(wiki.id)"
+      >
+        <img :src="`${assetsUrl}edit_24.png`" class="btn-img" alt="edit_24.png" />
+      </button>
+      <button
+        v-else
+        class="btn-scroll-to-update scroll-btn-hover"
+        title="更新リクエスト"
+        v-on:click="updateWikiData(wiki.id)"
+      >
+        <img :src="`${assetsUrl}person_edit_24.png`" class="btn-img" alt="person_edit_24.png" />
+      </button>
+      <button
+        class="btn-scroll-to-update scroll-btn-hover"
+        title="ページ内検索&#10;ショートカット: Ctrl + 7"
+        v-on:click="openCloseSearchBar()"
+      >
+        <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+      </button>
     </div>
   </transition>
   <div class="contants-area">
-    <div :class="{ 'istoc': showTocContent, 'notoc': !showTocContent }">
+    <div :class="{ istoc: showTocContent, notoc: !showTocContent }">
       <div :class="{ 'markdown-isprint': isPrintMode, 'markdown-isnomal': !isPrintMode }">
         <section v-html="bindHtml" ref="contentEl"></section>
       </div>
@@ -830,7 +913,9 @@ const openCloseSearchBar = (): void => {
     <div id="content-message">
       <h2 class="modal-h2">メッセージ</h2>
       <div class="input-text-zone">
-        <p><strong>{{ messageText }}</strong></p>
+        <p>
+          <strong>{{ messageText }}</strong>
+        </p>
       </div>
       <div class="btn-close">
         <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
@@ -843,8 +928,14 @@ const openCloseSearchBar = (): void => {
     <div id="content-onetime-setting">
       <h2 class="modal-h2">Wikiの共有リンクを作成</h2>
       <div class="input-area-duration">
-        <label for="minits" style="font-size: 16px;">有効期限（分）</label>
-        <input v-model="onetimeDurationMinits" type="number" step="10" class="input-minits" id="minits">
+        <label for="minits" style="font-size: 16px">有効期限（分）</label>
+        <input
+          v-model="onetimeDurationMinits"
+          type="number"
+          step="10"
+          class="input-minits"
+          id="minits"
+        />
       </div>
       <div class="btn-zone">
         <button v-on:click="openCloseOnetimeSetting()">閉じる</button>
@@ -859,8 +950,13 @@ const openCloseSearchBar = (): void => {
       <h2 class="modal-h2">メッセージ</h2>
       <div class="input-text-zone" v-if="isHttpsProtocol">
         <p><strong>共有リンクを作成しました。</strong></p>
-        <pre :id=oneTimeUuid class="hidden-code-text"><code :id=oneTimeUuid>{{ oneTimeUrl }}</code></pre>
-        <button id="link-copy-btn" v-on:click="selectTextOrClipboardCopy(`${oneTimeUuid}`)">リンクを取得</button>
+        <pre
+          :id="oneTimeUuid"
+          class="hidden-code-text"
+        ><code :id=oneTimeUuid>{{ oneTimeUrl }}</code></pre>
+        <button id="link-copy-btn" v-on:click="selectTextOrClipboardCopy(`${oneTimeUuid}`)">
+          リンクを取得
+        </button>
       </div>
       <div class="input-text-zone" v-else="isHttpsProtocol">
         <p><strong>共有リンクを作成しました。</strong></p>
@@ -878,7 +974,11 @@ const openCloseSearchBar = (): void => {
     <div id="overlay-delete-check" v-show="isDeleteModal">
       <div id="content-delete-check">
         <h2 class="modal-h2">警告</h2>
-        <p><strong>削除画面へ移動します。削除しない場合は、「戻る」ボタンを選択してください。</strong></p>
+        <p>
+          <strong
+            >削除画面へ移動します。削除しない場合は、「戻る」ボタンを選択してください。</strong
+          >
+        </p>
         <div class="btn-zone">
           <button v-on:click="onOpenDeleteViewModal()">戻る</button>
           <button v-on:click="deleteRedirect(wiki.id)" class="btn-delete">移動</button>
@@ -966,7 +1066,6 @@ const openCloseSearchBar = (): void => {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -989,7 +1088,6 @@ const openCloseSearchBar = (): void => {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -1058,8 +1156,8 @@ const openCloseSearchBar = (): void => {
   border-radius: 20px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 20px 5px 5px 5px;
 }
 
@@ -1126,8 +1224,8 @@ const openCloseSearchBar = (): void => {
   border-radius: 12px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 0px 5px 10px 5px;
 }
 

@@ -1,14 +1,14 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { getUserUrl } from "@/router/urls";
-import type { RouteRecordRaw } from "vue-router";
-import apiClient from "@/axiosClient";
+import { createRouter, createWebHistory } from 'vue-router';
+import { getUserUrl } from '@/router/urls';
+import type { RouteRecordRaw } from 'vue-router';
+import apiClient from '@/axiosClient';
 
 const routeSettings: RouteRecordRaw[] = [
   {
-    path: "/users/list",
-    name: "List",
+    path: '/users/list',
+    name: 'List',
     component: () => {
-      return import("@/views/users/AdminUsersList.vue");
+      return import('@/views/users/AdminUsersList.vue');
     },
     beforeEnter: async (to, from, next) => {
       // 認証確認
@@ -18,25 +18,25 @@ const routeSettings: RouteRecordRaw[] = [
         next();
       } catch (error) {
         // 失敗したらログイン画面に飛ばす
-        next({ name: "login" });
+        next({ name: 'login' });
       }
-    }
+    },
   },
   {
-    path: "/account/login",
-    name: "login",
+    path: '/account/login',
+    name: 'login',
     component: () => {
-      return import("@/views/auth/LoginViewAdmin.vue");
+      return import('@/views/auth/LoginViewAdmin.vue');
     },
     beforeEnter: (to, from, next) => {
-      next()
-    }
+      next();
+    },
   },
-]
+];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: routeSettings,
-})
+});
 
-export default router
+export default router;

@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import apiClient from "@/axiosClient";
-import { useRouter } from "vue-router";
-import { getUserUrl, resetUserPasswordUrl, unlockUserAccountUrl, createUserUrl } from '@/router/urls';
+import apiClient from '@/axiosClient';
+import { useRouter } from 'vue-router';
+import {
+  getUserUrl,
+  resetUserPasswordUrl,
+  unlockUserAccountUrl,
+  createUserUrl,
+} from '@/router/urls';
 import type { UserData, UpdateUserData } from '@/interface';
-import { useUsersStore } from "@/stores/users";
-import InlineEdit from "@/components/InlineEdit.vue";
-import { baseUrl, assetsUrl } from "@/setting";
-import { AxiosError } from "axios";
+import { useUsersStore } from '@/stores/users';
+import InlineEdit from '@/components/InlineEdit.vue';
+import { baseUrl, assetsUrl } from '@/setting';
+import { AxiosError } from 'axios';
 
 // Login.vueへのリダイレクト
 const router = useRouter();
 const loginRedirect = (): void => {
-  router.push("/account/login");
-}
+  router.push('/account/login');
+};
 
 const usersStore = useUsersStore();
-const userList = computed(
-  (): Map<string, UserData> => {
-    return usersStore.usersList;
-  }
-);
+const userList = computed((): Map<string, UserData> => {
+  return usersStore.usersList;
+});
 // userデータが存在しなければ再取得
 if (userList.value.size === 0) {
   usersStore.initList();
@@ -28,28 +31,23 @@ if (userList.value.size === 0) {
 
 // ユーザーのロック解除
 const unlockUserRequest = async (user_id: string): Promise<void> => {
-  const unlockUrl = `${unlockUserAccountUrl}${user_id}`
+  const unlockUrl = `${unlockUserAccountUrl}${user_id}`;
   try {
-    const response = await apiClient.post(
-      unlockUrl,
-    );
+    const response = await apiClient.post(unlockUrl);
     usersStore.initList();
-
   } catch (error) {
-    messageModalOpenClose("アカウントロック解除に失敗しました。");
-    return
+    messageModalOpenClose('アカウントロック解除に失敗しました。');
+    return;
   }
-  messageModalOpenClose("アカウントロックを解除しました。");
-}
+  messageModalOpenClose('アカウントロックを解除しました。');
+};
 
 // 現在ユーザーの取得
-const currentUser = ref("");
+const currentUser = ref('');
 const getCurrentUser = async (): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["username"];
+    const response = await apiClient.get(getUserUrl);
+    currentUser.value = response.data['username'];
   } catch (error) {
     loginRedirect();
   }
@@ -58,28 +56,28 @@ getCurrentUser();
 
 // 日付時刻から日付のみを取り出す関数
 function getDateForDateTime(dateTimeString: string): string {
-  return dateTimeString.split("T")[0]!;
+  return dateTimeString.split('T')[0]!;
 }
 
 // ユーザーデータの初期化
 const updateUserDataInit: UpdateUserData = {
-  id: "",
-  username: "",
-  public_name: "",
-  new_password: "",
+  id: '',
+  username: '',
+  public_name: '',
+  new_password: '',
   is_superuser: false,
 };
 const updateUserData = ref(updateUserDataInit);
-const newPasswordRef = ref("");
-const checkPasswordRef = ref("");
+const newPasswordRef = ref('');
+const checkPasswordRef = ref('');
 
 // ユーザーデータ表示モーダル
 const showUpdateUserContent = ref(false);
 const openUserModal = (selectedUserId: string): void => {
   // モーダルが開いていたら閉じ、閉じていたらクローズ
-  if (showUpdateUserContent.value || selectedUserId === "") {
+  if (showUpdateUserContent.value || selectedUserId === '') {
     showUpdateUserContent.value = false;
-    return
+    return;
   } else {
     showUpdateUserContent.value = true;
   }
@@ -87,8 +85,7 @@ const openUserModal = (selectedUserId: string): void => {
   const updateUserFromStore = usersStore.getById(selectedUserId);
   updateUserData.value.id = updateUserFromStore.id;
   updateUserData.value.username = updateUserFromStore.username;
-}
-
+};
 
 // 更新確認モーダル
 const showUpdateUserCheckContent = ref(false);
@@ -98,7 +95,7 @@ const openUpdateCheckModal = (): void => {
   } else {
     showUpdateUserCheckContent.value = true;
   }
-}
+};
 
 // 更新処理
 const updateUser = async (): Promise<void> => {
@@ -106,49 +103,46 @@ const updateUser = async (): Promise<void> => {
   const checkPassword = checkPasswordRef.value;
 
   // 入力項目の検証
-  if (newPassword === "") {
-    messageModalOpenClose("パスワードが入力されていません。");
-    return
+  if (newPassword === '') {
+    messageModalOpenClose('パスワードが入力されていません。');
+    return;
   }
 
   // 入力項目の検証
   if (newPassword !== checkPassword) {
-    messageModalOpenClose("パスワードが一致しません。");
-    return
+    messageModalOpenClose('パスワードが一致しません。');
+    return;
   }
 
   const data = {
-    "new_password": newPassword,
-  }
+    new_password: newPassword,
+  };
 
-  const updateUserApiUrl = `${resetUserPasswordUrl}${updateUserData.value.id}`
+  const updateUserApiUrl = `${resetUserPasswordUrl}${updateUserData.value.id}`;
   try {
-    const response = await apiClient.post(
-      updateUserApiUrl,
-      data,
-    );
-    console.log(response.data["message"]);
+    const response = await apiClient.post(updateUserApiUrl, data);
+    console.log(response.data['message']);
   } catch (error) {
-    messageModalOpenClose("更新に失敗しました。");
+    messageModalOpenClose('更新に失敗しました。');
     showUpdateUserCheckContent.value = false;
-    return
+    return;
   }
 
   openUpdateCheckModal();
-  messageModalOpenClose("更新しました。");
+  messageModalOpenClose('更新しました。');
   showUpdateUserContent.value = false;
-}
+};
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
@@ -160,48 +154,43 @@ const openCloseUserCreateModal = (): void => {
   } else {
     showCreateUserContent.value = true;
   }
-}
+};
 // サインアップ処理
 const signupPost = async (): Promise<void> => {
   const username = signupInfoInit.username;
   const public_name = signupInfoInit.public_name;
   const password = signupInfoInit.password;
 
-  if (username == "" || password == "" || public_name == "") {
-    messageModalOpenClose("入力は全て必須です。");
-    return
+  if (username == '' || password == '' || public_name == '') {
+    messageModalOpenClose('入力は全て必須です。');
+    return;
   }
 
   const payload = {
-    "username": username,
-    "public_name": public_name,
-    "password": password,
-  }
+    username: username,
+    public_name: public_name,
+    password: password,
+  };
 
   try {
-    const response = await apiClient.post(
-      createUserUrl,
-      payload
-    );
-    messageModalOpenClose("ユーザーの作成に成功しました。")
+    const response = await apiClient.post(createUserUrl, payload);
+    messageModalOpenClose('ユーザーの作成に成功しました。');
     usersStore.initList();
-    signupInfo.value.username = "";
-    signupInfo.value.public_name = "";
-    signupInfo.value.password = "";
+    signupInfo.value.username = '';
+    signupInfo.value.public_name = '';
+    signupInfo.value.password = '';
     return;
-
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
       const axiosError = error as AxiosError<any>;
       if (axiosError.response) {
-        const errorStatus = axiosError.response.data["error"];
+        const errorStatus = axiosError.response.data['error'];
 
-        if (errorStatus === "unauthorized error: Conflict") {
-          messageModalOpenClose("既に使用されているユーザー名です。");
-
+        if (errorStatus === 'unauthorized error: Conflict') {
+          messageModalOpenClose('既に使用されているユーザー名です。');
         } else {
-          messageModalOpenClose("ユーザーの作成に失敗しました。");
+          messageModalOpenClose('ユーザーの作成に失敗しました。');
         }
       }
     }
@@ -215,9 +204,9 @@ interface typeSignup {
 }
 
 const signupInfoInit: typeSignup = {
-  username: "",
-  public_name: "",
-  password: "",
+  username: '',
+  public_name: '',
+  password: '',
 };
 
 const signupInfo = ref(signupInfoInit);
@@ -225,11 +214,13 @@ const signupInfo = ref(signupInfoInit);
 
 <template>
   <div class="admin-content">
-
     <div id="btn-head-zone">
-      <button class="btn-head-image" title="新規ユーザーを作成します。"
-        v-on:click="openCloseUserCreateModal">
-        <img :src="`${assetsUrl}person_add_24.png`" class="btn-img" alt="person_add_24.png">
+      <button
+        class="btn-head-image"
+        title="新規ユーザーを作成します。"
+        v-on:click="openCloseUserCreateModal"
+      >
+        <img :src="`${assetsUrl}person_add_24.png`" class="btn-img" alt="person_add_24.png" />
       </button>
     </div>
 
@@ -254,14 +245,18 @@ const signupInfo = ref(signupInfoInit);
             </thead>
             <tbody>
               <tr v-for="[id, user] in userList" v-bind:key="id">
-                <td style="text-align: center;">{{ user.id }}</td>
+                <td style="text-align: center">{{ user.id }}</td>
                 <td>{{ user.username }}</td>
                 <InlineEdit v-model="user.public_name" :data-key="id" />
                 <td>*******************</td>
                 <td>{{ getDateForDateTime(user.create_at) }}</td>
                 <td>{{ user.is_superuser }}</td>
-                <td><button class="btn-table" v-on:click="openUserModal(user.id)">Reset</button></td>
-                <td v-if="user.is_locked"><button class="btn-table" v-on:click=unlockUserRequest(user.id)>Unlock</button></td>
+                <td>
+                  <button class="btn-table" v-on:click="openUserModal(user.id)">Reset</button>
+                </td>
+                <td v-if="user.is_locked">
+                  <button class="btn-table" v-on:click="unlockUserRequest(user.id)">Unlock</button>
+                </td>
                 <td v-else="user.is_locked"></td>
               </tr>
             </tbody>
@@ -275,13 +270,23 @@ const signupInfo = ref(signupInfoInit);
   <transition>
     <div id="overlay-user-info" v-if="showUpdateUserContent">
       <div id="content-user-info">
-        <h2 style="text-align: center;">パスワード更新</h2>
+        <h2 style="text-align: center">パスワード更新</h2>
         <div class="title-input">
-          <label class="row"><strong>更新対象：{{ updateUserData.username }}</strong></label>
-          <input type="password" class="input-text user-list-password" placeholder="New Password"
-            v-model="newPasswordRef">
-          <input type="password" class="input-text user-list-password" placeholder="Check Password"
-            v-model="checkPasswordRef">
+          <label class="row"
+            ><strong>更新対象：{{ updateUserData.username }}</strong></label
+          >
+          <input
+            type="password"
+            class="input-text user-list-password"
+            placeholder="New Password"
+            v-model="newPasswordRef"
+          />
+          <input
+            type="password"
+            class="input-text user-list-password"
+            placeholder="Check Password"
+            v-model="checkPasswordRef"
+          />
         </div>
         <div class="btn-zone">
           <button v-on:click="openUserModal('')">閉じる</button>
@@ -295,14 +300,39 @@ const signupInfo = ref(signupInfoInit);
   <transition>
     <div id="overlay-create-user" v-if="showCreateUserContent">
       <div id="content-create-user">
-        <h2 style="text-align: center;">ユーザー作成</h2>
+        <h2 style="text-align: center">ユーザー作成</h2>
         <div>
-          <input type="text" pattern="^[A-Za-z0-9]{3,}$" title="3文字以上。半角英数字が使用可能。" class="input-text user-list-password"
-            placeholder="ユーザー名（3文字以上、半角英数字が使用可）" autocomplete="username" required v-model="signupInfo.username" />
-          <input type="password" pattern=".{8,}" title="8文字以上で入力してください。" placeholder="パスワード（8文字以上）" autocomplete="current-password" required
-            v-model="signupInfo.password" class="input-text user-list-password" />
-          <input type="text" title="2文字以上10文字以下" placeholder="表記ユーザー名" name="public_name" required
-            minlength="2" maxlength="10" v-model="signupInfo.public_name" class="input-text user-list-password" />
+          <input
+            type="text"
+            pattern="^[A-Za-z0-9]{3,}$"
+            title="3文字以上。半角英数字が使用可能。"
+            class="input-text user-list-password"
+            placeholder="ユーザー名（3文字以上、半角英数字が使用可）"
+            autocomplete="username"
+            required
+            v-model="signupInfo.username"
+          />
+          <input
+            type="password"
+            pattern=".{8,}"
+            title="8文字以上で入力してください。"
+            placeholder="パスワード（8文字以上）"
+            autocomplete="current-password"
+            required
+            v-model="signupInfo.password"
+            class="input-text user-list-password"
+          />
+          <input
+            type="text"
+            title="2文字以上10文字以下"
+            placeholder="表記ユーザー名"
+            name="public_name"
+            required
+            minlength="2"
+            maxlength="10"
+            v-model="signupInfo.public_name"
+            class="input-text user-list-password"
+          />
         </div>
         <div class="btn-zone">
           <button v-on:click="openCloseUserCreateModal()">閉じる</button>
@@ -332,10 +362,14 @@ const signupInfo = ref(signupInfoInit);
       <div id="content-message">
         <h2>メッセージ</h2>
         <div class="input-text-zone">
-          <p><strong>{{ messageText }}</strong></p>
+          <p>
+            <strong>{{ messageText }}</strong>
+          </p>
         </div>
         <div class="btn-close">
-          <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')">閉じる</button>
+          <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')">
+            閉じる
+          </button>
         </div>
       </div>
     </div>
@@ -355,24 +389,24 @@ const signupInfo = ref(signupInfoInit);
   justify-content: space-between;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="number"],
+input[type='text'],
+input[type='password'],
+input[type='number'],
 textarea {
-    border-radius: 8px;
-    border: 1px solid transparent;
-    padding: 0.6em 1.2em;
-    font-family: inherit;
-    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-    box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-family: inherit;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="number"],
+input[type='text'],
+input[type='password'],
+input[type='number'],
 textarea,
 button {
-    outline: none;
+  outline: none;
 }
 
 .title-input {
@@ -398,7 +432,7 @@ button {
 
 .input-text:focus {
   outline: none;
-  border-color: #007BFF;
+  border-color: #007bff;
   box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
@@ -505,7 +539,8 @@ button {
 }
 
 /* ユーザー現在情報モーダル */
-#overlay-user-info, #overlay-create-user {
+#overlay-user-info,
+#overlay-create-user {
   z-index: 1;
   position: fixed;
   top: 0;
@@ -518,7 +553,8 @@ button {
   justify-content: center;
 }
 
-#content-user-info, #content-create-user {
+#content-user-info,
+#content-create-user {
   z-index: 2;
   width: 30%;
   padding: 1em;
@@ -591,8 +627,8 @@ button {
   border-radius: 10px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   text-align: right;
 }
 </style>

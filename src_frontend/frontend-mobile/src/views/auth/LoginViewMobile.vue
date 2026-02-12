@@ -1,165 +1,152 @@
 <script setup lang="ts">
-import { ref, inject } from "vue";
-import type { Ref } from "vue";
-import { AxiosError } from "axios";
-import { getTokenUrl, licensesGetUrl, getTokenFromTotpUrl } from "@/router/urls";
-import { useRouter } from "vue-router";
-import apiClient from "@/axiosClient";
-import { useApplicationInitStore } from "@/stores/appInits";
-
+import { ref, inject } from 'vue';
+import type { Ref } from 'vue';
+import { AxiosError } from 'axios';
+import { getTokenUrl, licensesGetUrl, getTokenFromTotpUrl } from '@/router/urls';
+import { useRouter } from 'vue-router';
+import apiClient from '@/axiosClient';
+import { useApplicationInitStore } from '@/stores/appInits';
 
 const appInitStore = useApplicationInitStore();
 const isAllowUserCreateAccount = ref(appInitStore.appInitData.allowUserAccountCreate);
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
-const isShowMemoIcon = inject("isShowMemoIcon") as Ref<boolean>;
+const isShowMemoIcon = inject('isShowMemoIcon') as Ref<boolean>;
 // サインアップ・ログイン画面では非表示にする
 isShowMemoIcon.value = false;
 
 // "create".
 const router = useRouter();
 const listRedirect = (): void => {
-  router.push("/wiki/list");
-}
+  router.push('/wiki/list');
+};
 
 const isTotpPostModal = ref(false);
-const userId = ref("");
+const userId = ref('');
 const loginPost = async (): Promise<void> => {
   const username = loginInfo.value.username;
   const password = loginInfo.value.password;
 
-  if (username == "" || password == "") {
-    return
-  }
-
-  const data = {
-    "username": username,
-    "password": password,
-  }
-
-  try {
-    const response = await apiClient.post(
-      getTokenUrl,
-      data,
-    );
-
-    const isTotp = response.data["totp_required"];
-    if (isTotp) {
-      isTotpPostModal.value = true;
-      userId.value = response.data["id"]
-      return;
-    }
-
-    localStorage.setItem("isAuthenticate", "true");
-    localStorage.setItem("loginUser", response.data["user"]);
-
-    listRedirect();
-
-  } catch (error) {
-    if (apiClient.isAxiosError(error)) {
-      // エラーオブジェクトがAxiosError型であることが保証
-      const axiosError = error as AxiosError<any>;
-      if (axiosError.response) {
-        const errorStatus = axiosError.response.data["error"];
-
-        if (errorStatus === "unauthorized error: Unauthorized") {
-          messageModalOpenClose("パスワードかユーザー名が間違っています。");
-
-        } else if (errorStatus === "unauthorized error: LockedAccount") {
-          messageModalOpenClose("アカウントがロックされています。");
-
-        } else if (errorStatus === "unauthorized error: PleaseWait") {
-          messageModalOpenClose("複数回の間違いにより、時間制限が設定されています。");
-
-        } else if (errorStatus === "unauthorized error: UnauthorizedPleaseWait") {
-          messageModalOpenClose("複数回の間違いがあったため、時間をおいてから再度ログインしてください。");
-
-        } else if (errorStatus === "unauthorized error: Locked") {
-          messageModalOpenClose("複数回の失敗により、アカウントがロックされました。管理者に連絡してください。");
-
-        } else {
-          messageModalOpenClose("パスワードかユーザー名が間違っています。");
-        }
-      }
-    }
-    loginInfo.value.password = "";
-    localStorage.setItem("loginUser", "");
-  }
-}
-
-const token = ref("");
-const tokenPost = async (): Promise<void> => {
-  if (token.value === "") {
+  if (username == '' || password == '') {
     return;
   }
 
   const data = {
-    "totp_token": token.value,
-    "user_id": userId.value,
-  }
+    username: username,
+    password: password,
+  };
 
   try {
-    const response = await apiClient.post(
-      getTokenFromTotpUrl,
-      data,
-    );
+    const response = await apiClient.post(getTokenUrl, data);
 
-    // Wikiオーナー検証用に保存
-    localStorage.setItem("loginUser", response.data["user"]);
-    // ログインに成功したらメモ機能アイコンを表示状態に変更
-    isShowMemoIcon.value = true;
+    const isTotp = response.data['totp_required'];
+    if (isTotp) {
+      isTotpPostModal.value = true;
+      userId.value = response.data['id'];
+      return;
+    }
+
+    localStorage.setItem('isAuthenticate', 'true');
+    localStorage.setItem('loginUser', response.data['user']);
+
     listRedirect();
-
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
       const axiosError = error as AxiosError<any>;
       if (axiosError.response) {
-        const errorStatus = axiosError.response.data["error"];
-        console.log(errorStatus);
+        const errorStatus = axiosError.response.data['error'];
 
-        if (errorStatus === "unauthorized error: NoAuth") {
-          messageModalOpenClose("トークンが不正です。");
-
-        } else if (errorStatus === "unauthorized error: Time Over.") {
-          messageModalOpenClose("時間切れとなりました。再度ログインしてください。");
-          isTotpPostModal.value = false;
-
-        } else if (errorStatus === "unauthorized error: NoBasicAuth") {
-          messageModalOpenClose("不正な操作です。");
-
+        if (errorStatus === 'unauthorized error: Unauthorized') {
+          messageModalOpenClose('パスワードかユーザー名が間違っています。');
+        } else if (errorStatus === 'unauthorized error: LockedAccount') {
+          messageModalOpenClose('アカウントがロックされています。');
+        } else if (errorStatus === 'unauthorized error: PleaseWait') {
+          messageModalOpenClose('複数回の間違いにより、時間制限が設定されています。');
+        } else if (errorStatus === 'unauthorized error: UnauthorizedPleaseWait') {
+          messageModalOpenClose(
+            '複数回の間違いがあったため、時間をおいてから再度ログインしてください。',
+          );
+        } else if (errorStatus === 'unauthorized error: Locked') {
+          messageModalOpenClose(
+            '複数回の失敗により、アカウントがロックされました。管理者に連絡してください。',
+          );
         } else {
-          messageModalOpenClose("パスワードかユーザー名が間違っています。");
+          messageModalOpenClose('パスワードかユーザー名が間違っています。');
         }
       }
     }
-    loginInfo.value.password = "";
-    localStorage.setItem("loginUser", "");
+    loginInfo.value.password = '';
+    localStorage.setItem('loginUser', '');
   }
-}
+};
+
+const token = ref('');
+const tokenPost = async (): Promise<void> => {
+  if (token.value === '') {
+    return;
+  }
+
+  const data = {
+    totp_token: token.value,
+    user_id: userId.value,
+  };
+
+  try {
+    const response = await apiClient.post(getTokenFromTotpUrl, data);
+
+    // Wikiオーナー検証用に保存
+    localStorage.setItem('loginUser', response.data['user']);
+    // ログインに成功したらメモ機能アイコンを表示状態に変更
+    isShowMemoIcon.value = true;
+    listRedirect();
+  } catch (error) {
+    if (apiClient.isAxiosError(error)) {
+      // エラーオブジェクトがAxiosError型であることが保証
+      const axiosError = error as AxiosError<any>;
+      if (axiosError.response) {
+        const errorStatus = axiosError.response.data['error'];
+        console.log(errorStatus);
+
+        if (errorStatus === 'unauthorized error: NoAuth') {
+          messageModalOpenClose('トークンが不正です。');
+        } else if (errorStatus === 'unauthorized error: Time Over.') {
+          messageModalOpenClose('時間切れとなりました。再度ログインしてください。');
+          isTotpPostModal.value = false;
+        } else if (errorStatus === 'unauthorized error: NoBasicAuth') {
+          messageModalOpenClose('不正な操作です。');
+        } else {
+          messageModalOpenClose('パスワードかユーザー名が間違っています。');
+        }
+      }
+    }
+    loginInfo.value.password = '';
+    localStorage.setItem('loginUser', '');
+  }
+};
 
 interface typeLogin {
   username: string;
   password: string;
-};
+}
 
 const loginInfoInit: typeLogin = {
-  username: "",
-  password: "",
+  username: '',
+  password: '',
 };
 
 const loginInfo = ref(loginInfoInit);
 
 // 処理結果のメッセージ表示モーダル
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 </script>
@@ -170,14 +157,32 @@ const messageModalOpenClose = (message: string): void => {
       <h1>Login</h1>
       <!-- v-on:submit.prevent="メソッド"でリロード回避 -->
       <form method="post" v-on:submit.prevent="loginPost">
-        <input type="text" pattern="^[A-Za-z0-9]{3,}$" title="3文字以上の大文字小文字英字数字" name="u" placeholder="ユーザー名" autocomplete="username" required
-          v-model="loginInfo.username" />
-        <input type="password" pattern=".{8,}" title="8文字以上で入力してください。" name="p" placeholder="パスワード" autocomplete="current-password" required
-          v-model="loginInfo.password" />
+        <input
+          type="text"
+          pattern="^[A-Za-z0-9]{3,}$"
+          title="3文字以上の大文字小文字英字数字"
+          name="u"
+          placeholder="ユーザー名"
+          autocomplete="username"
+          required
+          v-model="loginInfo.username"
+        />
+        <input
+          type="password"
+          pattern=".{8,}"
+          title="8文字以上で入力してください。"
+          name="p"
+          placeholder="パスワード"
+          autocomplete="current-password"
+          required
+          v-model="loginInfo.password"
+        />
         <button type="submit" class="btn btn-primary btn-block btn-large">ログイン</button>
       </form>
       <p>
-        <RouterLink to="/account/create" v-if="isAllowUserCreateAccount">アカウントを持っていない場合</RouterLink>
+        <RouterLink to="/account/create" v-if="isAllowUserCreateAccount"
+          >アカウントを持っていない場合</RouterLink
+        >
       </p>
     </div>
 
@@ -188,7 +193,7 @@ const messageModalOpenClose = (message: string): void => {
           <p>6桁のトークンを送信してください。</p>
           <!-- v-on:submit.prevent="メソッド"でリロード回避 -->
           <form method="post" v-on:submit.prevent="tokenPost">
-            <input v-model="token" maxlength="6" required>
+            <input v-model="token" maxlength="6" required />
             <button type="submit" class="btn btn-primary btn-block btn-large">送信</button>
           </form>
         </div>
@@ -200,7 +205,9 @@ const messageModalOpenClose = (message: string): void => {
       <div id="content-message">
         <h2>メッセージ</h2>
         <div class="input-text-zone">
-          <p><strong>{{ messageText }}</strong></p>
+          <p>
+            <strong>{{ messageText }}</strong>
+          </p>
         </div>
         <div class="btn-close">
           <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
@@ -211,8 +218,7 @@ const messageModalOpenClose = (message: string): void => {
 
   <!-- フッターゾーン -->
   <footer class="footer-zone">
-    <div class="left-footer-zone">
-    </div>
+    <div class="left-footer-zone"></div>
     <div class="right-footer-zone">
       <a :href="licensesGetUrl" target="_blank" rel="noopener noreferrer">OSS Licenses</a>
     </div>
@@ -247,9 +253,15 @@ const messageModalOpenClose = (message: string): void => {
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
-  -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+  -webkit-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
@@ -304,7 +316,9 @@ const messageModalOpenClose = (message: string): void => {
   filter: progid:dximagetransform.microsoft.gradient(startColorstr=#6eb6de, endColorstr=#4a77d4, GradientType=0);
   border: 1px solid #3762bc;
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.4);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .btn-primary:hover,
@@ -340,11 +354,51 @@ body {
   height: 100%;
   font-family: 'Open Sans', sans-serif;
   background: #092756;
-  background: -moz-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -moz-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -moz-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -webkit-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -webkit-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -webkit-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -o-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -o-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -o-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -ms-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), -ms-linear-gradient(top, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), -ms-linear-gradient(-45deg, #670d10 0%, #092756 100%);
-  background: -webkit-radial-gradient(0% 100%, ellipse cover, rgba(104, 128, 138, .4) 10%, rgba(138, 114, 76, 0) 40%), linear-gradient(to bottom, rgba(57, 173, 219, .25) 0%, rgba(42, 60, 87, .4) 100%), linear-gradient(135deg, #670d10 0%, #092756 100%);
+  background:
+    -moz-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -moz-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -moz-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -webkit-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -webkit-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -webkit-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -o-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -o-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -o-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -ms-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    -ms-linear-gradient(top, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    -ms-linear-gradient(-45deg, #670d10 0%, #092756 100%);
+  background:
+    -webkit-radial-gradient(
+      0% 100%,
+      ellipse cover,
+      rgba(104, 128, 138, 0.4) 10%,
+      rgba(138, 114, 76, 0) 40%
+    ),
+    linear-gradient(to bottom, rgba(57, 173, 219, 0.25) 0%, rgba(42, 60, 87, 0.4) 100%),
+    linear-gradient(135deg, #670d10 0%, #092756 100%);
   filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#3E1D6D', endColorstr='#092756', GradientType=1);
 }
 
@@ -376,16 +430,20 @@ input {
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 4px;
-  box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.2), 0 1px 1px rgba(255, 255, 255, 0.2);
-  -webkit-transition: box-shadow .5s ease;
-  -moz-transition: box-shadow .5s ease;
-  -o-transition: box-shadow .5s ease;
-  -ms-transition: box-shadow .5s ease;
-  transition: box-shadow .5s ease;
+  box-shadow:
+    inset 0 -5px 45px rgba(100, 100, 100, 0.2),
+    0 1px 1px rgba(255, 255, 255, 0.2);
+  -webkit-transition: box-shadow 0.5s ease;
+  -moz-transition: box-shadow 0.5s ease;
+  -o-transition: box-shadow 0.5s ease;
+  -ms-transition: box-shadow 0.5s ease;
+  transition: box-shadow 0.5s ease;
 }
 
 input:focus {
-  box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.4), 0 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 -5px 45px rgba(100, 100, 100, 0.4),
+    0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 .login p {
@@ -402,7 +460,6 @@ input:focus {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  ;
   align-items: center;
   justify-content: center;
 }
@@ -428,26 +485,26 @@ input:focus {
 
 /* 2段階認証トークン送信モーダル */
 #overlay-token-post {
-    z-index: 15;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+  z-index: 15;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 #content-token-post {
-    z-index: 16;
-    width: 90%;
-    padding: 1em;
-    background: rgb(223, 223, 223);
-    border-radius: 10px;
-    text-align: center;
+  z-index: 16;
+  width: 90%;
+  padding: 1em;
+  background: rgb(223, 223, 223);
+  border-radius: 10px;
+  text-align: center;
 }
 
 .totp input {
@@ -464,7 +521,7 @@ button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1.0em;
+  font-size: 1em;
   font-weight: 500;
   font-family: inherit;
   transition: border-color 0.25s;

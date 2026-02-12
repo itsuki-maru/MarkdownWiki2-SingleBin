@@ -1,40 +1,45 @@
 <script setup lang="ts">
-import type { CreateWikiData, ImageData, WikiData, LocalStrageItem } from "@/interface";
-import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, nextTick } from "vue";
-import type { Ref } from "vue";
-import { useRouter } from "vue-router";
-import { createWikiUrl, imageUploadUrl, imageDeleteUrl, getUserUrl, disableTokenUrl } from "@/router/urls";
-import { FilterXSS, getDefaultWhiteList } from "xss";
-import type { IFilterXSSOptions } from "xss"
-import { marked, Renderer } from "marked";
-import type { Tokens, MarkedOptions } from "marked";
-import { useImageStore } from "@/stores/images";
-import { useWikiStore } from "@/stores/wikis";
-import { baseUrl, assetsUrl } from "@/setting";
-import ace from "ace-builds";
-import "ace-builds/src-noconflict/ext-searchbox"; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
-import "ace-builds/src-noconflict/mode-markdown"; // Aceでマークダウンを使用するためのモジュール
-import "ace-builds/src-noconflict/theme-monokai"; // Aceのテーマのモジュール
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import { 
+import type { CreateWikiData, ImageData, WikiData, LocalStrageItem } from '@/interface';
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import type { Ref } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  createWikiUrl,
+  imageUploadUrl,
+  imageDeleteUrl,
+  getUserUrl,
+  disableTokenUrl,
+} from '@/router/urls';
+import { FilterXSS, getDefaultWhiteList } from 'xss';
+import type { IFilterXSSOptions } from 'xss';
+import { marked, Renderer } from 'marked';
+import type { Tokens, MarkedOptions } from 'marked';
+import { useImageStore } from '@/stores/images';
+import { useWikiStore } from '@/stores/wikis';
+import { baseUrl, assetsUrl } from '@/setting';
+import ace from 'ace-builds';
+import 'ace-builds/src-noconflict/ext-searchbox'; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
+import 'ace-builds/src-noconflict/mode-markdown'; // Aceでマークダウンを使用するためのモジュール
+import 'ace-builds/src-noconflict/theme-monokai'; // Aceのテーマのモジュール
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import {
   videoToken,
   detailsToken,
   noteToken,
   warningToken,
   mathExtentionToken,
   youtubeToken,
-  renderIframe
-} from "@/utils/markedSetup";
-import apiClient from "@/axiosClient";
-import katex from "katex";
-import "katex/dist/katex.min.css";
-import html2canvas from "html2canvas";
-import Help from "@/components/Help.vue";
-
+  renderIframe,
+} from '@/utils/markedSetup';
+import apiClient from '@/axiosClient';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import html2canvas from 'html2canvas';
+import Help from '@/components/Help.vue';
 
 // KaTeXによる数式描画機能
-const formula = ref("");
-const renderedFormula = ref("");
+const formula = ref('');
+const renderedFormula = ref('');
 const katexPreviewModal = ref(false);
 const isGenMath = ref(false);
 const onCloseKatexModal = (): void => {
@@ -43,13 +48,13 @@ const onCloseKatexModal = (): void => {
   } else {
     katexPreviewModal.value = true;
   }
-}
+};
 
 watch(formula, () => {
   renderedFormula.value = katex.renderToString(formula.value, {
     throwOnError: false,
   });
-  if (formula.value === "") {
+  if (formula.value === '') {
     isGenMath.value = false;
   } else {
     isGenMath.value = true;
@@ -58,11 +63,11 @@ watch(formula, () => {
 
 const mathContainer = ref<HTMLElement | null>(null);
 const insertMathImage = async () => {
-  if (mathContainer.value && formula.value !== "") {
+  if (mathContainer.value && formula.value !== '') {
     // キャプチャ前にサイズを固定
     await nextTick();
     const originalStyle = mathContainer.value.style.transform;
-    mathContainer.value.style.transform = "scale(1)";
+    mathContainer.value.style.transform = 'scale(1)';
 
     const canvas = await html2canvas(mathContainer.value, {
       scale: 1, // スケールを1に固定
@@ -74,25 +79,25 @@ const insertMathImage = async () => {
     mathContainer.value.style.transform = originalStyle;
 
     isImageSendNow.value === true;
-    canvas.toBlob((blob) =>{
+    canvas.toBlob((blob) => {
       if (blob) {
         selectedImageBlob.value = blob;
-        selectedFileName.value = "math.png"
+        selectedFileName.value = 'math.png';
         imageFileSend();
       } else {
         isImageSendNow.value === false;
-        selectedFileName.value = "";
+        selectedFileName.value = '';
       }
     });
   }
 };
 
 const saveMathImage = async () => {
-  if (mathContainer.value && formula.value !== "") {
+  if (mathContainer.value && formula.value !== '') {
     // キャプチャ前にサイズを固定
     await nextTick();
     const originalStyle = mathContainer.value.style.transform;
-    mathContainer.value.style.transform = "scale(1)";
+    mathContainer.value.style.transform = 'scale(1)';
 
     const canvas = await html2canvas(mathContainer.value, {
       scale: 1, // スケールを1に固定
@@ -103,9 +108,9 @@ const saveMathImage = async () => {
     // 元のスタイルに戻す
     mathContainer.value.style.transform = originalStyle;
 
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "math.png";
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = 'math.png';
     link.click();
   }
 };
@@ -120,9 +125,10 @@ const url = new URL(currentUrl);
 const protocol = url.protocol;
 const hostname = url.hostname;
 // HTTPSかlocalhost通信の場合の設定
-if (protocol === "https:") {
+if (protocol === 'https:') {
   isHttpsProtocol.value = true;
-} if (hostname === "localhost") {
+}
+if (hostname === 'localhost') {
   isHttpsProtocol.value = true;
 }
 
@@ -130,7 +136,7 @@ const mermaid: any = (window as any).mermaid;
 GlobalWorkerOptions.workerSrc = `${assetsUrl}pdf.worker.mjs`;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
-mermaid.initialize({startOnLoad: false});
+mermaid.initialize({ startOnLoad: false });
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -148,11 +154,15 @@ const originalLinkRenderer = renderer.link.bind(renderer);
 function isLocalhost(url: string) {
   try {
     const parsedUrl = new URL(url);
-    return parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1" || parsedUrl.hostname === "[::1]";
+    return (
+      parsedUrl.hostname === 'localhost' ||
+      parsedUrl.hostname === '127.0.0.1' ||
+      parsedUrl.hostname === '[::1]'
+    );
   } catch (e) {
     return false;
   }
-};
+}
 
 // link関数をオーバーライド
 renderer.link = (tokens: Tokens.Link) => {
@@ -167,14 +177,20 @@ renderer.link = (tokens: Tokens.Link) => {
   const html = originalLinkRenderer(tokens);
   if (isExternal) {
     if (isLocal && isPDFHref) {
-      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+      return html.replace(
+        /^<a /,
+        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+      );
     }
     // 外部リンクの場合、targetとrel属性を追加
     return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
   } else {
     // 内部リンクかつPDFの場合
     if (isPDFHref) {
-      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ');
+      return html.replace(
+        /^<a /,
+        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+      );
     }
     // 内部リンクの場合、元の処理を使用
     return originalLinkRenderer(tokens);
@@ -185,56 +201,46 @@ renderer.link = (tokens: Tokens.Link) => {
 const originalCodeRenderer = renderer.code.bind(renderer);
 renderer.code = (tokens: Tokens.Code) => {
   let html = originalCodeRenderer(tokens);
-  if (tokens.lang == "mermaid") {
+  if (tokens.lang == 'mermaid') {
     return '<pre class="mermaid">' + escapeHtml(tokens.text) + '\n</pre>';
   } else {
     return originalCodeRenderer(tokens);
   }
-}
+};
 
 renderer.image = (tokens: Tokens.Image) => {
-  let width = "";
+  let width = '';
   let href = tokens.href;
   let text = tokens.text;
   const match = tokens.href.match(/\s*=(\d+)(x)?$/);
   if (match) {
     width = match[1]!;
-    href  = href.replace(/\s*=.*$/, "");
+    href = href.replace(/\s*=.*$/, '');
   }
-  const widthAttr = width ? ` width="${width}px"` : "";
+  const widthAttr = width ? ` width="${width}px"` : '';
   return `<img src="${href}" alt="${text}" ${widthAttr}>`;
 };
 
 // HTMLエスケープ関数
 function escapeHtml(html: string) {
   return html
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 // markedの設定をカスタマイズ
 marked.setOptions({
   renderer,
-  async: false
+  async: false,
 });
 
 // Markedにカスタムトークンを追加
-marked.use(
-  {
-    extensions: [
-      videoToken,
-      detailsToken,
-      noteToken,
-      warningToken,
-      mathExtentionToken,
-      youtubeToken,
-    ],
-  }
-);
-
+marked.use({
+  extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
+});
 
 // XSSフィルタの設定をカスタマイズする
 let xssOptions: IFilterXSSOptions = {
@@ -250,11 +256,11 @@ let xssOptions: IFilterXSSOptions = {
     a: ['target', 'rel', 'href', 'title'],
     div: ['class'],
     span: ['class', 'aria-hidden', 'style'],
-    "app-youtube": ['video-id', 'data-src']
+    'app-youtube': ['video-id', 'data-src'],
   },
   // iframeの確認（念のため、iframeはここで不許可）
   onTag(tag, html) {
-    if (tag === "iframe") return "Not Allow iframe ";
+    if (tag === 'iframe') return 'Not Allow iframe ';
   },
   // Katexでサニタイズされてしまうスタイルを再定義
   css: {
@@ -264,9 +270,11 @@ let xssOptions: IFilterXSSOptions = {
       top: true,
       width: true,
       'margin-left': true,
-      left: true, right: true, bottom: true,
-    }
-  }
+      left: true,
+      right: true,
+      bottom: true,
+    },
+  },
 };
 const myXss = new FilterXSS(xssOptions);
 
@@ -275,7 +283,7 @@ const editorRef = ref<HTMLDivElement | null>(null);
 let editor: any | null = null;
 
 // content（bodyの要素）の変化を監視
-const content = ref("");
+const content = ref('');
 watch(content, (newContent) => {
   if (editor && editor.getValue() !== newContent) {
     editor.setValue(newContent, 1);
@@ -286,42 +294,42 @@ watch(content, (newContent) => {
 const localStorageItems = getLocalStrageInfo();
 const isShowTools = ref(false); // マークダウン入力ツール表示コントロール
 const isPreview = ref(true); // プレビューの表示非表示
-const localStrageTitle = localStorage.getItem("wikiTitle");
-const localStrageBody = localStorage.getItem("wikiBody");
+const localStrageTitle = localStorage.getItem('wikiTitle');
+const localStrageBody = localStorage.getItem('wikiBody');
 
 if (localStorageItems.isShowToolsFromLocalStrage === null) {
-    localStorage.setItem("isShowTools", "false");
-};
+  localStorage.setItem('isShowTools', 'false');
+}
 
-if (localStorageItems.isShowToolsFromLocalStrage === "true") {
-    isShowTools.value = true;
-};
+if (localStorageItems.isShowToolsFromLocalStrage === 'true') {
+  isShowTools.value = true;
+}
 
 if (localStorageItems.isPreviewFromLocalStrage === null) {
-    localStorage.setItem("isPreview", "true");
-};
+  localStorage.setItem('isPreview', 'true');
+}
 
-if (localStorageItems.isPreviewFromLocalStrage === "false") {
-    isPreview.value = false;
+if (localStorageItems.isPreviewFromLocalStrage === 'false') {
+  isPreview.value = false;
 }
 
 // ローカルストレージから前回起動時の状況を取得
 function getLocalStrageInfo(): LocalStrageItem {
-    const localstrageItem = {
-        isShowToolsFromLocalStrage: localStorage.getItem("isShowTools"),
-        isPreviewFromLocalStrage: localStorage.getItem("isPreview")
-    }
-    return localstrageItem;
+  const localstrageItem = {
+    isShowToolsFromLocalStrage: localStorage.getItem('isShowTools'),
+    isPreviewFromLocalStrage: localStorage.getItem('isPreview'),
+  };
+  return localstrageItem;
 }
 
 // マークダウン入力ツールの表示非表示管理
 const handleInputTool = (): void => {
   if (isShowTools.value) {
     isShowTools.value = false;
-    localStorage.setItem("isShowTools", "false");
+    localStorage.setItem('isShowTools', 'false');
   } else {
     isShowTools.value = true;
-    localStorage.setItem("isShowTools", "true");
+    localStorage.setItem('isShowTools', 'true');
   }
 };
 
@@ -329,10 +337,10 @@ const handleInputTool = (): void => {
 const handlePreview = (): void => {
   if (isPreview.value) {
     isPreview.value = false;
-    localStorage.setItem("isPreview", "false");
+    localStorage.setItem('isPreview', 'false');
   } else {
-    isPreview.value = true
-    localStorage.setItem("isPreview", "true");
+    isPreview.value = true;
+    localStorage.setItem('isPreview', 'true');
   }
 };
 
@@ -341,12 +349,12 @@ onMounted(() => {
   // Aceの設定
   if (editorRef.value) {
     editor = ace.edit(editorRef.value);
-    editor.getSession().setMode("ace/mode/markdown");
+    editor.getSession().setMode('ace/mode/markdown');
     editor.getSession().setUseWrapMode(true);
     editor.setFontSize(16);
     // 80文字の縦ラインを消す
     editor.setShowPrintMargin(false);
-    console.log(localStrageTitle, localStrageBody)
+    console.log(localStrageTitle, localStrageBody);
 
     if (localStrageTitle !== null) {
       createWikiData.value.title = localStrageTitle;
@@ -356,7 +364,7 @@ onMounted(() => {
     }
   }
   // editorの変更を監視
-  editor.on("change", () => {
+  editor.on('change', () => {
     // mermaid.jsによるフロー図レンダリング
     drawMermaid();
     const newValue = editor.getValue();
@@ -370,19 +378,20 @@ onMounted(() => {
 
   // editorからpreviewへのスクロールの同期
   // previewからeditorの同期は不可（画像の差分を微調整するため）
-  editor.getSession().on("changeScrollTop", function () {
+  editor.getSession().on('changeScrollTop', function () {
     if (isPreviewScrolling) return;
 
     const editorScroll = editor.getSession().getScrollTop();
-    const editorMaxScroll = editor.renderer.layerConfig.maxHeight - editor.renderer.$size.scrollerHeight;
-    const preview = document.getElementById("result")!;
+    const editorMaxScroll =
+      editor.renderer.layerConfig.maxHeight - editor.renderer.$size.scrollerHeight;
+    const preview = document.getElementById('result')!;
     if (!preview) return;
 
     const previewMaxScroll = preview.scrollHeight - preview.clientHeight;
 
     isEditorScrolling = true;
     preview.scrollTop = (editorScroll / editorMaxScroll) * previewMaxScroll;
-    setTimeout(() => isEditorScrolling = false, 50);
+    setTimeout(() => (isEditorScrolling = false), 50);
   });
 });
 
@@ -391,13 +400,13 @@ async function drawMermaid() {
   try {
     await mermaid.init();
   } catch (error) {
-    console.error("Mermaid.js Syntax Error.")
+    console.error('Mermaid.js Syntax Error.');
   }
 }
 
 onUnmounted(() => {
   if (editor) {
-    editor.destroy()
+    editor.destroy();
   }
 });
 
@@ -405,10 +414,10 @@ onUnmounted(() => {
 const clearAceEditor = (): void => {
   if (editorRef.value) {
     editor = ace.edit(editorRef.value);
-    content.value = "";
-    editor.getSession().setValue("");
+    content.value = '';
+    editor.getSession().setValue('');
   }
-}
+};
 
 // wikiとimageのデータ管理
 const imageStore = useImageStore();
@@ -417,15 +426,15 @@ const wikiStore = useWikiStore();
 // データ作成後にCreate.vueへリダイレクト
 const router = useRouter();
 const createRedirect = (): void => {
-  router.push("/wiki/create");
-}
+  router.push('/wiki/create');
+};
 
 // List.vueへリダイレクト
 const listRedirect = (): void => {
   // ローカルストレージに保存
-  localStorage.setItem("prev-table-data", "");
-  router.push("/wiki/list");
-}
+  localStorage.setItem('prev-table-data', '');
+  router.push('/wiki/list');
+};
 
 // Login.vueへリダイレクト（無効トークンで上書き）
 async function loginRedirect(): Promise<void> {
@@ -434,14 +443,14 @@ async function loginRedirect(): Promise<void> {
   } catch (error) {
     console.error(error);
   }
-  router.push("/account/login");
+  router.push('/account/login');
 }
 
 // Wiki作成ボタンクリック連打の抑制とプログレス表示
 const isNewWikiSendNow = ref(false);
 const showProgressModal = ref(false);
 watch(isNewWikiSendNow, (): void => {
-  if(isNewWikiSendNow.value) {
+  if (isNewWikiSendNow.value) {
     showProgressModal.value = true;
   } else {
     showProgressModal.value = false;
@@ -450,8 +459,8 @@ watch(isNewWikiSendNow, (): void => {
 
 // 新規Wikiデータの初期化
 const crateWikiDataInit: CreateWikiData = {
-  title: "",
-  body: "",
+  title: '',
+  body: '',
   is_public: false,
 };
 const createWikiData = ref(crateWikiDataInit);
@@ -468,53 +477,54 @@ const createWiki = async (): Promise<void> => {
   const is_public = createWikiData.value.is_public;
 
   // 入力項目の検証
-  if (title === "") {
-    messageModalOpenClose("Wikiのタイトルが入力されていません。");
+  if (title === '') {
+    messageModalOpenClose('Wikiのタイトルが入力されていません。');
     isNewWikiSendNow.value = false;
     return;
-  } else if (body === "") {
-    messageModalOpenClose("Wikiのコンテンツが入力されていません。");
+  } else if (body === '') {
+    messageModalOpenClose('Wikiのコンテンツが入力されていません。');
     isNewWikiSendNow.value = false;
     return;
   }
 
   const data = {
-    "title": title,
-    "body": body,
-    "is_public": is_public,
-  }
+    title: title,
+    body: body,
+    is_public: is_public,
+  };
 
   // axiosによるPOST
   try {
-    const response = await apiClient.post(
-      createWikiUrl,
-      data
-    );
+    const response = await apiClient.post(createWikiUrl, data);
     const newWikiData: WikiData = {
-      id: response.data["new_wiki_id"],
-      user_id: response.data["user_id"],
-      date: response.data["date"],
+      id: response.data['new_wiki_id'],
+      user_id: response.data['user_id'],
+      date: response.data['date'],
       title: title,
       body: body,
-      update_at: response.data["date"],
+      update_at: response.data['date'],
       is_public: is_public,
       is_edit_request: false,
-    }
+    };
     wikiStore.addWiki(newWikiData);
 
     if (createWikiData.value.is_public) {
-      messageModalOpenClose("Wikiを作成しました。このWikiはパブリックな設定となっています。アプリケーションを利用する全ユーザーが閲覧可能です。");
+      messageModalOpenClose(
+        'Wikiを作成しました。このWikiはパブリックな設定となっています。アプリケーションを利用する全ユーザーが閲覧可能です。',
+      );
     } else {
-      messageModalOpenClose("Wikiを作成しました。このWikiはプライベートな設定となっています。作成したあなただけが閲覧可能です。");
+      messageModalOpenClose(
+        'Wikiを作成しました。このWikiはプライベートな設定となっています。作成したあなただけが閲覧可能です。',
+      );
     }
 
     // タイトルとAceエディタをクリア
-    createWikiData.value.title = "";
+    createWikiData.value.title = '';
     createWikiData.value.is_public = false;
 
     // ローカルストレージをクリア
-    localStorage.setItem("wikiTitle", "");
-    localStorage.setItem("wikiBody", "");
+    localStorage.setItem('wikiTitle', '');
+    localStorage.setItem('wikiBody', '');
 
     clearAceEditor();
     createRedirect();
@@ -524,15 +534,15 @@ const createWiki = async (): Promise<void> => {
   } finally {
     isNewWikiSendNow.value = false;
   }
-}
+};
 
 // ログイン画面へ遷移
 const onLogout = (): void => {
-  localStorage.setItem("loginUser", "");
-  localStorage.setItem("wikiTitle", "");
-  localStorage.setItem("wikiBody", "");
+  localStorage.setItem('loginUser', '');
+  localStorage.setItem('wikiTitle', '');
+  localStorage.setItem('wikiBody', '');
   loginRedirect();
-}
+};
 
 /** 画像送信のモーダル表示・非表示を管理 */
 const showFileUploadContent = ref(false);
@@ -542,12 +552,12 @@ const openFileUpModal = (): void => {
   } else {
     showFileUploadContent.value = true;
   }
-}
+};
 
 /** 画像の送信処理 */
 const isImageSendNow = ref(false); // クリック連打の抑制とプログレス表示
 watch(isImageSendNow, (): void => {
-  if(isImageSendNow.value) {
+  if (isImageSendNow.value) {
     showProgressModal.value = true;
   } else {
     showProgressModal.value = false;
@@ -555,42 +565,49 @@ watch(isImageSendNow, (): void => {
 });
 
 const selectedImageBlob = ref<Blob | null>(null); // リサイズ後のBlobを保持
-const selectedFileName = ref<string>("");
+const selectedFileName = ref<string>('');
 
 // 画像選択時にリサイズ処理
 const onImageSelect = async (): Promise<void> => {
-  const element = document.getElementById("image1")! as HTMLInputElement;
-  if (element.value === "" || element.value === null) {
-    messageModalOpenClose("画像ファイルを選択してください。");
+  const element = document.getElementById('image1')! as HTMLInputElement;
+  if (element.value === '' || element.value === null) {
+    messageModalOpenClose('画像ファイルを選択してください。');
     return;
   }
 
   // ファイルオブジェクトを取得してペイロードに追加
-  const file = element.files!
+  const file = element.files!;
   const fileObj = file[0]!;
   const fileName = fileObj.name;
 
   // mime-typeで許可ファイルをフィルタリング
-  const arrowMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf"];
+  const arrowMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'video/mp4',
+    'application/pdf',
+  ];
   if (!arrowMimeTypes.includes(fileObj.type)) {
-    messageModalOpenClose("許可されていない形式のファイルです。");
+    messageModalOpenClose('許可されていない形式のファイルです。');
     imageCrear();
     return;
   }
 
   // 画像ファイルの場合
-  if (fileObj.type.startsWith("image/")) {
+  if (fileObj.type.startsWith('image/')) {
     try {
       showProgressModal.value = true;
       // ブラウザネイティブでリサイズ
       selectedImageBlob.value = await resizeImageWithCanvas(fileObj);
     } catch (error) {
-      console.error("リサイズエラー: ", error);
+      console.error('リサイズエラー: ', error);
       selectedImageBlob.value = null;
     } finally {
       showProgressModal.value = false;
     }
-  // 画像ファイル以外の場合
+    // 画像ファイル以外の場合
   } else {
     selectedImageBlob.value = fileObj;
   }
@@ -602,43 +619,51 @@ const resizeImageWithCanvas = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      
       // リサイズ対象の画像の最大幅と高さを定義（2K）
       const maxWidth = 1280;
       const maxHeight = 720;
-      
+
       // リサイズ後のサイズを計算
       const { width, height } = caluculateDimensions(img.width, img.height, maxWidth, maxHeight);
-      
+
       // Canvas作成
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
 
       // Canvasに描画
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error("Canvas contextの取得に失敗しました。"));
+        reject(new Error('Canvas contextの取得に失敗しました。'));
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
 
       // Blobとして出力
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Blobの生成に失敗しました。"))
-        }
-      }, file.type, 0.8); // 画質80%
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Blobの生成に失敗しました。'));
+          }
+        },
+        file.type,
+        0.8,
+      ); // 画質80%
     };
-    img.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+    img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
     img.src = URL.createObjectURL(file); // ローカルファイルのURL
-  })
+  });
 };
 
 // リサイズ後の幅と高さを計算
-const caluculateDimensions = (width: number, height: number, maxWidth: number, maxHeight: number) => {
+const caluculateDimensions = (
+  width: number,
+  height: number,
+  maxWidth: number,
+  maxHeight: number,
+) => {
   // 横長画像の場合
   if (height < width) {
     if (width > maxWidth || height > maxHeight) {
@@ -652,8 +677,8 @@ const caluculateDimensions = (width: number, height: number, maxWidth: number, m
     }
     // サイズがすでに範囲内の場合
     return { width, height };
-  
-  // 縦長画像の場合
+
+    // 縦長画像の場合
   } else {
     if (height > maxWidth || width > maxHeight) {
       const widthRatio = maxWidth / height;
@@ -665,7 +690,7 @@ const caluculateDimensions = (width: number, height: number, maxWidth: number, m
       };
     }
     // サイズがすでに範囲内の場合
-    return { width, height }; 
+    return { width, height };
   }
 };
 
@@ -677,32 +702,29 @@ const imageFileSend = async (): Promise<void> => {
   }
 
   if (!selectedImageBlob.value) {
-    messageModalOpenClose("ファイルを選択してください。");
+    messageModalOpenClose('ファイルを選択してください。');
     isImageSendNow.value = false;
     return;
   }
 
   // FormDataを初期化作成
   const payload = new FormData();
-  payload.append("upload_file", selectedImageBlob.value, selectedFileName.value);
+  payload.append('upload_file', selectedImageBlob.value, selectedFileName.value);
 
   try {
-    const response = await apiClient.post(
-      imageUploadUrl,
-      payload
-    );
-    
+    const response = await apiClient.post(imageUploadUrl, payload);
+
     const newImageData: ImageData = {
-      id: response.data["new_image_id"],
-      user_id: response.data["user_id"],
-      filename: response.data["filename"],
-      uuid_filename: response.data["uuid_filename"],
-    }
+      id: response.data['new_image_id'],
+      user_id: response.data['user_id'],
+      filename: response.data['filename'],
+      uuid_filename: response.data['uuid_filename'],
+    };
     imageStore.addImage(newImageData);
 
-    const uniqueFileName = response.data["uuid_filename"];
+    const uniqueFileName = response.data['uuid_filename'];
 
-    let imageUrlMarkdown = "";
+    let imageUrlMarkdown = '';
     if (isMP4(uniqueFileName)) {
       imageUrlMarkdown = `?[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
     } else {
@@ -713,27 +735,28 @@ const imageFileSend = async (): Promise<void> => {
       }
     }
 
-    messageModalOpenClose("アップロード完了。コンテンツを挿入しました。");
+    messageModalOpenClose('アップロード完了。コンテンツを挿入しました。');
     insertMarkdown(imageUrlMarkdown);
 
     imageStore.initList();
     imageCrear();
     return;
-
   } catch (error) {
     console.error(error);
-    messageModalOpenClose("アップロードに失敗しました。ファイルサイズやファイルの種類を確認してください。");
+    messageModalOpenClose(
+      'アップロードに失敗しました。ファイルサイズやファイルの種類を確認してください。',
+    );
   } finally {
     selectedImageBlob.value = null;
-    selectedFileName.value = "";
+    selectedFileName.value = '';
     isImageSendNow.value = false;
   }
-}
+};
 
 // アップロード完了モーダル機能
 const isUploadedMessageModal = ref(false);
-const uploadedUrl = ref("");
-const uploadedUniqueFileName = ref("");
+const uploadedUrl = ref('');
+const uploadedUniqueFileName = ref('');
 const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void => {
   if (!isUploadedMessageModal.value) {
     uploadedUrl.value = url;
@@ -741,29 +764,27 @@ const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void 
     isUploadedMessageModal.value = true;
   } else {
     isUploadedMessageModal.value = false;
-    uploadedUrl.value = "";
-    uploadedUniqueFileName.value = "";
+    uploadedUrl.value = '';
+    uploadedUniqueFileName.value = '';
   }
 };
 
 /** 選択した画像ファイルをクリア */
 const imageCrear = (): void => {
-  selectedFileName.value = "";
+  selectedFileName.value = '';
   selectedImageBlob.value = null;
-  let imageContent = document.getElementById("image1")! as HTMLInputElement;
+  let imageContent = document.getElementById('image1')! as HTMLInputElement;
   if (imageContent.value === null) {
-    return
+    return;
   } else {
-    imageContent.value = "";
+    imageContent.value = '';
   }
-}
+};
 
 // 画像一覧の取得
-const imageList = computed(
-  (): Map<string, ImageData> => {
-    return imageStore.imageList;
-  }
-);
+const imageList = computed((): Map<string, ImageData> => {
+  return imageStore.imageList;
+});
 
 // 画像一覧モーダルの表示・非表示管理（HTTPS or Localhost）
 const showImageListHttpsModal = ref(false);
@@ -773,7 +794,7 @@ const openCloseImageListHttpsModal = (): void => {
   } else {
     showImageListHttpsModal.value = true;
   }
-}
+};
 
 // 画像一覧モーダルの表示・非表示管理（HTTP）
 const showImageListContent = ref(false);
@@ -783,20 +804,20 @@ const openImageListModal = (): void => {
   } else {
     showImageListContent.value = true;
   }
-}
+};
 
 // 画像とPDF、動画のプレビュー
 const imagePreviewModal = ref(false);
-const imageFileSrc = ref("");
-const pdfFileSrc = ref("");
-const previewSelectedImageId = ref("");
+const imageFileSrc = ref('');
+const pdfFileSrc = ref('');
+const previewSelectedImageId = ref('');
 const onOpenImagePreviewModal = (filename: string, imageId: string): void => {
   // PDFファイルの場合
   if (isPDF(filename)) {
     if (pdfPreviewModal.value) {
-      pdfFileSrc.value = "";
+      pdfFileSrc.value = '';
       pdfPreviewModal.value = false;
-    }  else {
+    } else {
       pdfFileSrc.value = `${baseUrl}/static/images/${filename}`;
       pdfPreviewModal.value = true;
       loadPdf(pdfFileSrc.value);
@@ -804,7 +825,7 @@ const onOpenImagePreviewModal = (filename: string, imageId: string): void => {
     previewSelectedImageId.value = imageId;
     return;
 
-  // 画像ファイルか動画の場合
+    // 画像ファイルか動画の場合
   } else {
     imagePreviewModal.value = true;
     previewSelectedImageId.value = imageId;
@@ -828,14 +849,14 @@ const loadPdf = async (url: string) => {
   clearCanvas();
   const pdf = await getDocument({
     url,
-    cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/cmaps/",
-    cMapPacked: true
+    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/cmaps/',
+    cMapPacked: true,
   }).promise;
   const numPages = pdf.numPages;
 
   // 必要な数のキャンバスを用意
   pdfCanvases.value = Array.from({ length: numPages }, (_, i) => ({
-    ref: `pdfCanvas${i}`
+    ref: `pdfCanvas${i}`,
   }));
 
   for (let i = 1; i <= numPages; i++) {
@@ -846,14 +867,14 @@ const loadPdf = async (url: string) => {
     const canvas = (document.getElementById(canvasRef) as HTMLCanvasElement) || null;
 
     if (canvas) {
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext('2d');
       if (context) {
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
         const renderContext = {
           canvasContext: context,
-          viewport: viewport
+          viewport: viewport,
         };
         await page.render(renderContext).promise;
       }
@@ -862,10 +883,10 @@ const loadPdf = async (url: string) => {
 };
 
 const clearCanvas = () => {
-  pdfCanvases.value.forEach(canvasRefObj => {
+  pdfCanvases.value.forEach((canvasRefObj) => {
     const canvas = (document.getElementById(canvasRefObj.ref) as HTMLCanvasElement) || null;
     if (canvas) {
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext('2d');
       if (context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
       }
@@ -883,11 +904,11 @@ const onClosePDFPreviewModal = (): void => {
 const imageDeleteCheckModal = ref(false);
 const onOpenImageDeleteModal = (): void => {
   imageDeleteCheckModal.value = true;
-}
+};
 
 // 画像削除の最終確認
 const onCloseImageDeleteModal = (res: number): void => {
-  if (previewSelectedImageId.value === "") {
+  if (previewSelectedImageId.value === '') {
     imageDeleteCheckModal.value = false;
   }
   if (res === 1) {
@@ -895,7 +916,7 @@ const onCloseImageDeleteModal = (res: number): void => {
     imageDeleteCheckModal.value = false;
     imagePreviewModal.value = false;
     pdfPreviewModal.value = false;
-    previewSelectedImageId.value = "";
+    previewSelectedImageId.value = '';
   } else {
     imageDeleteCheckModal.value = false;
   }
@@ -905,30 +926,28 @@ const onCloseImageDeleteModal = (res: number): void => {
 // 画像削除処理
 const onImageDelete = async (id: string): Promise<void> => {
   try {
-    const response = await apiClient.delete(
-      imageDeleteUrl + `/${id}`,
-    );
+    const response = await apiClient.delete(imageDeleteUrl + `/${id}`);
     imageStore.deleteImage(id);
-    messageModalOpenClose("削除しました。");
+    messageModalOpenClose('削除しました。');
   } catch (error) {
     console.error(error);
-    messageModalOpenClose("削除に失敗しました。");
+    messageModalOpenClose('削除に失敗しました。');
   }
-}
+};
 
 // 画像検索処理
-const queryFormData = ref("");
+const queryFormData = ref('');
 const onSearch = (isClear: boolean = false): void => {
   try {
     if (isClear) {
-      imageStore.queryImage("");
+      imageStore.queryImage('');
     } else {
       imageStore.queryImage(queryFormData.value);
     }
   } catch (error) {
     console.log(error);
   }
-}
+};
 
 // ヘルプモーダルの描画
 const showHelpContent = ref(false);
@@ -938,26 +957,26 @@ const openHelpModal = (): void => {
   } else {
     showHelpContent.value = true;
   }
-}
+};
 
 // ヘルプモーダルのクローズ
 const onCloseHelpModal = (res: number): void => {
   if (res === 0) {
     showHelpContent.value = false;
   }
-}
+};
 
 // ヘルプモーダル表示時に灰色の部分のクリック時にもヘルプモーダルを閉じる処理
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとヘルプの内容を取得
-  const helpModal = document.getElementById("overlay-help");
-  const helpModalContent = document.getElementById("content-help");
+  const helpModal = document.getElementById('overlay-help');
+  const helpModalContent = document.getElementById('content-help');
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (helpModal) {
-    helpModal.addEventListener("click", function (event) {
+    helpModal.addEventListener('click', function (event) {
       if (showHelpContent.value === true) {
-        showHelpContent.value = false
+        showHelpContent.value = false;
       } else {
         return;
       }
@@ -965,7 +984,7 @@ onMounted(() => {
   }
   // 灰色の部分以外（content-help）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (helpModalContent) {
-    helpModalContent.addEventListener("click", function (event) {
+    helpModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -973,19 +992,19 @@ onMounted(() => {
 
 // 画像追加モーダルクローズ処理（オーバーレイをクリック時）
 onMounted(() => {
-  const imgAddModal = document.getElementById("overlay-fileup");
-  const imgAddModalContent = document.getElementById("content-fileup");
+  const imgAddModal = document.getElementById('overlay-fileup');
+  const imgAddModalContent = document.getElementById('content-fileup');
   if (imgAddModal) {
-    imgAddModal.addEventListener("click", function (event) {
+    imgAddModal.addEventListener('click', function (event) {
       if (showFileUploadContent.value === true) {
-        showFileUploadContent.value = false
+        showFileUploadContent.value = false;
       } else {
         return;
       }
     });
   }
   if (imgAddModalContent) {
-    imgAddModalContent.addEventListener("click", function (event) {
+    imgAddModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -993,19 +1012,19 @@ onMounted(() => {
 
 // 画像一覧モーダルクローズ処理（オーバーレイをクリック時）
 onMounted(() => {
-  const imgListModal = document.getElementById("overlay-imagelist");
-  const imgListModalContent = document.getElementById("content-image");
+  const imgListModal = document.getElementById('overlay-imagelist');
+  const imgListModalContent = document.getElementById('content-image');
   if (imgListModal) {
-    imgListModal.addEventListener("click", function (event) {
+    imgListModal.addEventListener('click', function (event) {
       if (showImageListContent.value === true) {
-        showImageListContent.value = false
+        showImageListContent.value = false;
       } else {
         return;
       }
     });
   }
   if (imgListModalContent) {
-    imgListModalContent.addEventListener("click", function (event) {
+    imgListModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -1013,19 +1032,19 @@ onMounted(() => {
 
 // 画像一覧モーダル（https or localhost）
 onMounted(() => {
-  const imageListHttpsModal = document.getElementById("overlay-image-https-list");
-  const imageListHttpsModalContent = document.getElementById("content-image-https-list");
+  const imageListHttpsModal = document.getElementById('overlay-image-https-list');
+  const imageListHttpsModalContent = document.getElementById('content-image-https-list');
   if (imageListHttpsModal) {
-    imageListHttpsModal.addEventListener("click", function(event) {
+    imageListHttpsModal.addEventListener('click', function (event) {
       if (showImageListHttpsModal.value === true) {
-        showImageListHttpsModal.value = false
+        showImageListHttpsModal.value = false;
       } else {
         return;
       }
     });
   }
   if (imageListHttpsModalContent) {
-    imageListHttpsModalContent.addEventListener("click", function(event) {
+    imageListHttpsModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -1033,19 +1052,19 @@ onMounted(() => {
 
 // 画像プレビューモーダルクローズ処理（オーバーレイをクリック時）
 onMounted(() => {
-  const imgPreviewModal = document.getElementById("overlay-image-preview");
-  const imgPreviewModalContent = document.getElementById("content-image-view");
+  const imgPreviewModal = document.getElementById('overlay-image-preview');
+  const imgPreviewModalContent = document.getElementById('content-image-view');
   if (imgPreviewModal) {
-    imgPreviewModal.addEventListener("click", function (event) {
+    imgPreviewModal.addEventListener('click', function (event) {
       if (imagePreviewModal.value === true) {
-        imagePreviewModal.value = false
+        imagePreviewModal.value = false;
       } else {
         return;
       }
     });
   }
   if (imgPreviewModalContent) {
-    imgPreviewModalContent.addEventListener("click", function (event) {
+    imgPreviewModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -1053,19 +1072,19 @@ onMounted(() => {
 
 // メッセージモーダルクローズ処理（オーバーレイをクリック時）
 onMounted(() => {
-  const messageModal = document.getElementById("overlay-message");
-  const messageModalContent = document.getElementById("content-message");
+  const messageModal = document.getElementById('overlay-message');
+  const messageModalContent = document.getElementById('content-message');
   if (messageModal) {
-    messageModal.addEventListener("click", function (event) {
+    messageModal.addEventListener('click', function (event) {
       if (isMessageModal.value === true) {
-        isMessageModal.value = false
+        isMessageModal.value = false;
       } else {
         return;
       }
     });
   }
   if (messageModalContent) {
-    messageModalContent.addEventListener("click", function (event) {
+    messageModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -1073,10 +1092,10 @@ onMounted(() => {
 
 // PDFプレビューモーダルクローズ処理（オーバーレイをクリック時）
 onMounted(() => {
-  const pdfModal = document.getElementById("overlay-pdf-preview");
-  const pdfModalContent = document.getElementById("content-pdf-view");
+  const pdfModal = document.getElementById('overlay-pdf-preview');
+  const pdfModalContent = document.getElementById('content-pdf-view');
   if (pdfModal) {
-    pdfModal.addEventListener("click", function (event) {
+    pdfModal.addEventListener('click', function (event) {
       if (pdfPreviewModal.value === true) {
         onClosePDFPreviewModal();
       } else {
@@ -1085,43 +1104,41 @@ onMounted(() => {
     });
   }
   if (pdfModalContent) {
-    pdfModalContent.addEventListener("click", function (event) {
+    pdfModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
 });
 
 // マークダウンからHTMLへのコンバート処理
-const markDownConv = computed(
-  (): String => {
-    let plainTextTitle = "";
-    if (createWikiData.value.title) {
-      plainTextTitle = "# " + createWikiData.value.title + "\n\n";
-    }
-    const plainTextBody = content.value;
-    const plainText = plainTextTitle + plainTextBody;
-    const options: MarkedOptions = { async: false };
-    const htmlStr = marked.parse(plainText, options);
-    const cleanHtml = myXss.process(htmlStr as string);
-    const renderHtml = renderIframe(cleanHtml);
-
-    localStorage.setItem("wikiTitle", createWikiData.value.title);
-    localStorage.setItem("wikiBody", content.value);
-    return renderHtml;
+const markDownConv = computed((): String => {
+  let plainTextTitle = '';
+  if (createWikiData.value.title) {
+    plainTextTitle = '# ' + createWikiData.value.title + '\n\n';
   }
-);
+  const plainTextBody = content.value;
+  const plainText = plainTextTitle + plainTextBody;
+  const options: MarkedOptions = { async: false };
+  const htmlStr = marked.parse(plainText, options);
+  const cleanHtml = myXss.process(htmlStr as string);
+  const renderHtml = renderIframe(cleanHtml);
+
+  localStorage.setItem('wikiTitle', createWikiData.value.title);
+  localStorage.setItem('wikiBody', content.value);
+  return renderHtml;
+});
 
 // スクロール同期の設定
 const formArea: Ref<HTMLElement | null> = ref(null);
 const previewArea: Ref<HTMLElement | null> = ref(null);
 onMounted(() => {
-  formArea.value?.addEventListener("scroll", function (this: HTMLElement) {
+  formArea.value?.addEventListener('scroll', function (this: HTMLElement) {
     if (previewArea.value && this.scrollTop !== undefined) {
       previewArea.value.scrollTop = this.scrollTop;
     }
   });
 
-  previewArea.value?.addEventListener("scroll", function (this: HTMLElement) {
+  previewArea.value?.addEventListener('scroll', function (this: HTMLElement) {
     if (formArea.value && this.scrollTop !== undefined) {
       formArea.value.scrollTop = this.scrollTop;
     }
@@ -1129,13 +1146,11 @@ onMounted(() => {
 });
 
 // 現在ユーザーの取得
-const currentUser = ref("");
+const currentUser = ref('');
 const getCurrentUser = async (): Promise<void> => {
   try {
-    const response = await apiClient.get(
-      getUserUrl
-    );
-    currentUser.value = response.data["public_name"];
+    const response = await apiClient.get(getUserUrl);
+    currentUser.value = response.data['public_name'];
   } catch (error) {
     loginRedirect();
   }
@@ -1144,14 +1159,14 @@ getCurrentUser();
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 
@@ -1159,9 +1174,13 @@ const messageModalOpenClose = (message: string): void => {
 const isPublicWatch = ref(false);
 watch(isPublicWatch, (): void => {
   if (isPublicWatch.value) {
-    messageModalOpenClose("パブリックに変更されました。この設定で投稿したWikiは全ユーザーに共有され、閲覧可能となります。");
+    messageModalOpenClose(
+      'パブリックに変更されました。この設定で投稿したWikiは全ユーザーに共有され、閲覧可能となります。',
+    );
   } else {
-    messageModalOpenClose("プライベートに変更されました。この設定で投稿したWikiは投稿したユーザーだけが閲覧可能です。");
+    messageModalOpenClose(
+      'プライベートに変更されました。この設定で投稿したWikiは投稿したユーザーだけが閲覧可能です。',
+    );
   }
 });
 const isPublicChanged = (): void => {
@@ -1170,7 +1189,7 @@ const isPublicChanged = (): void => {
   } else {
     isPublicWatch.value = true;
   }
-}
+};
 
 // ウィンドウサイズでエディタのサイズを自動調整
 function useWindowSize() {
@@ -1182,11 +1201,11 @@ function useWindowSize() {
     height.value = window.innerHeight;
   };
   onMounted(() => {
-    window.addEventListener("resize", updateSize);
+    window.addEventListener('resize', updateSize);
   });
 
   onBeforeUnmount(() => {
-    window.removeEventListener("resize", updateSize);
+    window.removeEventListener('resize', updateSize);
   });
   return { width, height };
 }
@@ -1201,7 +1220,7 @@ if (height.value > 850) {
   divHeight.value = height.value * 0.66;
 }
 
-if (width.value < 770 ) {
+if (width.value < 770) {
   isPreview.value = false;
 }
 
@@ -1216,7 +1235,7 @@ watch(height, (newHeight) => {
 watch(width, (newWidth) => {
   if (newWidth > 770) {
     const localStrageItem = getLocalStrageInfo();
-    if (localStrageItem.isPreviewFromLocalStrage === "true") {
+    if (localStrageItem.isPreviewFromLocalStrage === 'true') {
       isPreview.value = true;
     }
   } else {
@@ -1234,21 +1253,21 @@ function selectTextOrClipboardCopy(elementId: string) {
 
   if (isHttpsProtocol.value) {
     navigator.clipboard.writeText(element.textContent);
-    messageModalOpenClose("クリップボードにコピーしました。");
+    messageModalOpenClose('クリップボードにコピーしました。');
   } else {
     if (window.getSelection) {
-    let selection = window.getSelection();
-    let range = document.createRange();
-    try {
-      range.selectNodeContents(element);
-    } catch (e) {
-      console.error(`Error selecting contents of element: ${e}`);
+      let selection = window.getSelection();
+      let range = document.createRange();
+      try {
+        range.selectNodeContents(element);
+      } catch (e) {
+        console.error(`Error selecting contents of element: ${e}`);
+      }
+      if (selection) {
+        selection.removeAllRanges(); // 現在の選択をクリア
+        selection.addRange(range); // 新しい範囲を選択
+      }
     }
-    if (selection) {
-      selection.removeAllRanges();  // 現在の選択をクリア
-      selection.addRange(range);  // 新しい範囲を選択
-    }
-  }
   }
 }
 
@@ -1260,77 +1279,77 @@ const onImageCopyPath = (id: string) => {
   const imageName = imageData.filename;
   const uuidName = imageData.uuid_filename;
   // 静止画か動画か判定してマークダウンを切り替え
-  let imageUrlMarkdown = ""
+  let imageUrlMarkdown = '';
   if (isMP4(imageData.filename)) {
     imageUrlMarkdown = `?[${imageName}](${baseUrl}/static/images/${uuidName})`;
   } else {
     if (isPDF(imageData.filename)) {
-      imageUrlMarkdown = `[${imageName}](${baseUrl}/static/images/${uuidName})`;  
+      imageUrlMarkdown = `[${imageName}](${baseUrl}/static/images/${uuidName})`;
     } else {
       imageUrlMarkdown = `![${imageName}](${baseUrl}/static/images/${uuidName})`;
     }
   }
   navigator.clipboard.writeText(imageUrlMarkdown);
-  console.log("Clipboard Copied.");
-  messageModalOpenClose("クリップボードにコピーしました。")
-}
+  console.log('Clipboard Copied.');
+  messageModalOpenClose('クリップボードにコピーしました。');
+};
 
 // ショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // List.vueへ移動
-  if (event.ctrlKey && event.key === "1") {
+  if (event.ctrlKey && event.key === '1') {
     event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
     listRedirect();
 
-  // 画像挿入モーダル
-  } else if (event.ctrlKey && event.key === "2") {
+    // 画像挿入モーダル
+  } else if (event.ctrlKey && event.key === '2') {
     event.preventDefault();
     openFileUpModal();
 
-  // 画像一覧モーダル
-  } else if (event.ctrlKey && event.key === "3") {
+    // 画像一覧モーダル
+  } else if (event.ctrlKey && event.key === '3') {
     event.preventDefault();
     if (isHttpsProtocol) {
       openCloseImageListHttpsModal();
     } else {
       openImageListModal();
     }
-  
-  // 計算式作成
-  } else if (event.ctrlKey && event.key === "4") {
+
+    // 計算式作成
+  } else if (event.ctrlKey && event.key === '4') {
     event.preventDefault();
     onCloseKatexModal();
 
-  // プレビューの表示非表示
-  } else if (event.ctrlKey && event.key === "5") {
+    // プレビューの表示非表示
+  } else if (event.ctrlKey && event.key === '5') {
     event.preventDefault();
     handlePreview();
-  
-  // マークダウン入力ツールの表示非表示
-  } else if (event.ctrlKey && event.key === "6") {
+
+    // マークダウン入力ツールの表示非表示
+  } else if (event.ctrlKey && event.key === '6') {
     event.preventDefault();
     handleInputTool();
 
-  // 書き方モーダル
-  } else if (event.ctrlKey && event.key === "7") {
+    // 書き方モーダル
+  } else if (event.ctrlKey && event.key === '7') {
     event.preventDefault();
     openHelpModal();
 
-  // title入力欄にフォーカス
-  } else if (event.ctrlKey && event.key === "i") {
+    // title入力欄にフォーカス
+  } else if (event.ctrlKey && event.key === 'i') {
     event.preventDefault();
-    const inputTitleElement = document.getElementById("title-input-text");
+    const inputTitleElement = document.getElementById('title-input-text');
     if (inputTitleElement) {
       inputTitleElement.focus();
     }
 
-  // 作成
-  } else if (event.ctrlKey && event.key === "m") {
+    // 作成
+  } else if (event.ctrlKey && event.key === 'm') {
     event.preventDefault();
     createWiki();
 
-  // Escapeキーでモーダルウィンドウをクローズ
-  } else if (event.key === "Escape") {
+    // Escapeキーでモーダルウィンドウをクローズ
+  } else if (event.key === 'Escape') {
     event.preventDefault();
     if (isMessageModal.value) {
       isMessageModal.value = false;
@@ -1356,12 +1375,12 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 // コンポーネントマウント時にイベントリスナーを追加
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 // コンポーネントがアンマウントされた際にイベントリスナーを削除
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 
 // 拡張子で動画ファイルか判定する関数
@@ -1383,43 +1402,123 @@ function insertMarkdown(text: string) {
   if (isHttpsProtocol.value) {
     navigator.clipboard.writeText(text);
   }
-};
-
+}
 </script>
 
 <template>
   <div id="btn-head-zone">
     <div class="btn-head-left">
-      <button class="btn-head-image" title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1" v-on:click="listRedirect"><img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png"></button>
-      <button class="btn-head-image" title="画像・PDFの挿入画面を表示&#10;ショートカット: Ctrl + 2" v-on:click="openFileUpModal"><img :src="`${assetsUrl}smartphone_line24.png`" class="btn-img" alt="smartphone_line24.png"></button>
-      <button v-if="isHttpsProtocol" class="btn-head-image" title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3" v-on:click="openCloseImageListHttpsModal"><img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png"></button>
-      <button v-else="isHttpsProtocol" class="btn-head-image" title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3" v-on:click="openImageListModal"><img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png"></button>
-      <button class="btn-head-image" title="計算式作成&#10;ショートカット: Ctrl + 4" v-on:click="onCloseKatexModal()"><img :src="`${assetsUrl}math24.png`" class="btn-img" alt="math24.png"></button>
-      <button v-if="isPreview" class="btn-head-image" title="プレビュー切り替え&#10;ショートカット: Ctrl + 5" v-on:click="handlePreview()"><img :src="`${assetsUrl}preview_off_24.png`" class="btn-img" alt="preview_off_24.png"></button>
-      <button v-else class="btn-head-image" title="プレビュー切り替え&#10;ショートカット: Ctrl + 5" v-on:click="handlePreview()"><img :src="`${assetsUrl}preview_on_24.png`" class="btn-img" alt="preview_on_24.png"></button>
-      <button class="btn-head-image" title="マークダウン入力ツール&#10;ショートカット: Ctrl + 6" v-on:click="handleInputTool()"><img :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png"></button>
+      <button
+        class="btn-head-image"
+        title="Wiki一覧画面へ遷移します。&#10;ショートカット: Ctrl + 1"
+        v-on:click="listRedirect"
+      >
+        <img :src="`${assetsUrl}home_24.png`" class="btn-img" alt="home_24.png" />
+      </button>
+      <button
+        class="btn-head-image"
+        title="画像・PDFの挿入画面を表示&#10;ショートカット: Ctrl + 2"
+        v-on:click="openFileUpModal"
+      >
+        <img
+          :src="`${assetsUrl}smartphone_line24.png`"
+          class="btn-img"
+          alt="smartphone_line24.png"
+        />
+      </button>
+      <button
+        v-if="isHttpsProtocol"
+        class="btn-head-image"
+        title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3"
+        v-on:click="openCloseImageListHttpsModal"
+      >
+        <img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png" />
+      </button>
+      <button
+        v-else="isHttpsProtocol"
+        class="btn-head-image"
+        title="画像・PDFの一覧画面を表示&#10;ショートカット: Ctrl + 3"
+        v-on:click="openImageListModal"
+      >
+        <img :src="`${assetsUrl}documents_line24.png`" class="btn-img" alt="documents_line24.png" />
+      </button>
+      <button
+        class="btn-head-image"
+        title="計算式作成&#10;ショートカット: Ctrl + 4"
+        v-on:click="onCloseKatexModal()"
+      >
+        <img :src="`${assetsUrl}math24.png`" class="btn-img" alt="math24.png" />
+      </button>
+      <button
+        v-if="isPreview"
+        class="btn-head-image"
+        title="プレビュー切り替え&#10;ショートカット: Ctrl + 5"
+        v-on:click="handlePreview()"
+      >
+        <img :src="`${assetsUrl}preview_off_24.png`" class="btn-img" alt="preview_off_24.png" />
+      </button>
+      <button
+        v-else
+        class="btn-head-image"
+        title="プレビュー切り替え&#10;ショートカット: Ctrl + 5"
+        v-on:click="handlePreview()"
+      >
+        <img :src="`${assetsUrl}preview_on_24.png`" class="btn-img" alt="preview_on_24.png" />
+      </button>
+      <button
+        class="btn-head-image"
+        title="マークダウン入力ツール&#10;ショートカット: Ctrl + 6"
+        v-on:click="handleInputTool()"
+      >
+        <img :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png" />
+      </button>
     </div>
     <div class="btn-head-right">
-      <button class="btn-head-image" title="書き方のヘルプを表示&#10;ショートカット: Ctrl + 7" v-on:click="openHelpModal"><img :src="`${assetsUrl}help_24.png`" class="btn-img" alt="help_24.png"></button>
-      <button class="btn-head-image" title="ユーザー切替" v-on:click="onLogout"><img :src="`${assetsUrl}exit_24.png`" class="btn-img" alt="exit_24.png"></button>
+      <button
+        class="btn-head-image"
+        title="書き方のヘルプを表示&#10;ショートカット: Ctrl + 7"
+        v-on:click="openHelpModal"
+      >
+        <img :src="`${assetsUrl}help_24.png`" class="btn-img" alt="help_24.png" />
+      </button>
+      <button class="btn-head-image" title="ユーザー切替" v-on:click="onLogout">
+        <img :src="`${assetsUrl}exit_24.png`" class="btn-img" alt="exit_24.png" />
+      </button>
     </div>
   </div>
 
   <!-- 入力フォームエリア -->
-  <div class="contants-area" :style="{ height: divHeight + 'px'}">
-    <div class="left-area-isprev" :style="{ width: isPreview ? '50%' : '100%', marginRight: isPreview ? '10px' : '0px' }">
+  <div class="contants-area" :style="{ height: divHeight + 'px' }">
+    <div
+      class="left-area-isprev"
+      :style="{ width: isPreview ? '50%' : '100%', marginRight: isPreview ? '10px' : '0px' }"
+    >
       <div class="left-h3">
         <h3 class="editor-and-preview-title" id="title_h3_1">Editor</h3>
       </div>
       <div class="edit-area" :style="{ height: divHeight + 'px' }">
         <div class="title-input">
-          <input type="text" id="title-input-text" class="title" placeholder="タイトル入力欄" required
-            v-model="createWikiData.title" title="Wikiのタイトル。&#10;タイトルは自動的に見出しレベル1「#」として反映されます。&#10;ショートカット: Ctrl + i">
-          <div class="switch-btn-container" 
-            title="Wikiを閲覧可能なユーザーの範囲を切り替えます。&#10;プライベート：作成者アカウントのみ閲覧可能&#10;パブリック：全アカウントから閲覧可能（編集は作成者のみ）">
+          <input
+            type="text"
+            id="title-input-text"
+            class="title"
+            placeholder="タイトル入力欄"
+            required
+            v-model="createWikiData.title"
+            title="Wikiのタイトル。&#10;タイトルは自動的に見出しレベル1「#」として反映されます。&#10;ショートカット: Ctrl + i"
+          />
+          <div
+            class="switch-btn-container"
+            title="Wikiを閲覧可能なユーザーの範囲を切り替えます。&#10;プライベート：作成者アカウントのみ閲覧可能&#10;パブリック：全アカウントから閲覧可能（編集は作成者のみ）"
+          >
             <label for="switch" class="switch-label">
               <div class="switch">
-                <input type="checkbox" id="switch" v-model="createWikiData.is_public" v-on:click="isPublicChanged">
+                <input
+                  type="checkbox"
+                  id="switch"
+                  v-model="createWikiData.is_public"
+                  v-on:click="isPublicChanged"
+                />
                 <div class="base"></div>
                 <div class="circle"></div>
                 <div class="slider"></div>
@@ -1427,22 +1526,36 @@ function insertMarkdown(text: string) {
             </label>
           </div>
         </div>
-        <div ref="editorRef" class="editor-div" id="editor"
-          title="マークダウンエディター&#10;Wikiとして作成したい文書をマークダウンで記述します。&#10;作成はリアルタイムで左側のプレビューエリアに反映されます。">
-        </div>
+        <div
+          ref="editorRef"
+          class="editor-div"
+          id="editor"
+          title="マークダウンエディター&#10;Wikiとして作成したい文書をマークダウンで記述します。&#10;作成はリアルタイムで左側のプレビューエリアに反映されます。"
+        ></div>
       </div>
     </div>
 
     <div class="post-btn-and-switch">
-      <button type="submit" title="Wikiを作成&#10;ショートカット: Ctrl + m" class="btn-post"
-          v-on:click.prevent="createWiki">+ 作成</button>
+      <button
+        type="submit"
+        title="Wikiを作成&#10;ショートカット: Ctrl + m"
+        class="btn-post"
+        v-on:click.prevent="createWiki"
+      >
+        + 作成
+      </button>
     </div>
 
     <div class="right-area-preview" v-if="isPreview">
       <div class="right-h3">
         <h3 class="editor-and-preview-title" id="title_h3_2">Preview</h3>
       </div>
-      <div class="preview-area" id="result" ref="previewArea" :style="{ height: (divHeight + 37) + 'px' }">
+      <div
+        class="preview-area"
+        id="result"
+        ref="previewArea"
+        :style="{ height: divHeight + 37 + 'px' }"
+      >
         <section v-html="markDownConv"></section>
       </div>
     </div>
@@ -1450,22 +1563,102 @@ function insertMarkdown(text: string) {
 
   <!-- マークダウン入力支援ボタン -->
   <div class="input-tools" v-show="isShowTools" :style="{ right: isPreview ? '53%' : '5%' }">
-    <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')"><img :src="`${assetsUrl}format_h2_24.png`" class="btn-input-tools-img" alt="format_h2_24.png"></button>
-    <button class="btn-input-tools" title="### を挿入" v-on:click="insertMarkdown('### ')"><img :src="`${assetsUrl}format_h3_24.png`" class="btn-input-tools-img" alt="format_h3_24.png"></button>
-    <button class="btn-input-tools" title="** を挿入" v-on:click="insertMarkdown('**')"><img :src="`${assetsUrl}format_bold_24.png`" class="btn-input-tools-img" alt="format_bold_24.png"></button>
-    <button class="btn-input-tools" title="- を挿入" v-on:click="insertMarkdown('- ')"><img :src="`${assetsUrl}format_list_bulleted_24.png`" class="btn-input-tools-img" alt="format_list_bulleted_24.png"></button>
-    <button class="btn-input-tools" title="1. を挿入" v-on:click="insertMarkdown('1. ')"><img :src="`${assetsUrl}format_list_numbered_24.png`" class="btn-input-tools-img" alt="format_list_numbered_24.png"></button>
-    <button class="btn-input-tools" title="|を挿入" v-on:click="insertMarkdown('|')"><img :src="`${assetsUrl}table_24.png`" class="btn-input-tools-img" alt="table_24.png"></button>
-    <button class="btn-input-tools" title="---を挿入" v-on:click="insertMarkdown('---')"><img :src="`${assetsUrl}more_horiz_24.png`" class="btn-input-tools-img" alt="more_horiz_24.png"></button>
-    <button class="btn-input-tools" title="~を挿入" v-on:click="insertMarkdown('~')"><img :src="`${assetsUrl}strikethrough_24.png`" class="btn-input-tools-img" alt="strikethrough_24.png"></button>
-    <button class="btn-input-tools" title="```を挿入" v-on:click="insertMarkdown('```')"><img :src="`${assetsUrl}code_24.png`" class="btn-input-tools-img" alt="code_24.png"></button>
-    <button class="btn-input-tools" title="`を挿入" v-on:click="insertMarkdown('`')"><img :src="`${assetsUrl}ink_highlighter_24.png`" class="btn-input-tools-img" alt="ink_highlighter_24.png"></button>
-    <button class="btn-input-tools" title=">を挿入" v-on:click="insertMarkdown('>')"><img :src="`${assetsUrl}chat_24.png`" class="btn-input-tools-img" alt="chat_24.png"></button>
-    <button class="btn-input-tools" title="[Title](URL)を挿入" v-on:click="insertMarkdown('[Title](URL)')"><img :src="`${assetsUrl}link_24.png`" class="btn-input-tools-img" alt="link_24.png"></button>
-    <button class="btn-input-tools" title=":::detailsを挿入" v-on:click="insertMarkdown(':::details タイトル\n非表示にする内容\n:::')"><img :src="`${assetsUrl}more_24.png`" class="btn-input-tools-img" alt="more_24.png"></button>
-    <button class="btn-input-tools" title=":::noteを挿入" v-on:click="insertMarkdown(':::note タイトル\n内容\n:::')"><img :src="`${assetsUrl}info_24.png`" class="btn-input-tools-img" alt="info_24.png"></button>
-    <button class="btn-input-tools" title=":::warningを挿入" v-on:click="insertMarkdown(':::warning タイトル\n内容\n:::')"><img :src="`${assetsUrl}warning_24.png`" class="btn-input-tools-img" alt="warning_24.png"></button>
-    <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')"><img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png"></button>
+    <button class="btn-input-tools" title="## を挿入" v-on:click="insertMarkdown('## ')">
+      <img
+        :src="`${assetsUrl}format_h2_24.png`"
+        class="btn-input-tools-img"
+        alt="format_h2_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="### を挿入" v-on:click="insertMarkdown('### ')">
+      <img
+        :src="`${assetsUrl}format_h3_24.png`"
+        class="btn-input-tools-img"
+        alt="format_h3_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="** を挿入" v-on:click="insertMarkdown('**')">
+      <img
+        :src="`${assetsUrl}format_bold_24.png`"
+        class="btn-input-tools-img"
+        alt="format_bold_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="- を挿入" v-on:click="insertMarkdown('- ')">
+      <img
+        :src="`${assetsUrl}format_list_bulleted_24.png`"
+        class="btn-input-tools-img"
+        alt="format_list_bulleted_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="1. を挿入" v-on:click="insertMarkdown('1. ')">
+      <img
+        :src="`${assetsUrl}format_list_numbered_24.png`"
+        class="btn-input-tools-img"
+        alt="format_list_numbered_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="|を挿入" v-on:click="insertMarkdown('|')">
+      <img :src="`${assetsUrl}table_24.png`" class="btn-input-tools-img" alt="table_24.png" />
+    </button>
+    <button class="btn-input-tools" title="---を挿入" v-on:click="insertMarkdown('---')">
+      <img
+        :src="`${assetsUrl}more_horiz_24.png`"
+        class="btn-input-tools-img"
+        alt="more_horiz_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="~を挿入" v-on:click="insertMarkdown('~')">
+      <img
+        :src="`${assetsUrl}strikethrough_24.png`"
+        class="btn-input-tools-img"
+        alt="strikethrough_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title="```を挿入" v-on:click="insertMarkdown('```')">
+      <img :src="`${assetsUrl}code_24.png`" class="btn-input-tools-img" alt="code_24.png" />
+    </button>
+    <button class="btn-input-tools" title="`を挿入" v-on:click="insertMarkdown('`')">
+      <img
+        :src="`${assetsUrl}ink_highlighter_24.png`"
+        class="btn-input-tools-img"
+        alt="ink_highlighter_24.png"
+      />
+    </button>
+    <button class="btn-input-tools" title=">を挿入" v-on:click="insertMarkdown('>')">
+      <img :src="`${assetsUrl}chat_24.png`" class="btn-input-tools-img" alt="chat_24.png" />
+    </button>
+    <button
+      class="btn-input-tools"
+      title="[Title](URL)を挿入"
+      v-on:click="insertMarkdown('[Title](URL)')"
+    >
+      <img :src="`${assetsUrl}link_24.png`" class="btn-input-tools-img" alt="link_24.png" />
+    </button>
+    <button
+      class="btn-input-tools"
+      title=":::detailsを挿入"
+      v-on:click="insertMarkdown(':::details タイトル\n非表示にする内容\n:::')"
+    >
+      <img :src="`${assetsUrl}more_24.png`" class="btn-input-tools-img" alt="more_24.png" />
+    </button>
+    <button
+      class="btn-input-tools"
+      title=":::noteを挿入"
+      v-on:click="insertMarkdown(':::note タイトル\n内容\n:::')"
+    >
+      <img :src="`${assetsUrl}info_24.png`" class="btn-input-tools-img" alt="info_24.png" />
+    </button>
+    <button
+      class="btn-input-tools"
+      title=":::warningを挿入"
+      v-on:click="insertMarkdown(':::warning タイトル\n内容\n:::')"
+    >
+      <img :src="`${assetsUrl}warning_24.png`" class="btn-input-tools-img" alt="warning_24.png" />
+    </button>
+    <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')">
+      <img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png" />
+    </button>
   </div>
 
   <!-- 画像アップロードモーダル -->
@@ -1482,10 +1675,19 @@ function insertMarkdown(text: string) {
           </thead>
           <tbody>
             <tr>
-              <td><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
-                id="image1" v-on:change="onImageSelect"/></td>
-              <td><button type="submit" class="btn-file-upload"
-                  v-on:click.prevent="imageFileSend">アップロード</button></td>
+              <td>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
+                  id="image1"
+                  v-on:change="onImageSelect"
+                />
+              </td>
+              <td>
+                <button type="submit" class="btn-file-upload" v-on:click.prevent="imageFileSend">
+                  アップロード
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1503,13 +1705,15 @@ function insertMarkdown(text: string) {
       <h2 class="modal-h2">画像・PDF・動画</h2>
       <div class="search-form">
         <div class="form-text">
-          <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData">
+          <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData" />
         </div>
         <div class="btn-img-search-clear-zone">
-          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(false)"><img
-              :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
-          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(true)"><img
-              :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
+          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(false)">
+            <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+          </button>
+          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(true)">
+            <img :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png" />
+          </button>
         </div>
       </div>
       <div v-if="imageList.size === 0"><p>画像コンテンツがありません。</p></div>
@@ -1523,14 +1727,45 @@ function insertMarkdown(text: string) {
           </thead>
           <tbody>
             <tr v-for="[id, image] in imageList" v-bind:key="id">
-              <td v-if="isPDF(image.uuid_filename)" :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">[{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-              <td v-else-if="isMP4(image.uuid_filename)" :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">?[{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-              <td v-else :id=image.uuid_filename v-on:click="selectTextOrClipboardCopy(image.uuid_filename)">![{{ image.filename }}]({{
-                baseUrl }}/static/images/{{ image.uuid_filename }})</td>
-              <td v-if="isPDF(image.uuid_filename)" v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img :src="`${assetsUrl}picture_as_pdf.png`" class="btn-img-table" alt="picture_as_pdf.png"></td>
-              <td v-else="isPDF(image.uuid_filename)" v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png"></td>
+              <td
+                v-if="isPDF(image.uuid_filename)"
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                [{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+              <td
+                v-else-if="isMP4(image.uuid_filename)"
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                ?[{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+              <td
+                v-else
+                :id="image.uuid_filename"
+                v-on:click="selectTextOrClipboardCopy(image.uuid_filename)"
+              >
+                ![{{ image.filename }}]({{ baseUrl }}/static/images/{{ image.uuid_filename }})
+              </td>
+              <td
+                v-if="isPDF(image.uuid_filename)"
+                v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img
+                  :src="`${assetsUrl}picture_as_pdf.png`"
+                  class="btn-img-table"
+                  alt="picture_as_pdf.png"
+                />
+              </td>
+              <td
+                v-else="isPDF(image.uuid_filename)"
+                v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1547,16 +1782,20 @@ function insertMarkdown(text: string) {
       <h2 class="modal-h2">画像・PDF・動画</h2>
       <div class="search-form">
         <div class="form-text">
-          <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData">
+          <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData" />
         </div>
         <div class="btn-img-search-clear-zone">
-          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(false)"><img
-              :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png"></button>
-          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(true)"><img
-              :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png"></button>
+          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(false)">
+            <img :src="`${assetsUrl}search_fill24.png`" class="btn-img" alt="search_fill24.png" />
+          </button>
+          <button class="btn-search-start-reset" type="submit" v-on:click.prevent="onSearch(true)">
+            <img :src="`${assetsUrl}update_fill24.png`" class="btn-img" alt="update_fill24.png" />
+          </button>
         </div>
       </div>
-      <div v-if="imageList.size === 0" style="text-align: center;"><p>画像コンテンツがありません。</p></div>
+      <div v-if="imageList.size === 0" style="text-align: center">
+        <p>画像コンテンツがありません。</p>
+      </div>
       <div v-else class="table_sticky">
         <table>
           <thead>
@@ -1567,9 +1806,25 @@ function insertMarkdown(text: string) {
           </thead>
           <tbody>
             <tr v-for="[id, image] in imageList" v-bind:key="id">
-                <td v-on:click="onImageCopyPath(image.id)">{{ image.filename }}</td>
-                <td v-if="isPDF(image.filename)" v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img :src="`${assetsUrl}picture_as_pdf.png`" class="btn-img-table" alt="picture_as_pdf.png"></td>
-                <td v-else="isPDF(image.filename)" v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)" class="td-img"><img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png"></td>
+              <td v-on:click="onImageCopyPath(image.id)">{{ image.filename }}</td>
+              <td
+                v-if="isPDF(image.filename)"
+                v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img
+                  :src="`${assetsUrl}picture_as_pdf.png`"
+                  class="btn-img-table"
+                  alt="picture_as_pdf.png"
+                />
+              </td>
+              <td
+                v-else="isPDF(image.filename)"
+                v-on:click.prevent="onOpenImagePreviewModal(image.uuid_filename, image.id)"
+                class="td-img"
+              >
+                <img :src="`${assetsUrl}camera24.png`" class="btn-img-table" alt="camera24.png" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1595,8 +1850,8 @@ function insertMarkdown(text: string) {
   <div id="overlay-pdf-preview" v-show="pdfPreviewModal">
     <div id="content-pdf-view">
       <div v-for="(canvas, index) in pdfCanvases" :key="index">
-      <canvas :id="canvas.ref"></canvas>
-    </div>
+        <canvas :id="canvas.ref"></canvas>
+      </div>
       <div class="btn-zone">
         <button v-on:click.prevent="onOpenImageDeleteModal()">削除</button>
         <button v-on:click.prevent="onClosePDFPreviewModal()">閉じる</button>
@@ -1623,10 +1878,14 @@ function insertMarkdown(text: string) {
     <div id="content-message">
       <h2 class="modal-h2">メッセージ</h2>
       <div class="input-text-zone">
-        <p><strong>{{ messageText }}</strong></p>
+        <p>
+          <strong>{{ messageText }}</strong>
+        </p>
       </div>
       <div class="btn-close">
-        <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')">閉じる</button>
+        <button id="message-close-btn" v-on:click="messageModalOpenClose('No Message')">
+          閉じる
+        </button>
       </div>
     </div>
   </div>
@@ -1640,7 +1899,9 @@ function insertMarkdown(text: string) {
         <pre><code :id=uploadedUniqueFileName v-on:click="selectTextOrClipboardCopy(`${uploadedUniqueFileName}`)">{{ uploadedUrl }}</code></pre>
       </div>
       <div class="btn-close">
-        <button id="message-close-btn" v-on:click="uploadMessageModalOpenClose('', '')">閉じる</button>
+        <button id="message-close-btn" v-on:click="uploadMessageModalOpenClose('', '')">
+          閉じる
+        </button>
       </div>
     </div>
   </div>
@@ -1649,9 +1910,16 @@ function insertMarkdown(text: string) {
   <div id="overlay-progress-bar" v-show="showProgressModal">
     <svg class="spinner" width="50" height="50" view-box="0 0 50 50" aria-hidden="true">
       <g transform="rotate(-90 25 25)">
-        <circle cx="25" cy="25" r="20" fill="none"
-                stroke="#76c7c0" stroke-width="5" stroke-linecap="round"
-                stroke-dasharray="31.4 31.4" />
+        <circle
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke="#76c7c0"
+          stroke-width="5"
+          stroke-linecap="round"
+          stroke-dasharray="31.4 31.4"
+        />
       </g>
     </svg>
   </div>
@@ -1661,7 +1929,12 @@ function insertMarkdown(text: string) {
     <div id="content-katex-view">
       <h2 class="modal-h2">数式作成</h2>
       <div ref="mathContainer" v-html="renderedFormula" id="content-katex"></div>
-      <textarea class="input-katex" id="input-katex" name="input-katex" v-model="formula"></textarea>
+      <textarea
+        class="input-katex"
+        id="input-katex"
+        name="input-katex"
+        v-model="formula"
+      ></textarea>
       <div :class="{ 'btn-zone': isGenMath, 'btn-close': !isGenMath }">
         <button v-on:click.prevent="onCloseKatexModal()">閉じる</button>
         <button v-on:click.prevent="saveMathImage()" v-if="isGenMath">保存</button>
@@ -1826,12 +2099,12 @@ input[type='checkbox'] {
   background-color: #ddd;
 }
 
-input:checked~.base {
+input:checked ~ .base {
   background-color: rgb(219, 234, 254);
   transition: 0.5s;
 }
 
-input:checked~.circle {
+input:checked ~ .circle {
   transform: translateX(100%);
   background-color: blue;
 }
@@ -1880,9 +2153,9 @@ input:checked~.circle {
   border-radius: 20px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
+  transition-duration: 0.5s;
   transition: background-color 0.3s;
-  -webkit-transition-duration: .5s;
+  -webkit-transition-duration: 0.5s;
   margin: 5px 5px 5px 5px;
 }
 
@@ -2027,7 +2300,8 @@ h3#title_h3_2:after {
 }
 
 /* 画像一覧モーダル */
-#overlay-imagelist, #overlay-image-https-list {
+#overlay-imagelist,
+#overlay-image-https-list {
   z-index: 1;
   position: fixed;
   top: 0;
@@ -2041,7 +2315,8 @@ h3#title_h3_2:after {
 }
 
 /* 画像一覧モーダルのコンテンツ */
-#content-image, #content-image-https-list {
+#content-image,
+#content-image-https-list {
   z-index: 2;
   width: 70%;
   padding: 1em;
@@ -2193,8 +2468,8 @@ canvas {
   border-radius: 5px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   transition: background-color 0.3s;
   margin: 5px 5px 10px 5px;
 }
@@ -2228,7 +2503,7 @@ canvas {
 
 .query1:focus {
   outline: none;
-  border-color: #007BFF;
+  border-color: #007bff;
   box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
@@ -2249,8 +2524,8 @@ canvas {
   border: 1px solid rgb(207, 207, 207);
   border-radius: 50%;
   padding: 0;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   transition: background-color 0.3s;
   margin-left: 8px;
   margin-right: 2%;
@@ -2354,7 +2629,7 @@ canvas {
 
 .input-katex:focus {
   outline: none;
-  border-color: #007BFF;
+  border-color: #007bff;
   box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 

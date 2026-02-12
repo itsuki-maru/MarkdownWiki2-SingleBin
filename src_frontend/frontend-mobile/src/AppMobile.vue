@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { reactive, provide, ref, onMounted } from "vue";
-import type { LoginUser } from "./interface";
-import { useRouter } from "vue-router";
-import { assetsUrl } from "@/setting";
-import { useApplicationInitStore } from "./stores/appInits";
+import { reactive, provide, ref, onMounted } from 'vue';
+import type { LoginUser } from './interface';
+import { useRouter } from 'vue-router';
+import { assetsUrl } from '@/setting';
+import { useApplicationInitStore } from './stores/appInits';
 
 const appInitStore = useApplicationInitStore();
 const appTitle = ref(appInitStore.appInitData.appTitle);
@@ -11,19 +11,19 @@ const appTitle = ref(appInitStore.appInitData.appTitle);
 // Login User Status Provide.
 const loginUser: LoginUser = {
   isAuthenticated: false,
-}
-provide("loginUser", reactive(loginUser));
+};
+provide('loginUser', reactive(loginUser));
 
 // メモアイコンの表示非表示管理
 const isShowMemoIcon = ref(true);
 // 他の子コンポーネントで表示・非表示を切り替えられるようにprovide
-provide("isShowMemoIcon", isShowMemoIcon);
+provide('isShowMemoIcon', isShowMemoIcon);
 
 // List.vueへリダイレクト
 const router = useRouter();
 const listRedirect = (): void => {
-  router.push("/wiki/list");
-}
+  router.push('/wiki/list');
+};
 
 listRedirect();
 
@@ -39,7 +39,7 @@ onMounted(() => {
 <template>
   <div class="container">
     <div v-if="showSplashScreen" id="splash-screen">
-      <img :src="`${assetsUrl}icon-512x512.png`" alt="App Logo" class="logo"/>
+      <img :src="`${assetsUrl}icon-512x512.png`" alt="App Logo" class="logo" />
       <h1 id="splash-title">MarkdownWiki2</h1>
     </div>
     <header class="parent-header">
@@ -55,15 +55,14 @@ html {
 }
 
 .app-header {
-  color: #4183C4;
+  color: #4183c4;
   font-size: 28px;
   text-shadow: 2px 1px 2px rgb(165, 165, 165);
   letter-spacing: 1px;
 }
 
-
 .app-header a {
-  color: #4183C4;
+  color: #4183c4;
   font-size: 28px;
 }
 
@@ -118,7 +117,7 @@ a {
 }
 
 #splash-title {
-  color: #4183C4;
+  color: #4183c4;
   font-size: 28px;
   text-shadow: 2px 1px 2px rgb(165, 165, 165);
   letter-spacing: 1px;
@@ -170,7 +169,7 @@ a {
   margin-top: 1px;
   text-decoration: none;
   background-color: #ffb6ba;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
 
 /* 追加されたテキスト */
@@ -179,7 +178,6 @@ a {
   margin-top: -1px;
   text-decoration: none;
   background-color: #97f295;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
-
 </style>

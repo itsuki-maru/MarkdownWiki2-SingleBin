@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { reactive, provide, ref } from "vue";
-import type { LoginUser } from "./interface";
-import { useRouter } from "vue-router";
-import { useApplicationInitStore } from "./stores/appInits";
+import { reactive, provide, ref } from 'vue';
+import type { LoginUser } from './interface';
+import { useRouter } from 'vue-router';
+import { useApplicationInitStore } from './stores/appInits';
 
 const appInitStore = useApplicationInitStore();
 const appTitle = ref(appInitStore.appInitData.appTitle);
@@ -10,14 +10,14 @@ const appTitle = ref(appInitStore.appInitData.appTitle);
 // Login User Status Provide.
 const loginUser: LoginUser = {
   isAuthenticated: false,
-}
-provide("loginUser", reactive(loginUser));
+};
+provide('loginUser', reactive(loginUser));
 
 // List.vueへリダイレクト
 const router = useRouter();
 const listRedirect = (): void => {
-  router.push("/users/list");
-}
+  router.push('/users/list');
+};
 
 listRedirect();
 </script>
@@ -58,7 +58,7 @@ html {
 }
 
 .app-header {
-  color: #4183C4;
+  color: #4183c4;
   text-shadow: 2px 1px 2px rgb(165, 165, 165);
   letter-spacing: 1px;
   font-size: 40px;
@@ -66,7 +66,7 @@ html {
 }
 
 .app-header a {
-  color: #4183C4;
+  color: #4183c4;
 }
 
 .other-function-btn-zone {
@@ -142,13 +142,13 @@ a {
   border-radius: 5px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 5px 5px 10px 5px;
 }
 
 .btn-modal-save:hover {
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .btn-modal-yes {
@@ -164,13 +164,13 @@ a {
   border-radius: 5px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 5px 5px 10px 5px;
 }
 
 .btn-modal-yes:hover {
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .btn-modal-no {
@@ -186,13 +186,13 @@ a {
   border-radius: 5px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   margin: 5px 5px 10px 5px;
 }
 
 .btn-modal-no:hover {
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .setting-contents {
@@ -220,7 +220,7 @@ a {
   margin-top: 1px;
   text-decoration: none;
   background-color: #ffb6ba;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
 
 /* 追加されたテキスト */
@@ -229,6 +229,6 @@ a {
   margin-top: -1px;
   text-decoration: none;
   background-color: #97f295;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
 </style>

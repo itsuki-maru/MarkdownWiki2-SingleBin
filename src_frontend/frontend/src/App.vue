@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { reactive, provide, onMounted, onUnmounted, ref, watch } from "vue";
-import type { LoginUser } from "./interface";
-import { assetsUrl } from "@/setting";
-import { useRouter } from "vue-router";
-import ace from "ace-builds";
-import "ace-builds/src-noconflict/ext-searchbox"; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
-import "ace-builds/src-noconflict/mode-markdown"; // Aceでマークダウンを使用するためのモジュール
-import "ace-builds/src-noconflict/theme-monokai"; // Aceのテーマのモジュール
-import UserPrivacySetting from "@/components/UserPrivacySetting.vue";
-import { useApplicationInitStore } from "./stores/appInits";
+import { reactive, provide, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { LoginUser } from './interface';
+import { assetsUrl } from '@/setting';
+import { useRouter } from 'vue-router';
+import ace from 'ace-builds';
+import 'ace-builds/src-noconflict/ext-searchbox'; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
+import 'ace-builds/src-noconflict/mode-markdown'; // Aceでマークダウンを使用するためのモジュール
+import 'ace-builds/src-noconflict/theme-monokai'; // Aceのテーマのモジュール
+import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
+import { useApplicationInitStore } from './stores/appInits';
 
 const appInitStore = useApplicationInitStore();
 const appTitle = ref(appInitStore.appInitData.appTitle);
@@ -16,21 +16,21 @@ const appTitle = ref(appInitStore.appInitData.appTitle);
 // Login User Status Provide.
 const loginUser: LoginUser = {
   isAuthenticated: false,
-}
-provide("loginUser", reactive(loginUser));
+};
+provide('loginUser', reactive(loginUser));
 
 // List.vueへリダイレクト
 const router = useRouter();
 const listRedirect = (): void => {
-  router.push("/wiki/list");
-}
+  router.push('/wiki/list');
+};
 
 listRedirect();
 
 // メモアイコンの表示非表示管理
 const isShowMemoIcon = ref(true);
 // 他の子コンポーネントで表示・非表示を切り替えられるようにprovide
-provide("isShowMemoIcon", isShowMemoIcon);
+provide('isShowMemoIcon', isShowMemoIcon);
 
 // メモモーダルの描画
 const showMemoContent = ref(false);
@@ -44,14 +44,14 @@ const onOpenCloseMemoModal = (): void => {
       editor.focus();
     }, 300);
   }
-}
+};
 
 // Aceエディタを定義
 const editorRef = ref<HTMLDivElement | null>(null);
 let editor: any | null = null;
 
 // contentの変化を監視
-const content = ref("");
+const content = ref('');
 watch(content, (newContent) => {
   if (editor && editor.getValue() !== newContent) {
     editor.setValue(newContent, 1);
@@ -63,14 +63,14 @@ onMounted(() => {
   // Aceの設定
   if (editorRef.value) {
     editor = ace.edit(editorRef.value);
-    editor.getSession().setMode("ace/mode/markdown");
+    editor.getSession().setMode('ace/mode/markdown');
     editor.getSession().setUseWrapMode(true);
     editor.setFontSize(18);
     // 80文字の縦ラインを消す
     editor.setShowPrintMargin(false);
   }
   // editorの変更を監視
-  editor.on("change", () => {
+  editor.on('change', () => {
     const newValue = editor.getValue();
     if (newValue !== content.value) {
       content.value = newValue;
@@ -80,13 +80,13 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (editor) {
-    editor.destroy()
+    editor.destroy();
   }
 });
 
 // QRコード作成モーダルの描画
 const showQRContent = ref(false);
-const qrCodeText = ref("");
+const qrCodeText = ref('');
 const isGenerateOk = ref(false);
 // TypeScript でグローバル変数を使用する場合、型アサーションが必要
 // QRCodeはindex.htmlでCDN経由で読み込み、既にページにグローバルとして存在するため、これを明示
@@ -95,22 +95,22 @@ const QRCode: any = (window as any).QRCode;
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;
 onMounted(() => {
-  qrcode = new QRCode(document.getElementById("qrcode"), {
+  qrcode = new QRCode(document.getElementById('qrcode'), {
     text: qrCodeText.value,
     width: 128,
     height: 128,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H,
   });
 });
 
 watch(qrCodeText, () => {
-  if (qrCodeText.value === "") {
-    let qrElement = document.getElementById("qrcode") as HTMLElement | null;
+  if (qrCodeText.value === '') {
+    let qrElement = document.getElementById('qrcode') as HTMLElement | null;
     if (qrElement !== null) {
-      const images = qrElement.querySelectorAll("img");
-      images.forEach(img => img.style.display = "none");
+      const images = qrElement.querySelectorAll('img');
+      images.forEach((img) => (img.style.display = 'none'));
     }
     isGenerateOk.value = false;
   } else {
@@ -126,15 +126,15 @@ const onOpenCloseQRCodeCreateModal = (): void => {
     showQRContent.value = true;
     // カーソルのフォーカスがエディタ描画完了後になるようにsetTimeoutで遅延させる
     setTimeout(() => {
-      document.getElementById("qr-input-text")!.focus();
+      document.getElementById('qr-input-text')!.focus();
     }, 300);
   }
-}
+};
 
 // QRCode作成関数
 function generateQRCode(): void {
   const text = qrCodeText.value;
-  if (text === "") {
+  if (text === '') {
     return;
   }
 
@@ -144,13 +144,13 @@ function generateQRCode(): void {
 
 // QRCode保存関数
 function saveQRCode(): void {
-  const canvas: any = document.querySelector("#qrcode canvas");
+  const canvas: any = document.querySelector('#qrcode canvas');
   if (canvas) {
     // canvas要素から画像のURLを生成
-    const imageUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    const imageUrl = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
     // ダウンロードリンクを作成
-    const link = document.createElement("a");
-    link.download = "qrcode.png";
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
     link.href = imageUrl;
     link.click();
   }
@@ -160,14 +160,14 @@ function saveQRCode(): void {
 // HTMLが描画後に組み込む（onmoutedを利用）
 onMounted(() => {
   // オーバレイとメモの内容を取得
-  const memoModal = document.getElementById("overlay-memo");
-  const memoModalContent = document.getElementById("content-memo");
+  const memoModal = document.getElementById('overlay-memo');
+  const memoModalContent = document.getElementById('content-memo');
 
   // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
   if (memoModal) {
-    memoModal.addEventListener("click", function (event) {
+    memoModal.addEventListener('click', function (event) {
       if (showMemoContent.value === true) {
-        showMemoContent.value = false
+        showMemoContent.value = false;
       } else {
         return;
       }
@@ -176,7 +176,7 @@ onMounted(() => {
 
   // 灰色の部分以外（content-memo）をクリックした時にはイベント伝搬を止め、クローズさせない
   if (memoModalContent) {
-    memoModalContent.addEventListener("click", function (event) {
+    memoModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -184,19 +184,19 @@ onMounted(() => {
 
 // QRコード生成モーダル
 onMounted(() => {
-  const genQRCodeModal = document.getElementById("overlay-gen-qrcode");
-  const genQRCodeModalContent = document.getElementById("content-gen-qrcode");
+  const genQRCodeModal = document.getElementById('overlay-gen-qrcode');
+  const genQRCodeModalContent = document.getElementById('content-gen-qrcode');
   if (genQRCodeModal) {
-    genQRCodeModal.addEventListener("click", function (event) {
+    genQRCodeModal.addEventListener('click', function (event) {
       if (showQRContent.value === true) {
-        showQRContent.value = false
+        showQRContent.value = false;
       } else {
         return;
       }
     });
   }
   if (genQRCodeModalContent) {
-    genQRCodeModalContent.addEventListener("click", function (event) {
+    genQRCodeModalContent.addEventListener('click', function (event) {
       event.stopPropagation();
     });
   }
@@ -204,23 +204,23 @@ onMounted(() => {
 
 // メモ機能呼び出しのショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.altKey && event.key === "m") {
-    event.preventDefault() // デフォルトのブラウザのショートカットをキャンセル
+  if (event.altKey && event.key === 'm') {
+    event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
     onOpenCloseMemoModal();
-  } else if (event.altKey && event.key === "q") {
-    event.preventDefault() // デフォルトのブラウザのショートカットをキャンセル
+  } else if (event.altKey && event.key === 'q') {
+    event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
     onOpenCloseQRCodeCreateModal();
   }
 };
 
 // コンポーネントマウント時にイベントリスナーを追加
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 // コンポーネントがアンマウントされた際にイベントリスナーを削除
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 
 const showSplashScreen = ref(true);
@@ -233,14 +233,14 @@ onMounted(() => {
 
 // メッセージ表示モーダル機能
 const isMessageModal = ref(false);
-const messageText = ref("");
+const messageText = ref('');
 const messageModalOpenClose = (message: string): void => {
   if (!isMessageModal.value) {
     messageText.value = message;
     isMessageModal.value = true;
   } else {
     isMessageModal.value = false;
-    messageText.value = "";
+    messageText.value = '';
   }
 };
 </script>
@@ -248,20 +248,34 @@ const messageModalOpenClose = (message: string): void => {
 <template>
   <div class="container">
     <div v-if="showSplashScreen" id="splash-screen">
-      <img :src="`${assetsUrl}icon-512x512.png`" alt="App Logo" class="logo"/>
+      <img :src="`${assetsUrl}icon-512x512.png`" alt="App Logo" class="logo" />
       <h1 id="splash-title">MarkdownWiki2</h1>
     </div>
     <header class="parent-header">
       <h1 class="app-header" id="application-title">{{ appTitle }}</h1>
       <div v-show="isShowMemoIcon">
-        <button class="btn-memo-open-close btn-hover"
+        <button
+          class="btn-memo-open-close btn-hover"
           title="メモ機能&#10;記述したメモは各画面にまたがって確認できます。&#10;メモはブラウザを閉じるまで保存されます。&#10;ショートカット: Alt + M"
-          v-on:click="onOpenCloseMemoModal"><img :src="`${assetsUrl}fillable_card_line24.png`" class="btn-img"
-            alt="fillable_card_line24.png"></button>
-        <button class="btn-qrcode-creater-open-close btn-hover"
+          v-on:click="onOpenCloseMemoModal"
+        >
+          <img
+            :src="`${assetsUrl}fillable_card_line24.png`"
+            class="btn-img"
+            alt="fillable_card_line24.png"
+          />
+        </button>
+        <button
+          class="btn-qrcode-creater-open-close btn-hover"
           title="QRコード生成機能&#10;入力したテキストからQRコードを生成します。&#10;ショートカット: Alt + Q"
-          v-on:click="onOpenCloseQRCodeCreateModal"><img :src="`${assetsUrl}code_reader_line24.png`" class="btn-img"
-            alt="code_reader_line24.png"></button>
+          v-on:click="onOpenCloseQRCodeCreateModal"
+        >
+          <img
+            :src="`${assetsUrl}code_reader_line24.png`"
+            class="btn-img"
+            alt="code_reader_line24.png"
+          />
+        </button>
       </div>
     </header>
     <RouterView />
@@ -283,8 +297,16 @@ const messageModalOpenClose = (message: string): void => {
           <h2 class="modal-h2">QRコード生成</h2>
           <div class="setting-contents">
             <div id="qrcode" class="qrcode"></div>
-            <input type="text" maxlength="150" title="" id="qr-input-text" placeholder="Input Text."
-                  class="input-textbox" required v-model="qrCodeText"/>
+            <input
+              type="text"
+              maxlength="150"
+              title=""
+              id="qr-input-text"
+              placeholder="Input Text."
+              class="input-textbox"
+              required
+              v-model="qrCodeText"
+            />
             <div :class="{ 'btn-zone': isGenerateOk, 'btn-close': !isGenerateOk }">
               <button v-if="isGenerateOk" v-on:click="saveQRCode()">保存</button>
               <button v-on:click="onOpenCloseQRCodeCreateModal">閉じる</button>
@@ -293,7 +315,7 @@ const messageModalOpenClose = (message: string): void => {
         </div>
       </div>
     </transition>
-    
+
     <!-- ユーザー設定変更モーダル -->
     <UserPrivacySetting ref="userSettingModalRef"></UserPrivacySetting>
 
@@ -302,14 +324,15 @@ const messageModalOpenClose = (message: string): void => {
       <div id="content-message">
         <h2 class="modal-h2">メッセージ</h2>
         <div class="input-text-zone">
-          <p><strong>{{ messageText }}</strong></p>
+          <p>
+            <strong>{{ messageText }}</strong>
+          </p>
         </div>
         <div class="btn-close">
           <button v-on:click="messageModalOpenClose('No Message')">閉じる</button>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -340,7 +363,7 @@ html {
 }
 
 .app-header {
-  color: #4183C4;
+  color: #4183c4;
   text-shadow: 2px 1px 2px rgb(165, 165, 165);
   letter-spacing: 1px;
   font-size: 36px;
@@ -348,7 +371,7 @@ html {
 }
 
 .app-header a {
-  color: #4183C4;
+  color: #4183c4;
 }
 
 .other-function-btn-zone {
@@ -440,8 +463,8 @@ a {
   border-radius: 14px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   transition: background-color 0.3s;
   margin: 5px 5px 10px 5px;
 }
@@ -462,8 +485,8 @@ a {
   border-radius: 14px;
   transition-property: opacity;
   -webkit-transition-property: opacity;
-  transition-duration: .5s;
-  -webkit-transition-duration: .5s;
+  transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
   transition: background-color 0.3s;
   margin: 5px 5px 10px 5px;
 }
@@ -564,7 +587,7 @@ a {
   margin-top: 1px;
   text-decoration: none;
   background-color: #ffb6ba;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
 
 /* 追加されたテキスト */
@@ -573,7 +596,7 @@ a {
   margin-top: -1px;
   text-decoration: none;
   background-color: #97f295;
-  border-radius: .2em;
+  border-radius: 0.2em;
 }
 
 #splash-screen {
@@ -594,7 +617,7 @@ a {
 }
 
 #splash-title {
-  color: #4183C4;
+  color: #4183c4;
   font-size: 32px;
   text-shadow: 2px 1px 2px rgb(165, 165, 165);
   letter-spacing: 1px;
@@ -633,22 +656,22 @@ a {
 /* メッセージモーダル */
 #overlay-message {
   z-index: 19;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background-color:rgba(0,0,0,0.5);
-  display: flex;;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
 #content-message {
-  z-index:20;
-  width:20%;
+  z-index: 20;
+  width: 20%;
   padding: 1em;
-  background:whitesmoke;
+  background: whitesmoke;
   border-radius: 10px;
 }
 </style>

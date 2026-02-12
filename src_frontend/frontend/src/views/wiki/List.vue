@@ -1,392 +1,392 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { AxiosError } from 'axios'
-import { useRouter } from 'vue-router'
-import { getUserUrl, postOwnerResultUrl, disableEditWikiUrl } from '@/router/urls'
-import type { WikiData, QueryForm, OneTimeWikis, EditRequestWiki } from '@/interface'
-import { assetsUrl, baseUrl } from '@/setting'
-import { useWikiStore } from '@/stores/wikis'
-import { useOnetimeWikiStore } from '@/stores/onetimeWikis'
-import { useEditRequestWikiStore } from '@/stores/editWikis'
-import apiClient from '@/axiosClient'
-import { FilterXSS, getDefaultWhiteList } from 'xss'
-import type { IFilterXSSOptions } from 'xss'
-import UserPrivacySetting from '@/components/UserPrivacySetting.vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { AxiosError } from 'axios';
+import { useRouter } from 'vue-router';
+import { getUserUrl, postOwnerResultUrl, disableEditWikiUrl } from '@/router/urls';
+import type { WikiData, QueryForm, OneTimeWikis, EditRequestWiki } from '@/interface';
+import { assetsUrl, baseUrl } from '@/setting';
+import { useWikiStore } from '@/stores/wikis';
+import { useOnetimeWikiStore } from '@/stores/onetimeWikis';
+import { useEditRequestWikiStore } from '@/stores/editWikis';
+import apiClient from '@/axiosClient';
+import { FilterXSS, getDefaultWhiteList } from 'xss';
+import type { IFilterXSSOptions } from 'xss';
+import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
 
 // アプリケーションの通信プロトコル
-const isHttpsProtocol = ref(false)
+const isHttpsProtocol = ref(false);
 // 現在のURLを取得
-const currentUrl = window.location.href
+const currentUrl = window.location.href;
 // URLを解析
-const url = new URL(currentUrl)
+const url = new URL(currentUrl);
 // プロトコルとホスト名を取得
-const protocol = url.protocol
-const hostname = url.hostname
+const protocol = url.protocol;
+const hostname = url.hostname;
 // HTTPSかlocalhost通信の場合の設定
 if (protocol === 'https:') {
-  isHttpsProtocol.value = true
+  isHttpsProtocol.value = true;
 }
 if (hostname === 'localhost') {
-  isHttpsProtocol.value = true
+  isHttpsProtocol.value = true;
 }
 
 // ホスト名
-const hostName = `${protocol}//${hostname}:${url.port}`
+const hostName = `${protocol}//${hostname}:${url.port}`;
 
 // Login.vueへのリダイレクト
-const router = useRouter()
+const router = useRouter();
 const loginRedirect = (): void => {
-  router.push('/account/login')
-}
+  router.push('/account/login');
+};
 
 // Preview.vueへのリダイレクト
 const previewRedirect = (id: string): void => {
-  localStorage.setItem('prev-table-data', `table-dataid-${id}`)
-  router.push(`/wiki/preview/${id}`)
-}
+  localStorage.setItem('prev-table-data', `table-dataid-${id}`);
+  router.push(`/wiki/preview/${id}`);
+};
 
 // Create.vueへのリダイレクト
 const createRedirect = (): void => {
-  router.push('/wiki/create')
-}
+  router.push('/wiki/create');
+};
 
 // Wiki ストア
-const wikiStore = useWikiStore()
+const wikiStore = useWikiStore();
 const wikiList = computed((): Map<string, WikiData> => {
-  return wikiStore.wikiList
-})
+  return wikiStore.wikiList;
+});
 // wikiデータが存在しなければ再取得
 if (wikiList.value.size === 0) {
-  wikiStore.initList()
+  wikiStore.initList();
 }
 
 // 変更リクエストストア
-const editRequestWikiStore = useEditRequestWikiStore()
+const editRequestWikiStore = useEditRequestWikiStore();
 const editRequestWikiList = computed((): Map<string, EditRequestWiki> => {
-  return editRequestWikiStore.editRequestWikiList
-})
+  return editRequestWikiStore.editRequestWikiList;
+});
 
 // 一時URL発行済みのWikiを取得
-const onetimeWikiStore = useOnetimeWikiStore()
-onetimeWikiStore.initList()
+const onetimeWikiStore = useOnetimeWikiStore();
+onetimeWikiStore.initList();
 const onetimeWikiList = computed((): Map<string, OneTimeWikis> => {
-  return onetimeWikiStore.onetimeWikiList
-})
+  return onetimeWikiStore.onetimeWikiList;
+});
 
 // 共有停止
 const invalidShareUrl = async (id: string, title: string): Promise<void> => {
   try {
-    await onetimeWikiStore.deleteOnetimeWiki(id)
-    messageModalOpenClose(`「${title}」 の共有を停止しました。`)
+    await onetimeWikiStore.deleteOnetimeWiki(id);
+    messageModalOpenClose(`「${title}」 の共有を停止しました。`);
   } catch (error) {
-    console.error(error)
+    console.error(error);
   }
-}
+};
 
 // クエリを行うテキストボックスの初期値
 const queryFormDataInit: QueryForm = {
   query1: '',
-  query2: ''
-}
-const queryFormData = ref(queryFormDataInit)
+  query2: '',
+};
+const queryFormData = ref(queryFormDataInit);
 
 watch(queryFormData.value, (): void => {
-  onSearch()
-})
+  onSearch();
+});
 
 // 検索実行関数
 const onSearch = (reset: boolean = false): void => {
-  localStorage.setItem('prev-table-data', '')
+  localStorage.setItem('prev-table-data', '');
   try {
     if (reset) {
-      wikiStore.queryWiki('', '')
+      wikiStore.queryWiki('', '');
     } else {
-      wikiStore.queryWiki(queryFormData.value.query1, queryFormData.value.query2)
+      wikiStore.queryWiki(queryFormData.value.query1, queryFormData.value.query2);
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
   }
-}
+};
 
 // 現在ユーザーの取得
-const currentUser = ref('')
-const currenrUserId = ref('')
+const currentUser = ref('');
+const currenrUserId = ref('');
 const getCurrentUser = async (): Promise<void> => {
   try {
-    const response = await apiClient.get(getUserUrl)
-    currentUser.value = response.data['public_name']
-    currenrUserId.value = response.data['id']
+    const response = await apiClient.get(getUserUrl);
+    currentUser.value = response.data['public_name'];
+    currenrUserId.value = response.data['id'];
   } catch (error) {
-    loginRedirect()
+    loginRedirect();
   }
-}
-getCurrentUser()
+};
+getCurrentUser();
 
 // 共有リンク発行済みWikiの確認
-const isOpenShareWikis = ref(false)
-const isOpenShareWikisHttp = ref(false)
+const isOpenShareWikis = ref(false);
+const isOpenShareWikisHttp = ref(false);
 const openCloseOnetimeUrls = (): void => {
   // HTTPS OR LOCALHOST
   if (isHttpsProtocol.value) {
     if (isOpenShareWikis.value) {
-      isOpenShareWikis.value = false
+      isOpenShareWikis.value = false;
     } else {
-      onetimeWikiStore.initList()
-      isOpenShareWikis.value = true
+      onetimeWikiStore.initList();
+      isOpenShareWikis.value = true;
     }
 
     // HTTP
   } else {
     if (isOpenShareWikisHttp.value) {
-      isOpenShareWikisHttp.value = false
+      isOpenShareWikisHttp.value = false;
     } else {
-      onetimeWikiStore.initList()
-      isOpenShareWikisHttp.value = true
+      onetimeWikiStore.initList();
+      isOpenShareWikisHttp.value = true;
     }
   }
-}
+};
 
 // 更新リクエスト一覧モーダル
-const isOpenEditRequestWikis = ref(false)
+const isOpenEditRequestWikis = ref(false);
 const openCloseEditRequestWikis = (): void => {
-  editRequestWikiStore.initList()
+  editRequestWikiStore.initList();
   if (isOpenEditRequestWikis.value) {
-    isOpenEditRequestWikis.value = false
+    isOpenEditRequestWikis.value = false;
   } else {
-    isOpenEditRequestWikis.value = true
+    isOpenEditRequestWikis.value = true;
   }
-}
+};
 
 // 更新リクエストステータス対応
 const statusTable = {
   REJECT: '却下',
   REQUESTNOW: '申請中',
   DRAFT: '下書き',
-  APPLIED: '承認'
-}
+  APPLIED: '承認',
+};
 
 // Diff表示モーダルの表示非表示
-const showDiffPreviewModal = ref(false)
-const clickedRequestWikiId = ref('')
+const showDiffPreviewModal = ref(false);
+const clickedRequestWikiId = ref('');
 
-const originalAreaRef = ref<HTMLElement | null>(null)
-const modifiedAreaRef = ref<HTMLElement | null>(null)
+const originalAreaRef = ref<HTMLElement | null>(null);
+const modifiedAreaRef = ref<HTMLElement | null>(null);
 
 const onOpenCloseDiffModal = async (
   id: string,
   text1: string,
   text2: string,
-  isClose: boolean = false
+  isClose: boolean = false,
 ) => {
-  clickedRequestWikiId.value = id
+  clickedRequestWikiId.value = id;
 
   if (isClose) {
-    showDiffPreviewModal.value = false
-    return
+    showDiffPreviewModal.value = false;
+    return;
   }
 
-  showDiffPreviewModal.value = true
+  showDiffPreviewModal.value = true;
 
-  await nextTick()
-  displayDiffs(text1, text2)
-}
+  await nextTick();
+  displayDiffs(text1, text2);
+};
 
-const diff_match_patch: any = (window as any).diff_match_patch
-const dmp = new diff_match_patch()
+const diff_match_patch: any = (window as any).diff_match_patch;
+const dmp = new diff_match_patch();
 
 function displayDiffs(text1: string, text2: string) {
-  const diffs = dmp.diff_main(text1, text2)
-  dmp.diff_cleanupSemantic(diffs)
+  const diffs = dmp.diff_main(text1, text2);
+  dmp.diff_cleanupSemantic(diffs);
 
-  const containerOriginal = originalAreaRef.value
-  const containerModified = modifiedAreaRef.value
-  if (!containerOriginal || !containerModified) return
+  const containerOriginal = originalAreaRef.value;
+  const containerModified = modifiedAreaRef.value;
+  if (!containerOriginal || !containerModified) return;
 
-  containerOriginal.replaceChildren()
-  containerModified.replaceChildren()
+  containerOriginal.replaceChildren();
+  containerModified.replaceChildren();
 
   diffs.forEach((diff: any[]) => {
-    const operation = diff[0]
-    const text = diff[1]
+    const operation = diff[0];
+    const text = diff[1];
 
-    const span = document.createElement('span')
-    span.textContent = text
+    const span = document.createElement('span');
+    span.textContent = text;
 
     switch (operation) {
       case -1:
-        span.classList.add('delete')
-        containerOriginal.appendChild(span)
-        break
+        span.classList.add('delete');
+        containerOriginal.appendChild(span);
+        break;
       case 1:
-        span.classList.add('added')
-        containerModified.appendChild(span)
-        break
+        span.classList.add('added');
+        containerModified.appendChild(span);
+        break;
       case 0:
-        containerOriginal.appendChild(span.cloneNode(true))
-        containerModified.appendChild(span)
-        break
+        containerOriginal.appendChild(span.cloneNode(true));
+        containerModified.appendChild(span);
+        break;
     }
-  })
+  });
 }
 
 // 承認・却下
 const resultOwnerRequest = async (isReject: boolean): Promise<void> => {
   const payload = {
     id: clickedRequestWikiId.value,
-    reject: isReject
-  }
+    reject: isReject,
+  };
 
   try {
-    await apiClient.post(postOwnerResultUrl, payload)
-    onOpenCloseDiffModal('', '', '', true)
-    editRequestWikiStore.initList()
-    wikiStore.initList()
+    await apiClient.post(postOwnerResultUrl, payload);
+    onOpenCloseDiffModal('', '', '', true);
+    editRequestWikiStore.initList();
+    wikiStore.initList();
 
     if (isReject) {
-      messageModalOpenClose('却下しました。')
+      messageModalOpenClose('却下しました。');
     } else {
-      messageModalOpenClose('承認しました。')
+      messageModalOpenClose('承認しました。');
     }
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
-      const axiosError = error as AxiosError<any>
-      const errorStatusCode = axiosError.response?.status
+      const axiosError = error as AxiosError<any>;
+      const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose('すでに申請者が取り下げた申請のため、変更は適用されませんでした。')
-        showDiffPreviewModal.value = false
-        editRequestWikiStore.initList()
-        return
+        messageModalOpenClose('すでに申請者が取り下げた申請のため、変更は適用されませんでした。');
+        showDiffPreviewModal.value = false;
+        editRequestWikiStore.initList();
+        return;
       }
     }
   }
-}
+};
 
 // 取り下げ
 const disableEditRequest = async (id: string): Promise<void> => {
-  const url = `${disableEditWikiUrl}${id}`
+  const url = `${disableEditWikiUrl}${id}`;
   try {
-    await apiClient.delete(url)
-    onOpenCloseDiffModal('', '', '', true)
-    editRequestWikiStore.initList()
-    messageModalOpenClose('更新申請を取り下げました。')
+    await apiClient.delete(url);
+    onOpenCloseDiffModal('', '', '', true);
+    editRequestWikiStore.initList();
+    messageModalOpenClose('更新申請を取り下げました。');
   } catch (error) {
     if (apiClient.isAxiosError(error)) {
       // エラーオブジェクトがAxiosError型であることが保証
-      const axiosError = error as AxiosError<any>
-      const errorStatusCode = axiosError.response?.status
+      const axiosError = error as AxiosError<any>;
+      const errorStatusCode = axiosError.response?.status;
       if (errorStatusCode === 404) {
-        messageModalOpenClose('既に承認または取り下げが行われています。')
-        showDiffPreviewModal.value = false
-        editRequestWikiStore.initList()
-        return
+        messageModalOpenClose('既に承認または取り下げが行われています。');
+        showDiffPreviewModal.value = false;
+        editRequestWikiStore.initList();
+        return;
       }
     }
   }
-}
+};
 
 // 更新日時を取得
 const getUpdateAt = (dateStr: string, datetimeStr: string): string => {
   // 作成日と更新日時を比較
   if (areDatesSame(dateStr, datetimeStr)) {
-    return ''
+    return '';
   }
-  return ` 【更新：${formatDateJP(datetimeStr)} 】`
-}
+  return ` 【更新：${formatDateJP(datetimeStr)} 】`;
+};
 
 // 日付時刻から日付のみを取り出す関数
 function getDateForDateTime(dateTimeString: string): string {
-  return dateTimeString.split('T')[0]!
+  return dateTimeString.split('T')[0]!;
 }
 
 // 日付を比較する関数（同日編集の場合は対象外とする仕様）
 function areDatesSame(dateString1: string, dateString2: string): boolean {
   // dateString1と2から日付部分だけを取り出す
-  const datePartOfDateTime1 = getDateForDateTime(dateString1)
-  const datePartOfDateTime2 = getDateForDateTime(dateString2)
+  const datePartOfDateTime1 = getDateForDateTime(dateString1);
+  const datePartOfDateTime2 = getDateForDateTime(dateString2);
 
   // 日付を比較する
-  return datePartOfDateTime1 === datePartOfDateTime2
+  return datePartOfDateTime1 === datePartOfDateTime2;
 }
 
 // ショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // Create.vueへ移動
   if (event.ctrlKey && event.key === '1') {
-    event.preventDefault() // デフォルトのブラウザのショートカットをキャンセル
-    createRedirect()
+    event.preventDefault(); // デフォルトのブラウザのショートカットをキャンセル
+    createRedirect();
 
     // 共有リンク発行Wiki一覧モーダルを表示
   } else if (event.ctrlKey && event.key === '2') {
-    event.preventDefault()
-    openCloseOnetimeUrls()
+    event.preventDefault();
+    openCloseOnetimeUrls();
   } else if (event.ctrlKey && event.key === '3') {
-    event.preventDefault()
-    openCloseEditRequestWikis()
+    event.preventDefault();
+    openCloseEditRequestWikis();
 
     // ユーザーのプライバシーセッティングモーダルを表示非表示
   } else if (event.ctrlKey && event.key === '4') {
-    event.preventDefault()
-    userPrivacySettingFunction()
+    event.preventDefault();
+    userPrivacySettingFunction();
 
     // 検索ワード1をフォーカス
   } else if (event.ctrlKey && event.key === '5') {
-    event.preventDefault()
-    const textElement = document.getElementById('query1')
+    event.preventDefault();
+    const textElement = document.getElementById('query1');
     if (textElement) {
-      textElement.focus()
+      textElement.focus();
     }
     // 検索ワード2をフォーカス
   } else if (event.ctrlKey && event.key === '6') {
-    event.preventDefault()
-    const textElement = document.getElementById('query2')
+    event.preventDefault();
+    const textElement = document.getElementById('query2');
     if (textElement) {
-      textElement.focus()
+      textElement.focus();
     }
     // 検索をクリア
   } else if (event.ctrlKey && event.key === '7') {
-    event.preventDefault()
-    onSearch(true)
+    event.preventDefault();
+    onSearch(true);
   }
-}
+};
 
 // コンポーネントマウント時にイベントリスナーを追加
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-})
+  window.addEventListener('keydown', handleKeyDown);
+});
 
 // コンポーネントがアンマウントされた際にイベントリスナーを削除
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
-})
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 // テーブルスクロール
-const scrolledTableId = localStorage.getItem('prev-table-data')
+const scrolledTableId = localStorage.getItem('prev-table-data');
 onMounted(() => {
   if (scrolledTableId) {
     if (scrolledTableId != '') {
-      let targetTableRowIdElm = document.getElementById(scrolledTableId)
+      let targetTableRowIdElm = document.getElementById(scrolledTableId);
       targetTableRowIdElm?.scrollIntoView({
-        block: 'start'
-      })
-      let tableElm = document.getElementById('wiki-table')
+        block: 'start',
+      });
+      let tableElm = document.getElementById('wiki-table');
       if (scrolledTableId !== 'table-dataid-1') {
         tableElm?.scrollBy({
-          top: -50
-        })
+          top: -50,
+        });
       }
     }
   }
-})
+});
 
 // テーブルのソート
 function onSort() {
-  wikiStore.sortWiki()
+  wikiStore.sortWiki();
 }
 
 // ワンタイムフルURLの取得
 function getFullOnetimeUrl(url: string): string {
-  return `${hostName}${url}`
+  return `${hostName}${url}`;
 }
 
 // ISO形式の日付を変換
@@ -394,64 +394,64 @@ function formatDateJP(
   isoString: string,
   isDayOnly: boolean = false,
   isJpFormat: boolean = false,
-  addMinutes: number = 540
+  addMinutes: number = 540,
 ): string {
-  const date = new Date(isoString)
+  const date = new Date(isoString);
 
   // UTC時間を取得し、9時間（540分）加算してJSTに変換
-  date.setMinutes(date.getMinutes() + addMinutes)
+  date.setMinutes(date.getMinutes() + addMinutes);
 
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0') // 月は0始まりのため+1
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 月は0始まりのため+1
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
 
   if (isDayOnly) {
     if (isJpFormat) {
-      return `${year}年${month}月${day}日`
+      return `${year}年${month}月${day}日`;
     } else {
-      return `${year}-${month}-${day}`
+      return `${year}-${month}-${day}`;
     }
   } else {
     if (isJpFormat) {
-      return `${year}年${month}月${day}日 ${hours}時${minutes}分`
+      return `${year}年${month}月${day}日 ${hours}時${minutes}分`;
     } else {
-      return `${year}-${month}-${day} ${hours}:${minutes}`
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
     }
   }
 }
 
 // 期限切れでないか検証
 function isExpired(isoString: string): boolean {
-  const serverTime = new Date(isoString)
-  serverTime.setMinutes(serverTime.getMinutes() + 540)
-  return serverTime.getTime() < Date.now()
+  const serverTime = new Date(isoString);
+  serverTime.setMinutes(serverTime.getMinutes() + 540);
+  return serverTime.getTime() < Date.now();
 }
 
 // 与えられたelement idのテキストに次の処理
 // HTTPS（localhost）プロトコル下ではクリップボードコピー HTTPではテキスト選択（IEは非対応）
 function selectTextOrClipboardCopy(elementId: string) {
-  let element = document.getElementById(elementId)
+  let element = document.getElementById(elementId);
   if (!element || !element.textContent) {
-    return
+    return;
   }
 
   if (isHttpsProtocol.value) {
-    navigator.clipboard.writeText(element.textContent)
-    messageModalOpenClose('クリップボードにコピーしました。')
+    navigator.clipboard.writeText(element.textContent);
+    messageModalOpenClose('クリップボードにコピーしました。');
   } else {
     if (window.getSelection) {
-      let selection = window.getSelection()
-      let range = document.createRange()
+      let selection = window.getSelection();
+      let range = document.createRange();
       try {
-        range.selectNodeContents(element)
+        range.selectNodeContents(element);
       } catch (e) {
-        console.error(`Error selecting contents of element: ${e}`)
+        console.error(`Error selecting contents of element: ${e}`);
       }
       if (selection) {
-        selection.removeAllRanges() // 現在の選択をクリア
-        selection.addRange(range) // 新しい範囲を選択
+        selection.removeAllRanges(); // 現在の選択をクリア
+        selection.addRange(range); // 新しい範囲を選択
       }
     }
   }
@@ -460,54 +460,54 @@ function selectTextOrClipboardCopy(elementId: string) {
 // XSSフィルタの設定をカスタマイズする
 let xssOptions: IFilterXSSOptions = {
   whiteList: {
-    ...getDefaultWhiteList() // デフォルトの許可リスト
-  }
-}
-const myXss = new FilterXSS(xssOptions)
+    ...getDefaultWhiteList(), // デフォルトの許可リスト
+  },
+};
+const myXss = new FilterXSS(xssOptions);
 
 // メッセージ表示モーダル機能
-const isMessageModal = ref(false)
-const messageText = ref('')
+const isMessageModal = ref(false);
+const messageText = ref('');
 const messageModalOpenClose = (message: string | null): void => {
-  if (!message) return
-  const cleanMessage = myXss.process(message)
+  if (!message) return;
+  const cleanMessage = myXss.process(message);
 
   if (!isMessageModal.value) {
-    messageText.value = cleanMessage
-    isMessageModal.value = true
+    messageText.value = cleanMessage;
+    isMessageModal.value = true;
   } else {
-    isMessageModal.value = false
-    messageText.value = ''
+    isMessageModal.value = false;
+    messageText.value = '';
   }
-}
+};
 
 const userSettingModalRef = ref<{
-  openCloseUserSettingModal: () => void
-  isUserPrivate: boolean
-  isInitialized: boolean
-} | null>(null)
+  openCloseUserSettingModal: () => void;
+  isUserPrivate: boolean;
+  isInitialized: boolean;
+} | null>(null);
 
 const userPrivacySettingFunction = () => {
   if (userSettingModalRef.value) {
-    userSettingModalRef.value.openCloseUserSettingModal()
+    userSettingModalRef.value.openCloseUserSettingModal();
   }
-}
+};
 
 watch(
   () => userSettingModalRef.value?.isUserPrivate,
   (newValue, oldValue) => {
-    if (!userSettingModalRef.value?.isInitialized) return // 子コンポーネントでモーダルを起動していない場合は発火しない
+    if (!userSettingModalRef.value?.isInitialized) return; // 子コンポーネントでモーダルを起動していない場合は発火しない
     if (newValue) {
       messageModalOpenClose(
-        'プライバシーモードが ON になりました。他のユーザーはあなたのデータにアクセスできません。'
-      )
+        'プライバシーモードが ON になりました。他のユーザーはあなたのデータにアクセスできません。',
+      );
     } else {
       messageModalOpenClose(
-        'プライバシーモードが OFF になりました。 他のユーザーにあなたの画像などをシェアすることができます。'
-      )
+        'プライバシーモードが OFF になりました。 他のユーザーにあなたの画像などをシェアすることができます。',
+      );
     }
-  }
-)
+  },
+);
 </script>
 
 <template>
@@ -609,7 +609,7 @@ watch(
               <div
                 :class="{
                   'td-title-area tooltip': wiki.is_public,
-                  'td-title-area': !wiki.is_public
+                  'td-title-area': !wiki.is_public,
                 }"
               >
                 <div>{{ wiki.title }}</div>
@@ -791,7 +791,7 @@ watch(
                 v-if="currenrUserId === editRequestWiki.wiki_owner_id"
                 v-on:click="
                   messageModalOpenClose(
-                    `${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`
+                    `${editRequestWiki.request_public_user_name}：${editRequestWiki.request_message}`,
                   )
                 "
                 style="cursor: pointer"
@@ -806,7 +806,7 @@ watch(
                     onOpenCloseDiffModal(
                       editRequestWiki.id,
                       `${editRequestWiki.original_title}\n\n${editRequestWiki.original_body}`,
-                      `${editRequestWiki.edit_request_title}\n\n${editRequestWiki.edit_request_body}`
+                      `${editRequestWiki.edit_request_title}\n\n${editRequestWiki.edit_request_body}`,
                     )
                   "
                 >
