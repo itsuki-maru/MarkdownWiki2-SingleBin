@@ -43,7 +43,7 @@ pub async fn serve_static_file(Path(uri): Path<String>) -> Result<Response<Body>
             } else {
                 Err(AppError::NotFound)
             }
-        }
+        },
         None => Err(AppError::NotFound),
     }
 }

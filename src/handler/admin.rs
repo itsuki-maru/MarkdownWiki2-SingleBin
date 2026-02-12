@@ -49,7 +49,7 @@ pub async fn admin_index_get_handler(
             Some(content) => {
                 let html_content = String::from_utf8(content.data.into_owned()).unwrap();
                 return Ok(Html(html_content));
-            }
+            },
             None => return Err(AppError::NotFound),
         }
     // 管理者以外
@@ -58,7 +58,7 @@ pub async fn admin_index_get_handler(
             Some(content) => {
                 let html_content = String::from_utf8(content.data.into_owned()).unwrap();
                 return Ok(Html(html_content));
-            }
+            },
             None => return Err(AppError::NotFound),
         }
     }
@@ -344,11 +344,11 @@ pub async fn create_users_handler(
         match TimeDelta::try_days(1) {
             Some(one_day_delta) => {
                 yesterday = now - one_day_delta;
-            }
+            },
             None => {
                 tracing::error!("Initial Data Create Error.");
                 return Err(AppError::InternalServerError);
-            }
+            },
         }
 
         // トランザクションの開始

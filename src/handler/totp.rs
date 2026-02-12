@@ -75,7 +75,7 @@ pub async fn totp_setup_handler(
             } else {
                 Err(AppError::BadRequest)
             }
-        }
+        },
         Err(_) => Err(AppError::BadRequest),
     }
 }
@@ -184,11 +184,11 @@ pub async fn token_totp_handler(
         match parse_naive_datetime(&user.is_basic_authed_at) {
             Some(next) if Utc::now().naive_utc() - next > expiry => {
                 return Err(AppError::Unauthorized("Time Over.".into()));
-            }
-            Some(_) => {}
+            },
+            Some(_) => {},
             None => {
                 return Err(AppError::Validation("Parse Error.".into()));
-            }
+            },
         }
     }
 

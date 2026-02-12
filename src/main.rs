@@ -228,7 +228,7 @@ async fn main() {
         Err(e) => {
             tracing::error!("Failed to create pool: {}", e);
             return;
-        }
+        },
     };
 
     // 初期データの存在を確認し、存在しなければ作成
@@ -418,7 +418,7 @@ async fn index_handler(headers: HeaderMap) -> Result<Html<String>, AppError> {
         Some(content) => {
             let html_content = String::from_utf8(content.data.into_owned()).unwrap();
             Ok(Html(html_content))
-        }
+        },
         None => Err(AppError::NotFound),
     }
 }
@@ -428,7 +428,7 @@ async fn licenses_get_handler() -> Result<Html<String>, AppError> {
         Some(content) => {
             let html_content = String::from_utf8(content.data.into_owned()).unwrap();
             Ok(Html(html_content))
-        }
+        },
         None => Err(AppError::NotFound),
     }
 }
@@ -448,7 +448,7 @@ async fn serve_favicon() -> Result<Response<Body>, AppError> {
                 .body(body.into())
                 .expect("Failed to construct response");
             Ok(response)
-        }
+        },
         None => Err(AppError::NotFound),
     }
 }

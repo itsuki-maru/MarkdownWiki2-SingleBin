@@ -41,7 +41,7 @@ pub fn read_or_create_json_env(setup_file_dir: PathBuf) -> ApplicationInitSetup 
                 Ok(_) => read_or_create_json_env(setup_recover_path),
                 Err(_) => panic!("Json env load error."),
             }
-        }
+        },
     };
     load_json_data
 }

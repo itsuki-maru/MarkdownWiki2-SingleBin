@@ -120,7 +120,7 @@ pub async fn upload_image_handler(
         let dir_path = PathBuf::from(CONFIG.upload_file_path.clone()).join(sub_dir);
 
         match ensure_dir(&dir_path).await {
-            Ok(_) => {}
+            Ok(_) => {},
             Err(_) => return Err(AppError::InternalServerError),
         }
 

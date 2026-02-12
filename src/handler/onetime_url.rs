@@ -198,7 +198,7 @@ pub async fn temporary_wiki_get_handler(
                             Err(e) => {
                                 tracing::error!("{}", e);
                                 return Err(AppError::InternalServerError);
-                            }
+                            },
                         }
 
                     // 正常に 共有URLを返却できる場合
@@ -216,10 +216,10 @@ pub async fn temporary_wiki_get_handler(
                             Err(e) => {
                                 tracing::error!("{}", e);
                                 Err(AppError::InternalServerError)
-                            }
+                            },
                         }
                     }
-                }
+                },
                 // DBから共有URLの取得に失敗した場合
                 Err(_) => {
                     let statuscode = "Not Found".to_string();
@@ -235,11 +235,11 @@ pub async fn temporary_wiki_get_handler(
                         Err(e) => {
                             tracing::error!("{}", e);
                             return Err(AppError::InternalServerError);
-                        }
+                        },
                     }
-                }
+                },
             }
-        }
+        },
 
         // 不正な UUID が渡された場合
         Err(_rejection) => {
@@ -258,9 +258,9 @@ pub async fn temporary_wiki_get_handler(
                 Err(e) => {
                     tracing::error!("{}", e);
                     return Err(AppError::InternalServerError);
-                }
+                },
             }
-        }
+        },
     }
 }
 

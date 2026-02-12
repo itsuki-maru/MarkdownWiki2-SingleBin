@@ -151,11 +151,11 @@ async fn insert_initial_admin_data(pool: &Pool<Sqlite>) -> Result<(), sqlx::Erro
     match TimeDelta::try_days(1) {
         Some(one_day_delta) => {
             yesterday = now - one_day_delta;
-        }
+        },
         None => {
             tracing::error!("Initial Data Create Error.");
             panic!("Initial Data Create Error.");
-        }
+        },
     }
 
     // パスワードをハッシュ化(ソルト値はハッシュ値に組み込んで管理)
@@ -208,10 +208,10 @@ async fn insert_initial_admin_data(pool: &Pool<Sqlite>) -> Result<(), sqlx::Erro
     .await;
 
     match result {
-        Ok(_user_id) => {}
+        Ok(_user_id) => {},
         Err(e) => {
             tracing::error!("Master Layer Create Error: {}.", e);
-        }
+        },
     }
 
     // アカウントロックまでの時間を設定

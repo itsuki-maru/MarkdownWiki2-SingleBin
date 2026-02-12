@@ -81,7 +81,7 @@ where
                     req.extensions_mut().insert(claims.sub);
                     // 内部サービスへのリクエストを続ける
                     return inner.call(req).await;
-                }
+                },
                 // 検証失敗時のレスポンス
                 Err(_) => {
                     let response_body = json!({
@@ -99,9 +99,9 @@ where
                                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.")
                                     .into_response();
                             return Ok(response);
-                        }
+                        },
                     }
-                }
+                },
             }
         };
         Box::pin(future)

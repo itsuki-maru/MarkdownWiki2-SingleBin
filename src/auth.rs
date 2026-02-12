@@ -58,7 +58,7 @@ pub fn verify_access_token(token: &str) -> Result<Token, ErrorKind> {
                 }
             }
             Err(ErrorKind::InvalidToken) // 不正なトークン
-        }
+        },
     }
 }
 

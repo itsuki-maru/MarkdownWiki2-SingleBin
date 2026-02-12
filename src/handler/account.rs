@@ -57,11 +57,11 @@ pub async fn signup_handler(
     match TimeDelta::try_days(1) {
         Some(one_day_delta) => {
             yesterday = now - one_day_delta;
-        }
+        },
         None => {
             tracing::error!("Initial Data Create Error.");
             return Err(AppError::InternalServerError);
-        }
+        },
     }
 
     // トランザクションの開始
@@ -218,11 +218,11 @@ pub async fn token_handler(
     match parse_naive_datetime(&user.next_challenge_time) {
         Some(next) if next > current_datetime => {
             return Err(AppError::Unauthorized("PleaseWait".into()));
-        }
-        Some(_) => {}
+        },
+        Some(_) => {},
         None => {
             return Err(AppError::Unauthorized("Parse Error.".into()));
-        }
+        },
     }
 
     // ログイン失敗回数が上限に達している場合はアカウントをロックしてエラーレスポンス（カウントリセット）
@@ -280,11 +280,11 @@ pub async fn token_handler(
                     })?;
 
                     return Err(AppError::Unauthorized("UnauthorizedPleaseWait".into()));
-                }
+                },
                 None => {
                     tracing::error!("five_min_delta Get Error.");
                     return Err(AppError::InternalServerError);
-                }
+                },
             }
         }
 
@@ -512,11 +512,11 @@ pub async fn refresh_token_handler(
                 .body(axum::body::Body::empty())
                 .map_err(|_e| AppError::InternalServerError)?;
             Ok(response)
-        }
+        },
         Err(err) => {
             tracing::error!("{}", err);
             return Err(AppError::InternalServerError);
-        }
+        },
     }
 }
 

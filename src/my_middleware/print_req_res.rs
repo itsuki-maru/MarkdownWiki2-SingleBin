@@ -43,7 +43,7 @@ where
                 StatusCode::BAD_REQUEST,
                 format!("failed to read {direction} body: {err}"),
             ));
-        }
+        },
     };
 
     if let Ok(body) = std::str::from_utf8(&bytes) {

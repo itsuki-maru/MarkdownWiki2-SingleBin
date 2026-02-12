@@ -410,7 +410,7 @@ pub async fn disable_edit_request(
     })?;
 
     match query_result {
-        Some(_) => {}
+        Some(_) => {},
         None => return Err(AppError::NotFound),
     };
 

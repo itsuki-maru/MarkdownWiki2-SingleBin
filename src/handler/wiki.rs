@@ -484,7 +484,7 @@ pub async fn download_file(
             let title = markdown_data.title;
             let body = markdown_data.body;
             format!("# {}\n\n{}", title, body)
-        }
+        },
         None => return Err(AppError::NotFound),
     };
 
