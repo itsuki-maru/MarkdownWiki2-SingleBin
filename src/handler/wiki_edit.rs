@@ -1,8 +1,9 @@
 use crate::error::AppError;
-use crate::scheme::{
+use crate::model::{
     EditResponseStatus, EditWikiListFromDb, EditWikiOwnerRequest, EditWikiOwnerResponse,
     EditWikiRequest, EditWikiStatusResponse, IsExists, ReturningId, WikiData,
 };
+use crate::utils::vec_to_hashmap;
 use axum::{
     Json,
     extract::{Extension, Path},
@@ -81,7 +82,7 @@ pub async fn request_wiki_edit(
         AppError::Sqlx(e)
     })?;
 
-    // `i64` を `bool` に変換
+    // `i64`を`bool`に変換
     let edit_request_exists = edit_request_exists.exists_flag != 0;
 
     // 既にリクエスト済みのWikiであればエラーを返す
@@ -96,7 +97,7 @@ pub async fn request_wiki_edit(
     })?;
 
     // 新規編集リクエストWikiのID
-    let new_edit_wiki_req_id = Uuid::now_v7().to_string();
+    let new_edit_wiki_req_id = Uuid::now_v7();
 
     let status = payload.status.as_str();
 
@@ -201,24 +202,7 @@ pub async fn get_edit_request_wikis(
         AppError::Sqlx(e)
     })?;
 
-    let mut wiki_hash_map = HashMap::new();
-    for wiki in edit_request_wikis {
-        let wiki_id = wiki.id.clone();
-        let parsed_wiki = EditWikiListFromDb {
-            id: wiki.id,
-            wiki_owner_id: wiki.wiki_owner_id,
-            request_public_user_name: wiki.request_public_user_name,
-            request_wiki_id: wiki.request_wiki_id,
-            original_title: wiki.original_title,
-            original_body: wiki.original_body,
-            edit_request_title: wiki.edit_request_title,
-            edit_request_body: wiki.edit_request_body,
-            create_at: wiki.create_at,
-            request_message: wiki.request_message,
-            status: wiki.status,
-        };
-        wiki_hash_map.insert(wiki_id, parsed_wiki);
-    }
+    let wiki_hash_map = vec_to_hashmap(edit_request_wikis, |w| w.id.clone());
     Ok(Json(wiki_hash_map))
 }
 

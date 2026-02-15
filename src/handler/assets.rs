@@ -1,28 +1,29 @@
-use crate::config::CONFIG;
-use crate::error::AppError;
 use axum::{
     body::Body,
     extract::{Extension, Path},
     http::{HeaderValue, Response, StatusCode, header::CONTENT_TYPE},
     response::Response as HttpResponse,
 };
-use rust_embed::RustEmbed;
 use sqlx::query_as;
-use sqlx::sqlite::SqlitePool;
+use sqlx::{self, SqlitePool};
 use std::path::PathBuf;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
+
+use crate::config::CONFIG;
+use crate::error::AppError;
+use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "dist/assets"]
 struct Asset;
 
-// 静的ファイルのレスポンスハンドラー
+// STATIC JS & CSS & IMAGE RESPONSE
 pub async fn serve_static_file(Path(uri): Path<String>) -> Result<Response<Body>, AppError> {
     match Asset::get(&uri) {
         Some(content) => {
             // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
-            if let Some(safe_file_name) = sanitoze_filename(&uri) {
+            if let Some(safe_file_name) = sanitize_filename(&uri) {
                 let content_type = match safe_file_name.rsplit('.').next() {
                     Some("css") => "text/css",
                     Some("js") | Some("mjs") => "application/javascript",
@@ -55,7 +56,7 @@ pub async fn serve_image_file(
     Path(image_name): Path<String>,
 ) -> Result<Response<Body>, AppError> {
     // 指定されたファイル名を検証する（ディレクトリトラバーサル攻撃対策）
-    if let Some(safe_file_name) = sanitoze_filename(&image_name) {
+    if let Some(safe_file_name) = sanitize_filename(&image_name) {
         struct ImageOwner {
             user_id: String,
         }
@@ -65,7 +66,7 @@ pub async fn serve_image_file(
         }
 
         // 非公開ユーザーの画像データでないか検証
-        let query_filen_name = image_name.clone();
+        let query_image_name = image_name.clone();
         let owner = query_as!(
             ImageOwner,
             r#"
@@ -73,7 +74,7 @@ pub async fn serve_image_file(
             FROM image_model
             WHERE uuid_filename = $1
             "#,
-            query_filen_name,
+            query_image_name,
         )
         .fetch_optional(&pool)
         .await
@@ -168,7 +169,7 @@ pub async fn serve_image_file(
 }
 
 // SANITAIZE UPLOAD IMAGE FILENAME
-fn sanitoze_filename(file_name: &str) -> Option<String> {
+fn sanitize_filename(file_name: &str) -> Option<String> {
     let file_name = file_name.split('/').last()?;
 
     if file_name.contains("..") || file_name.contains("\\") || file_name.contains("/") {

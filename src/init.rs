@@ -1,6 +1,6 @@
-use super::scheme::ApplicationInitSetup;
+use crate::model::ApplicationInitSetup;
 #[cfg(windows)]
-use super::utils::{ensure_console, hide_console};
+use crate::utils::{ensure_console, hide_console};
 use dirs::home_dir;
 use serde::Deserialize;
 use serde::Serialize;

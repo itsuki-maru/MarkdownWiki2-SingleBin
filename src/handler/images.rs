@@ -1,10 +1,10 @@
 use crate::config::CONFIG;
 use crate::error::AppError;
-use crate::image_ext_validator::check_file_extension;
-use crate::scheme::{
+use crate::image::validator::check_file_extension;
+use crate::model::{
     DeletedImageResponse, ImageData, ImageIdNameDeleted, ReturningId, UploadResponseImage,
 };
-use crate::utils::ensure_dir;
+use crate::utils::{ensure_dir, vec_to_hashmap};
 use axum::{
     Json,
     extract::{Extension, Path},
@@ -49,12 +49,7 @@ pub async fn get_enable_images_limit_handler(
         AppError::Sqlx(e)
     })?;
 
-    let mut images_hash_map = HashMap::new();
-    for image in images {
-        let image_id = image.id.clone();
-        images_hash_map.insert(image_id, image);
-    }
-
+    let images_hash_map = vec_to_hashmap(images, |i| i.id.clone());
     Ok(Json(images_hash_map))
 }
 
@@ -83,12 +78,7 @@ pub async fn get_enable_images_handler(
         AppError::Sqlx(e)
     })?;
 
-    let mut images_hash_map = HashMap::new();
-    for image in images {
-        let image_id = image.id.clone();
-        images_hash_map.insert(image_id, image);
-    }
-
+    let images_hash_map = vec_to_hashmap(images, |i| i.id.clone());
     Ok(Json(images_hash_map))
 }
 
@@ -102,7 +92,7 @@ pub async fn upload_image_handler(
     let now = Utc::now().naive_utc();
 
     // 新規ID
-    let new_image_id = Uuid::now_v7().to_string();
+    let new_image_id = Uuid::now_v7();
     let mut original_filename = String::new();
     let mut unique_filename = String::new();
     while let Some(field) = payload
@@ -121,7 +111,7 @@ pub async fn upload_image_handler(
 
         match ensure_dir(&dir_path).await {
             Ok(_) => {},
-            Err(_) => return Err(AppError::InternalServerError),
+            Err(_) => return Err(AppError::Validation("faild upload error".into())),
         }
 
         // アップロードされたファイル名を取得
@@ -218,10 +208,8 @@ pub async fn upload_image_handler(
             }
         }
 
-        unique_filename = format!("{}.{}", uuid.to_string(), ext);
-
         let save_image_id = new_image_id.clone();
-        let save_unique_filename = unique_filename.clone();
+        unique_filename = format!("{}.{}", uuid.to_string(), ext);
 
         // DBに保存する処理
         query_as!(
@@ -240,7 +228,7 @@ pub async fn upload_image_handler(
             save_image_id,
             user_id,
             original_name,
-            save_unique_filename,
+            unique_filename,
             now,
         )
         .fetch_one(&pool)
@@ -253,7 +241,7 @@ pub async fn upload_image_handler(
         original_filename = original_name;
     }
     Ok(Json(UploadResponseImage {
-        new_image_id: new_image_id,
+        new_image_id: new_image_id.to_string(),
         user_id: user_id,
         filename: original_filename,
         uuid_filename: unique_filename,

@@ -2,8 +2,6 @@ use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug)]
-
-// アップロードされる画像ファイルのバリデーター
 pub enum FileAllowExtension {
     Png,
     PNG,

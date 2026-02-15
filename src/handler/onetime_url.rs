@@ -14,11 +14,11 @@ use tera::{Context, Tera};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use crate::error::AppError;
-use crate::scheme::{
+use crate::model::{
     CreatedTemporaryUrlResponse, GenarateUrlSecondsPayload, IssuedTemporaryUrls, TemporaryUrl,
     WikiTempDataTitleAndBody,
 };
+use crate::{error::AppError, utils::vec_to_hashmap};
 
 // 一時URLの発行
 pub async fn generate_url_handler(
@@ -83,12 +83,12 @@ pub async fn generate_url_handler(
         AppError::Sqlx(e)
     })?;
 
-    let uuid = Uuid::new_v4().to_string();
+    let uuid = Uuid::new_v4().to_string().to_string();
     let url = format!("/onetime/{}", uuid);
     let temp_url = TemporaryUrl::new(
         uuid,
         user_id,
-        wiki.id,
+        wiki.id.clone(),
         url,
         Duration::from_secs(payload.minutes * 60),
         wiki.title.clone(),
@@ -99,8 +99,6 @@ pub async fn generate_url_handler(
         return AppError::InternalServerError;
     })?;
 
-    let temp_url_expiration = temp_url.expiration.clone().to_string();
-    let now_string = now.to_string();
     let created_url_response = query_as!(
         CreatedTemporaryUrlResponse,
         r#"
@@ -119,12 +117,12 @@ pub async fn generate_url_handler(
         "#,
         temp_url.id,
         temp_url.user_id,
-        wiki_id,
+        wiki.id,
         temp_url.url,
-        temp_url_expiration,
+        temp_url.expiration,
         wiki.title,
         wiki.body,
-        now_string,
+        now,
     )
     .fetch_one(&pool)
     .await
@@ -150,7 +148,7 @@ pub async fn temporary_wiki_get_handler(
     let is_mobile = user_agent.map_or(false, |ua| ua.contains("Mobile"));
 
     match url_id {
-        // 正常な UUID（String） が渡された場合
+        // 正常な UUID が渡された場合
         Ok(Path(url_id)) => {
             let render_html = if is_mobile {
                 "preview-mobile.html"
@@ -170,7 +168,6 @@ pub async fn temporary_wiki_get_handler(
             .await;
 
             match temp_url {
-                // DBから共有URLの取得に成功した場合
                 Ok(temp_url) => {
                     // 共有URLが期限切れの場合
                     if temp_url.is_expired() {
@@ -215,7 +212,7 @@ pub async fn temporary_wiki_get_handler(
                             Ok(renderd) => Ok(Html(renderd).into_response()),
                             Err(e) => {
                                 tracing::error!("{}", e);
-                                Err(AppError::InternalServerError)
+                                return Err(AppError::InternalServerError);
                             },
                         }
                     }
@@ -313,10 +310,6 @@ pub async fn get_all_temporary_urls(
         AppError::Sqlx(e)
     })?;
 
-    let mut urls_hash_map = HashMap::new();
-    for url in urls {
-        let url_id = url.id.clone();
-        urls_hash_map.insert(url_id, url);
-    }
+    let urls_hash_map = vec_to_hashmap(urls, |u| u.id.clone());
     Ok(Json(urls_hash_map))
 }

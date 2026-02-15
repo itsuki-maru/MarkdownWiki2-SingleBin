@@ -1,4 +1,5 @@
 use crate::auth::verify_refresh_token;
+use crate::middleware::extract_cookie_value;
 use axum::response::IntoResponse;
 use axum::{
     body::Body,
@@ -46,28 +47,10 @@ where
         let mut inner = self.inner.clone();
 
         let future = async move {
-            // リクエストヘッダーからCookieを取得
-            let cookies_str = req
-                .headers()
-                .get(axum::http::header::COOKIE)
-                .and_then(|header_value| header_value.to_str().ok())
-                .unwrap_or("");
-
-            // Cookieヘッダーをセミコロンで分割して各cookieを解析
-            let cookies: Vec<&str> = cookies_str.split(';').collect();
-
-            // refresh_tokenをCookieヘッダーから取り出す
-            let mut refresh_token_value = None;
-            for cookie in cookies {
-                let parts: Vec<&str> = cookie.split('=').map(|part| part.trim()).collect();
-                if parts.len() == 2 && parts[0] == "refresh_token" {
-                    refresh_token_value = Some(parts[1]);
-                    break;
-                }
-            }
+            let refresh_token_value = extract_cookie_value(req.headers(), "refresh_token");
 
             // リフレッシュトークンを検証し結果に応じてレスポンス
-            match verify_refresh_token(&refresh_token_value.unwrap_or("")) {
+            match verify_refresh_token(refresh_token_value.unwrap_or("")) {
                 // 成功時はハンドラーからユーザーIDを取り出せるよう設定
                 Ok(claims) => {
                     // ユーザーIDをリクエストのExtensionとしてセット

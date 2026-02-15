@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::path::Path;
 use tokio::fs;
 use tokio::io;
@@ -8,6 +10,14 @@ pub async fn ensure_dir(path: &Path) -> io::Result<()> {
         Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
         Err(e) => Err(e),
     }
+}
+
+pub fn vec_to_hashmap<K, T, F>(vec: Vec<T>, key_fn: F) -> HashMap<K, T>
+where
+    K: Eq + Hash,
+    F: Fn(&T) -> K,
+{
+    vec.into_iter().map(|item| (key_fn(&item), item)).collect()
 }
 
 // コンソール表示処理（Windowsのみ有効）

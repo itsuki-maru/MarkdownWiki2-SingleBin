@@ -1,8 +1,9 @@
 use crate::error::AppError;
-use crate::scheme::{
-    CreateWikiData, DownloadWikiData, ResponseWikiData, ResponseWikiId, ReturningId,
-    UpdateWikiData, UpdatedWikiResponse, WikiData, WikiOwner, WikiQueryParams,
+use crate::model::{
+    CreateWikiData, DownloadWikiData, ResponseWikiId, ReturningId, UpdateWikiData,
+    UpdatedWikiResponse, WikiData, WikiOwner, WikiQueryParams,
 };
+use crate::utils::vec_to_hashmap;
 use axum::{
     Json,
     extract::{Extension, Path, Query},
@@ -26,7 +27,7 @@ pub async fn create_wiki_handler(
     let now = Utc::now().naive_utc();
 
     // 新規WikiのID
-    let new_wiki_id = Uuid::now_v7().to_string();
+    let new_wiki_id = Uuid::now_v7();
 
     let new_wiki_id = query_as!(
         ReturningId,
@@ -113,7 +114,7 @@ pub async fn get_wiki_by_id_handler(
 pub async fn get_all_wiki_handler(
     Extension(user_id): Extension<String>,
     Extension(pool): Extension<SqlitePool>,
-) -> Result<Json<HashMap<String, ResponseWikiData>>, AppError> {
+) -> Result<Json<HashMap<String, WikiData>>, AppError> {
     let wikis = query_as!(
         WikiData,
         r#"
@@ -127,7 +128,7 @@ pub async fn get_all_wiki_handler(
             is_public,
             is_edit_request
         FROM wiki_model
-        WHERE user_id = $1 OR is_public = true
+        WHERE user_id = $1 OR is_public = true OR is_edit_request = true
         "#,
         user_id,
     )
@@ -138,20 +139,7 @@ pub async fn get_all_wiki_handler(
         AppError::Sqlx(e)
     })?;
 
-    let mut wiki_hash_map = HashMap::new();
-    for wiki in wikis {
-        let wiki_id = wiki.id.clone();
-        let parsed_wiki = ResponseWikiData {
-            id: wiki.id,
-            user_id: wiki.user_id,
-            date: wiki.date,
-            title: wiki.title,
-            body: wiki.body,
-            update_at: wiki.update_at,
-            is_public: wiki.is_public,
-        };
-        wiki_hash_map.insert(wiki_id, parsed_wiki);
-    }
+    let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
     Ok(Json(wiki_hash_map))
 }
 
@@ -174,7 +162,7 @@ pub async fn get_wiki_limit_handler(
             is_public,
             is_edit_request
         FROM wiki_model
-        WHERE user_id = $1 OR is_public = true
+        WHERE user_id = $1 OR is_public = true OR is_edit_request = true
         ORDER BY id DESC LIMIT $2
         "#,
         user_id,
@@ -187,12 +175,7 @@ pub async fn get_wiki_limit_handler(
         AppError::Sqlx(e)
     })?;
 
-    let mut wiki_hash_map = HashMap::new();
-    for wiki in wikis {
-        let wiki_id = wiki.id.clone();
-        wiki_hash_map.insert(wiki_id, wiki);
-    }
-
+    let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
     Ok(Json(wiki_hash_map))
 }
 
@@ -317,7 +300,8 @@ pub async fn wiki_query_handler(
     if query1 == "".to_string() && query2 == "".to_string() {
         let wikis = query_as!(
             WikiData,
-            "SELECT
+            r#"
+            SELECT
                 id,
                 user_id,
                 date,
@@ -328,7 +312,8 @@ pub async fn wiki_query_handler(
                 is_edit_request
             FROM wiki_model
             WHERE user_id = $1 OR is_public = true
-            ORDER BY id DESC LIMIT 100",
+            ORDER BY id DESC LIMIT 100
+            "#,
             user_id,
         )
         .fetch_all(&pool)
@@ -338,15 +323,10 @@ pub async fn wiki_query_handler(
             AppError::Sqlx(e)
         })?;
 
-        let mut wiki_hash_map = HashMap::new();
-        for wiki in wikis {
-            let wiki_id = wiki.id.clone();
-            wiki_hash_map.insert(wiki_id, wiki);
-        }
-
+        let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
         Ok(Json(wiki_hash_map))
     } else if query2 == "".to_string() {
-        let query_text = format!("%\\{}%", query1);
+        let query = format!("%\\{}%", query1);
         let wikis = query_as!(
             WikiData,
             "SELECT
@@ -361,9 +341,10 @@ pub async fn wiki_query_handler(
             FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            ",
             user_id,
-            query_text,
+            query,
         )
         .fetch_all(&pool)
         .await
@@ -372,15 +353,10 @@ pub async fn wiki_query_handler(
             AppError::Sqlx(e)
         })?;
 
-        let mut wiki_hash_map = HashMap::new();
-        for wiki in wikis {
-            let wiki_id = wiki.id.clone();
-            wiki_hash_map.insert(wiki_id, wiki);
-        }
-
+        let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
         Ok(Json(wiki_hash_map))
     } else if query1 == "".to_string() {
-        let query_text = format!("%\\{}%", query2);
+        let query = format!("%\\{}%", query2);
         let wikis = query_as!(
             WikiData,
             "SELECT
@@ -395,9 +371,10 @@ pub async fn wiki_query_handler(
             FROM wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            ",
             user_id,
-            query_text,
+            query,
         )
         .fetch_all(&pool)
         .await
@@ -406,16 +383,11 @@ pub async fn wiki_query_handler(
             AppError::Sqlx(e)
         })?;
 
-        let mut wiki_hash_map = HashMap::new();
-        for wiki in wikis {
-            let wiki_id = wiki.id.clone();
-            wiki_hash_map.insert(wiki_id, wiki);
-        }
-
+        let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
         Ok(Json(wiki_hash_map))
     } else {
-        let query_text1 = format!("%\\{}%", query1);
-        let query_text2 = format!("%\\{}%", query2);
+        let query1 = format!("%\\{}%", query1);
+        let query2 = format!("%\\{}%", query2);
         let wikis = query_as!(
             WikiData,
             "SELECT
@@ -427,14 +399,16 @@ pub async fn wiki_query_handler(
                 update_at,
                 is_public,
                 is_edit_request
-            FROM wiki_model
+                FROM
+            wiki_model
             WHERE (user_id = $1 OR is_public = true)
             AND (title LIKE $2 ESCAPE '\\' OR body LIKE $2 ESCAPE '\\')
             AND (title LIKE $3 ESCAPE '\\' OR body LIKE $3 ESCAPE '\\')
-            ORDER BY id DESC",
+            ORDER BY id DESC
+            ",
             user_id,
-            query_text1,
-            query_text2,
+            query1,
+            query2,
         )
         .fetch_all(&pool)
         .await
@@ -443,12 +417,7 @@ pub async fn wiki_query_handler(
             AppError::Sqlx(e)
         })?;
 
-        let mut wiki_hash_map = HashMap::new();
-        for wiki in wikis {
-            let wiki_id = wiki.id.clone();
-            wiki_hash_map.insert(wiki_id, wiki);
-        }
-
+        let wiki_hash_map = vec_to_hashmap(wikis, |w| w.id.clone());
         Ok(Json(wiki_hash_map))
     }
 }
@@ -496,7 +465,6 @@ pub async fn download_file(
             "attachment; filename=\"download.md\"",
         )
         .body(markdown_text)
-        .map_err(|_e| AppError::InternalServerError);
-
+        .map_err(|_e| AppError::InternalServerError)?;
     Ok(response)
 }

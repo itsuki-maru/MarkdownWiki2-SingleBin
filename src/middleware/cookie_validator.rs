@@ -1,33 +1,35 @@
 use crate::auth::verify_access_token;
+use crate::middleware::extract_cookie_value;
+use axum::response::IntoResponse;
 use axum::{
     body::Body,
-    http::{Request, Response},
+    http::{Request, Response, StatusCode},
 };
+use serde_json::json;
 use std::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
 };
 use tower::{Layer, Service};
-use uuid::Uuid;
 
 #[derive(Clone)]
-pub struct FlexibleCookieValidator;
+pub struct CookieValidator;
 
-impl<S> Layer<S> for FlexibleCookieValidator {
-    type Service = FlexibleCookieValidatorMiddleware<S>;
+impl<S> Layer<S> for CookieValidator {
+    type Service = CookieValidatorMiddleware<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        FlexibleCookieValidatorMiddleware { inner }
+        CookieValidatorMiddleware { inner }
     }
 }
 
 #[derive(Clone)]
-pub struct FlexibleCookieValidatorMiddleware<S> {
+pub struct CookieValidatorMiddleware<S> {
     inner: S,
 }
 
-impl<S, B> Service<Request<B>> for FlexibleCookieValidatorMiddleware<S>
+impl<S, B> Service<Request<B>> for CookieValidatorMiddleware<S>
 where
     S: Service<Request<B>, Response = Response<Body>> + Clone + Send + 'static,
     S::Future: Send + 'static,
@@ -45,28 +47,10 @@ where
         let mut inner = self.inner.clone();
 
         let future = async move {
-            // リクエストヘッダーからCookieを取得
-            let cookies_str = req
-                .headers()
-                .get(axum::http::header::COOKIE)
-                .and_then(|header_value| header_value.to_str().ok())
-                .unwrap_or("");
-
-            // Cookieヘッダーをセミコロンで分割して各cookieを解析
-            let cookies: Vec<&str> = cookies_str.split(';').collect();
-
-            // access_tokenをCookieヘッダーから取り出す
-            let mut access_token_value = None;
-            for cookie in cookies {
-                let parts: Vec<&str> = cookie.split('=').map(|part| part.trim()).collect();
-                if parts.len() == 2 && parts[0] == "access_token" {
-                    access_token_value = Some(parts[1]);
-                    break;
-                }
-            }
+            let access_token_value = extract_cookie_value(req.headers(), "access_token");
 
             // アクセストークンを検証し結果に応じてレスポンス
-            match verify_access_token(&access_token_value.unwrap_or("")) {
+            match verify_access_token(access_token_value.unwrap_or("")) {
                 // 成功時はハンドラーからユーザーIDを取り出せるよう設定
                 Ok(claims) => {
                     // ユーザーIDをリクエストのExtensionとしてセット
@@ -75,12 +59,25 @@ where
                     // 内部サービスへのリクエストを続ける
                     return inner.call(req).await;
                 },
-                // 検証失敗時（トークンなし）もダミーのUUID作成してExtensionとしてセット
+                // 検証失敗時のレスポンス
                 Err(_) => {
-                    let mut req = req;
-                    let dummy_user_id = Uuid::now_v7().to_string();
-                    req.extensions_mut().insert(dummy_user_id);
-                    return inner.call(req).await;
+                    let response_body = json!({
+                        "error": "token_expired"
+                    });
+                    let response = axum::response::Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .header("Content-Type", "application/json")
+                        .body(axum::body::Body::from(response_body.to_string()));
+                    match response {
+                        Ok(response) => return Ok(response),
+                        Err(err) => {
+                            tracing::error!("{}", err);
+                            let response =
+                                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.")
+                                    .into_response();
+                            return Ok(response);
+                        },
+                    }
                 },
             }
         };

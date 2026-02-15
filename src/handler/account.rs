@@ -1,24 +1,24 @@
 use crate::config::CONFIG;
 use axum::{
     Extension, Json,
-    http::{HeaderValue, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use serde_json::json;
-use sqlx::sqlite::SqlitePool;
+use sqlx::{self, SqlitePool};
 use sqlx::{query, query_as};
-use uuid::Uuid;
 
-use crate::auth::{create_token, refresh_access_token};
+use crate::auth::{build_auth_cookie_response, create_token, refresh_access_token};
+use crate::db::create_user;
 use crate::error::AppError;
-use crate::scheme::{
+use crate::model::{
     AccountPrivacyInfo, AuthenticatedUser, IsExists, LoginPayload, MessageApi, ReturningId,
     SignupPayload, UpdateAccountPrivacyPayload, UserAccountModel,
 };
 
-// サインアップハンドラー
+// SIGNUP USER API
 pub async fn signup_handler(
     Extension(pool): Extension<SqlitePool>,
     Json(payload): Json<SignupPayload>,
@@ -27,7 +27,7 @@ pub async fn signup_handler(
     let user_exists = query_as!(
         IsExists,
         r#"
-        SELECT EXISTS (
+        SELECT EXISTS(
             SELECT 1 FROM user_model WHERE username = $1
         ) as exists_flag
         "#,
@@ -46,88 +46,19 @@ pub async fn signup_handler(
     }
 
     // パスワードをハッシュ化(ソルト値はハッシュ値に組み込んで管理)
-    let hashed_password = hash(payload.password, DEFAULT_COST).unwrap_or("".to_string());
-    if hashed_password == "" {
-        return Err(AppError::InternalServerError);
-    }
+    let hashed_password =
+        hash(payload.password, DEFAULT_COST).map_err(|_| AppError::InternalServerError)?;
 
-    // UTCで現在時刻を取得し、NaiveDateTimeに変換
-    let now = Utc::now().naive_utc();
-    let yesterday;
-    match TimeDelta::try_days(1) {
-        Some(one_day_delta) => {
-            yesterday = now - one_day_delta;
-        },
-        None => {
-            tracing::error!("Initial Data Create Error.");
-            return Err(AppError::InternalServerError);
-        },
-    }
-
-    // トランザクションの開始
-    let mut tx = pool.begin().await.map_err(|e| {
-        tracing::error!(error = %e, "failed to begin transaction");
-        AppError::InternalServerError
-    })?;
-
-    // 新規ID
-    let new_user_id = Uuid::now_v7().to_string();
-
-    let totp_secret = "".to_string();
-    let totp_temp_secret = "".to_string();
-
-    // ユーザーが存在しない場合は新しいユーザーを追加し、追加したユーザーのidを取得
-    let returning_user_id = query_as!(
-        ReturningId,
-        r#"
-        INSERT INTO user_model (
-            id,
-            username,
-            public_name,
-            password,
-            create_at,
-            is_superuser,
-            failed_count,
-            next_challenge_time,
-            is_locked,
-            is_private,
-            is_basic_authed,
-            is_basic_authed_at,
-            totp_secret,
-            totp_temp_secret
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING id
-        "#,
-        new_user_id,
-        payload.username,
-        payload.public_name,
-        hashed_password,
-        now,
+    let returning_user_id = create_user(
+        &pool,
+        &payload.username,
+        &payload.public_name,
+        &hashed_password,
         false,
-        0,
-        yesterday,
-        false,
-        true,
-        false,
-        yesterday,
-        totp_secret,
-        totp_temp_secret,
     )
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|e| {
-        tracing::error!(error = %e, "failed to user create");
-        AppError::Sqlx(e)
-    })?;
+    .await?;
 
-    // トランザクションの終了
-    tx.commit().await.map_err(|e| {
-        tracing::error!(error = %e, "failed to commit transaction");
-        AppError::Sqlx(e)
-    })?;
-
-    return Ok(Json(returning_user_id));
+    Ok(Json(returning_user_id))
 }
 
 // ログインハンドラー
@@ -159,15 +90,11 @@ pub async fn token_handler(
     if let Ok(setting) = result_settings {
         for row in setting {
             if row.setting_key == "login_attempts_limit" {
-                let login_attempts_limit = row.setting_value;
-                parsed_login_limit = parsed_i64_to_string(login_attempts_limit).unwrap_or(15);
+                parsed_login_limit = row.setting_value.parse::<i32>().unwrap_or(15);
             } else if row.setting_key == "next_challenge_minutes" {
-                let next_challenge_minutes = row.setting_value;
-                parsed_minutes = parsed_i64_to_string(next_challenge_minutes).unwrap_or(5);
+                parsed_minutes = row.setting_value.parse::<i32>().unwrap_or(5);
             } else if row.setting_key == "challenge_limit_start" {
-                let challenge_limit_start = row.setting_value;
-                parsed_challenge_limit_start =
-                    parsed_i64_to_string(challenge_limit_start).unwrap_or(5);
+                parsed_challenge_limit_start = row.setting_value.parse::<i32>().unwrap_or(5);
             }
         }
     }
@@ -179,6 +106,7 @@ pub async fn token_handler(
         SELECT
             id,
             username,
+            public_name,
             password,
             create_at,
             is_superuser,
@@ -225,8 +153,8 @@ pub async fn token_handler(
         },
     }
 
-    // ログイン失敗回数が上限に達している場合はアカウントをロックしてエラーレスポンス（カウントリセット）
-    if user.failed_count == parsed_login_limit - 1 {
+    // ログイン失敗回数が上限に達している場合はアカウントをロックしてエラーレスポンス（カウントをリセット）
+    if user.failed_count == parsed_login_limit as i64 - 1 {
         query!(
             r#"
             UPDATE user_model
@@ -252,8 +180,8 @@ pub async fn token_handler(
         return AppError::InternalServerError;
     })? == false
     {
-        let failed_count = user.failed_count;
-        let failed_count = failed_count + 1;
+        let failed_count = user.failed_count as i32;
+        let failed_count: i32 = failed_count + 1;
 
         // 失敗が設定回数に達したら次にチャレンジできる時間を設定
         if failed_count >= parsed_challenge_limit_start {
@@ -313,8 +241,7 @@ pub async fn token_handler(
         let now = Utc::now().naive_utc().to_string();
         // ベーシック認証確認済みのフラグ
         query!(
-            r#"
-            UPDATE user_model
+            r#"UPDATE user_model
             SET is_basic_authed = $1, is_basic_authed_at = $2
             WHERE id = $3
             "#,
@@ -329,7 +256,6 @@ pub async fn token_handler(
             AppError::Sqlx(e)
         })?;
 
-        let builder = Response::builder();
         let body = json!({
             "success": false,
             "user": payload.username,
@@ -337,11 +263,10 @@ pub async fn token_handler(
             "totp_required": true,
         })
         .to_string();
-
         // レスポンスの生成
-        let response = builder
+        let response = Response::builder()
             .status(StatusCode::OK)
-            .body(body)
+            .body(axum::body::Body::from(body))
             .map_err(|_e| AppError::InternalServerError)?;
         return Ok(response);
     // TOTPが有効でなければそのままログイン成功
@@ -379,38 +304,6 @@ pub async fn token_handler(
         )
         .map_err(|_e| AppError::InternalServerError)?;
 
-        // cookieヘッダーの生成
-        let access_token_cookie;
-        let refresh_token_cookie;
-        if CONFIG.secure_cookie {
-            access_token_cookie = format!(
-                "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
-                access_token,
-                CONFIG.access_token_exp_minutes * 60
-            );
-            refresh_token_cookie = format!(
-                "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
-                refresh_token,
-                CONFIG.refresh_token_exp_minutes * 60
-            );
-        } else {
-            access_token_cookie = format!(
-                "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
-                access_token,
-                CONFIG.access_token_exp_minutes * 60
-            );
-            refresh_token_cookie = format!(
-                "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
-                refresh_token,
-                CONFIG.refresh_token_exp_minutes * 60
-            );
-        }
-
-        let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie)
-            .map_err(|_e| AppError::InternalServerError)?;
-        let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie)
-            .map_err(|_e| AppError::InternalServerError)?;
-
         let body = json!({
             "success": true,
             "user": payload.username,
@@ -419,17 +312,12 @@ pub async fn token_handler(
         })
         .to_string();
 
-        let mut builder = Response::builder();
-        if let Some(headers) = builder.headers_mut() {
-            headers.append("Set-Cookie", access_token_cookie_header);
-            headers.append("Set-Cookie", refresh_token_cookie_header);
-        }
-
-        // レスポンスの生成
-        let response = builder
-            .status(StatusCode::OK)
-            .body(body)
-            .map_err(|_e| AppError::InternalServerError)?;
+        let response = build_auth_cookie_response(
+            &access_token,
+            &refresh_token,
+            StatusCode::OK,
+            axum::body::Body::from(body),
+        )?;
         Ok(response)
     }
 }
@@ -443,7 +331,11 @@ pub async fn auth_check_handler(
     let user = query_as!(
         AuthenticatedUser,
         r#"
-        SELECT id, username, public_name FROM user_model WHERE id = $1
+        SELECT
+            id,
+            username,
+            public_name
+        FROM user_model WHERE id = $1
         "#,
         user_id
     )
@@ -454,63 +346,18 @@ pub async fn auth_check_handler(
     Ok(Json(user))
 }
 
-fn parsed_i64_to_string(string_int: String) -> Result<i64, std::num::ParseIntError> {
-    match string_int.parse::<i64>() {
-        Ok(parsed_int) => return Ok(parsed_int),
-        Err(e) => return Err(e),
-    };
-}
-
 // リフレッシュトークンの再取得ハンドラ
 pub async fn refresh_token_handler(
     Extension(user_id): Extension<String>,
 ) -> Result<impl IntoResponse, AppError> {
     match refresh_access_token(user_id) {
         Ok(new_tokens) => {
-            // cookieヘッダーの生成
-            let access_token_cookie;
-            let refresh_token_cookie;
-            if CONFIG.secure_cookie {
-                access_token_cookie = format!(
-                    "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
-                    new_tokens.access_token,
-                    CONFIG.access_token_exp_minutes * 60
-                );
-                refresh_token_cookie = format!(
-                    "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
-                    new_tokens.refresh_token,
-                    CONFIG.refresh_token_exp_minutes * 60
-                );
-            } else {
-                access_token_cookie = format!(
-                    "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
-                    new_tokens.access_token,
-                    CONFIG.access_token_exp_minutes * 60
-                );
-                refresh_token_cookie = format!(
-                    "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
-                    new_tokens.refresh_token,
-                    CONFIG.refresh_token_exp_minutes * 60
-                );
-            }
-
-            // cookieヘッダーの生成
-            let access_token_cookie_header = HeaderValue::from_str(&access_token_cookie)
-                .map_err(|_e| AppError::InternalServerError)?;
-            let refresh_token_cookie_header = HeaderValue::from_str(&refresh_token_cookie)
-                .map_err(|_e| AppError::InternalServerError)?;
-
-            let mut builder = Response::builder();
-            if let Some(headers) = builder.headers_mut() {
-                headers.append("Set-Cookie", access_token_cookie_header);
-                headers.append("Set-Cookie", refresh_token_cookie_header);
-            }
-
-            // レスポンスの生成
-            let response = builder
-                .status(StatusCode::OK)
-                .body(axum::body::Body::empty())
-                .map_err(|_e| AppError::InternalServerError)?;
+            let response = build_auth_cookie_response(
+                &new_tokens.access_token,
+                &new_tokens.refresh_token,
+                StatusCode::OK,
+                axum::body::Body::empty(),
+            )?;
             Ok(response)
         },
         Err(err) => {
@@ -577,6 +424,26 @@ pub async fn get_account_info_handler(
     Ok(Json(user_info))
 }
 
+// 期限0の無効トークンを発行し、既存のトークンを上書き
+pub async fn disable_token(
+    Extension(user_id): Extension<String>,
+) -> Result<impl IntoResponse, AppError> {
+    // アクセストークン生成
+    let access_token = create_token(&user_id, 0, "access_token".to_string())
+        .map_err(|_e| AppError::InternalServerError)?;
+
+    // リフレッシュトークン生成
+    let refresh_token = create_token(&user_id, 0, "refresh_token".to_string())
+        .map_err(|_e| AppError::InternalServerError)?;
+
+    build_auth_cookie_response(
+        &access_token,
+        &refresh_token,
+        StatusCode::OK,
+        axum::body::Body::empty(),
+    )
+}
+
 fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
     // 小数秒あり/なし、スペース/T 区切りの両方を許容
     let fmts: [&str; 4] = [
@@ -591,62 +458,4 @@ fn parse_naive_datetime(s: &str) -> Option<NaiveDateTime> {
         }
     }
     None
-}
-
-// 期限0の無効トークンを発行し、既存のトークンを上書き
-pub async fn disable_token(
-    Extension(user_id): Extension<String>,
-) -> Result<impl IntoResponse, AppError> {
-    // アクセストークン生成
-    let access_token = create_token(&user_id, 0, "access_token".to_string())
-        .map_err(|_e| AppError::InternalServerError)?;
-
-    // リフレッシュトークン生成
-    let refresh_token = create_token(&user_id, 0, "refresh_token".to_string())
-        .map_err(|_e| AppError::InternalServerError)?;
-
-    // cookieヘッダーの生成
-    let access_token_cookie;
-    let refresh_token_cookie;
-    if CONFIG.secure_cookie {
-        access_token_cookie = format!(
-            "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
-            access_token,
-            CONFIG.access_token_exp_minutes * 60
-        );
-        refresh_token_cookie = format!(
-            "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
-            refresh_token,
-            CONFIG.refresh_token_exp_minutes * 60
-        );
-    } else {
-        access_token_cookie = format!(
-            "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
-            access_token,
-            CONFIG.access_token_exp_minutes * 60
-        );
-        refresh_token_cookie = format!(
-            "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
-            refresh_token,
-            CONFIG.refresh_token_exp_minutes * 60
-        );
-    }
-
-    let access_token_cookie_header =
-        HeaderValue::from_str(&access_token_cookie).map_err(|_e| AppError::InternalServerError)?;
-    let refresh_token_cookie_header =
-        HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| AppError::InternalServerError)?;
-
-    let mut builder = Response::builder();
-    if let Some(headers) = builder.headers_mut() {
-        headers.append("Set-Cookie", access_token_cookie_header);
-        headers.append("Set-Cookie", refresh_token_cookie_header);
-    }
-
-    // レスポンスの生成
-    let response = builder
-        .status(StatusCode::OK)
-        .body(axum::body::Body::empty())
-        .map_err(|_e| AppError::InternalServerError);
-    response
 }

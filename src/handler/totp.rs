@@ -1,19 +1,13 @@
-use crate::auth::create_token;
+use crate::auth::{build_auth_cookie_response, create_token};
 use crate::config::CONFIG;
 use crate::error::AppError;
-use crate::scheme::{
+use crate::model::{
     GetUserNameFromDb, MessageApi, TotpLoginPayload, TotpSetupResponse, TotpTempSecret,
     TotpVerifyRequest, UserAccountModel,
 };
-use axum::{
-    Json,
-    extract::Extension,
-    http::{HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
-};
+use axum::{Json, extract::Extension, http::StatusCode, response::IntoResponse};
 use base32::Alphabet;
-use chrono::NaiveDateTime;
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDateTime, Utc};
 use rand::Rng;
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
@@ -30,8 +24,12 @@ pub async fn totp_setup_handler(
 
     let user = query_as!(
         GetUserNameFromDb,
-        "SELECT username FROM user_model WHERE id = $1",
-        user_id
+        r#"
+        SELECT username
+        FROM user_model
+        WHERE id = $1
+        "#,
+        user_id,
     )
     .fetch_one(&pool)
     .await
@@ -55,7 +53,11 @@ pub async fn totp_setup_handler(
         Ok(totp) => {
             let url = totp.get_url();
             let query_result = query!(
-                "UPDATE user_model SET totp_temp_secret = $1 WHERE id = $2",
+                r#"
+                UPDATE user_model
+                SET totp_temp_secret = $1
+                WHERE id = $2
+                "#,
                 secret_base32,
                 user_id,
             )
@@ -70,7 +72,7 @@ pub async fn totp_setup_handler(
             if affected_rows > 0 {
                 Ok(Json(TotpSetupResponse {
                     otpauth_url: url,
-                    secret_base32: secret_base32,
+                    secret_base32,
                 }))
             } else {
                 Err(AppError::BadRequest)
@@ -88,14 +90,18 @@ pub async fn totp_verify_handler(
 ) -> Result<Json<MessageApi>, AppError> {
     let result = query_as!(
         TotpTempSecret,
-        "SELECT totp_temp_secret FROM user_model WHERE id = $1",
+        r#"
+        SELECT totp_temp_secret
+        FROM user_model
+        WHERE id = $1
+        "#,
         user_id,
     )
     .fetch_one(&pool)
     .await
     .map_err(|e| {
         tracing::error!(error = %e, "database error.");
-        AppError::Sqlx(e)
+        AppError::Unauthorized("Unauthorized".into())
     })?;
 
     if result.totp_temp_secret == "" {
@@ -120,7 +126,11 @@ pub async fn totp_verify_handler(
     // 検証成功時は本番用に昇格
     let blank_text = "".to_string();
     query!(
-        "UPDATE user_model SET totp_secret = $1, totp_temp_secret = $2 WHERE id = $3",
+        r#"
+        UPDATE user_model
+        SET totp_secret = $1, totp_temp_secret = $2
+        WHERE id = $3
+        "#,
         result.totp_temp_secret,
         blank_text,
         user_id,
@@ -149,6 +159,7 @@ pub async fn token_totp_handler(
         SELECT
             id,
             username,
+            public_name,
             password,
             create_at,
             is_superuser,
@@ -180,7 +191,6 @@ pub async fn token_totp_handler(
     // 3分以内か検証
     if let Some(expiry) = Duration::try_minutes(3) {
         // SQLiteでの文字列から日付型に戻す
-
         match parse_naive_datetime(&user.is_basic_authed_at) {
             Some(next) if Utc::now().naive_utc() - next > expiry => {
                 return Err(AppError::Unauthorized("Time Over.".into()));
@@ -240,38 +250,6 @@ pub async fn token_totp_handler(
     )
     .map_err(|_e| AppError::InternalServerError)?;
 
-    // cookieヘッダーの生成
-    let access_token_cookie;
-    let refresh_token_cookie;
-    if CONFIG.secure_cookie {
-        access_token_cookie = format!(
-            "access_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/",
-            access_token,
-            CONFIG.access_token_exp_minutes * 60
-        );
-        refresh_token_cookie = format!(
-            "refresh_token={}; HttpOnly; SameSite=Strict; Secure; max-age={}; Path=/account/refresh",
-            refresh_token,
-            CONFIG.refresh_token_exp_minutes * 60
-        );
-    } else {
-        access_token_cookie = format!(
-            "access_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/",
-            access_token,
-            CONFIG.access_token_exp_minutes * 60
-        );
-        refresh_token_cookie = format!(
-            "refresh_token={}; HttpOnly; SameSite=Strict; max-age={}; Path=/account/refresh",
-            refresh_token,
-            CONFIG.refresh_token_exp_minutes * 60
-        );
-    }
-
-    let access_token_cookie_header =
-        HeaderValue::from_str(&access_token_cookie).map_err(|_e| AppError::InternalServerError)?;
-    let refresh_token_cookie_header =
-        HeaderValue::from_str(&refresh_token_cookie).map_err(|_e| AppError::InternalServerError)?;
-
     // レスポンスボディの情報
     let body = json!({
         "success": true,
@@ -298,17 +276,12 @@ pub async fn token_totp_handler(
         AppError::Sqlx(e)
     })?;
 
-    let mut builder = Response::builder();
-    if let Some(headers) = builder.headers_mut() {
-        headers.append("Set-Cookie", access_token_cookie_header);
-        headers.append("Set-Cookie", refresh_token_cookie_header);
-    }
-
-    // レスポンスの生成
-    let response = builder
-        .status(StatusCode::OK)
-        .body(body)
-        .map_err(|_e| AppError::InternalServerError)?;
+    let response = build_auth_cookie_response(
+        &access_token,
+        &refresh_token,
+        StatusCode::OK,
+        axum::body::Body::from(body),
+    )?;
     Ok(response)
 }
 
