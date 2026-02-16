@@ -52,8 +52,8 @@ pub async fn create_user(
         INSERT INTO user_model (
             id,
             username,
-            password,
             public_name,
+            password,
             create_at,
             is_superuser,
             failed_count,

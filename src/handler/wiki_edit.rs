@@ -97,7 +97,7 @@ pub async fn request_wiki_edit(
     })?;
 
     // 新規編集リクエストWikiのID
-    let new_edit_wiki_req_id = Uuid::now_v7();
+    let new_edit_wiki_req_id = Uuid::now_v7().to_string();
 
     let status = payload.status.as_str();
 
