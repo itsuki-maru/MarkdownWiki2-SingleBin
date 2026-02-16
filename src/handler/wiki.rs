@@ -27,7 +27,7 @@ pub async fn create_wiki_handler(
     let now = Utc::now().naive_utc();
 
     // 新規WikiのID
-    let new_wiki_id = Uuid::now_v7();
+    let new_wiki_id = Uuid::now_v7().to_string();
 
     let new_wiki_id = query_as!(
         ReturningId,

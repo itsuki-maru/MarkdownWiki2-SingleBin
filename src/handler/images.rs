@@ -92,7 +92,7 @@ pub async fn upload_image_handler(
     let now = Utc::now().naive_utc();
 
     // 新規ID
-    let new_image_id = Uuid::now_v7();
+    let new_image_id = Uuid::now_v7().to_string();
     let mut original_filename = String::new();
     let mut unique_filename = String::new();
     while let Some(field) = payload

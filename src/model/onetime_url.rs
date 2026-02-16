@@ -75,7 +75,8 @@ impl TemporaryUrl {
 
     pub fn is_expired(&self) -> bool {
         // SQLiteでの文字列から日付型に戻す
-        let expiration = NaiveDateTime::parse_from_str(&self.expiration, "%Y-%m-%d %H:%M:%S");
+        let expiration =
+            NaiveDateTime::parse_from_str(&self.expiration.as_str(), "%Y-%m-%d %H:%M:%S%.f");
         match expiration {
             Ok(exp) => exp < Utc::now().naive_utc(),
             Err(_e) => false,
