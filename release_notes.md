@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.3.3
+
+- バックエンドを大規模リファクタリング
+  - 関連ファイルのサブディレクトリを作成（db, models, image, middleware）
+  - 構造体を scheme.rs から分離分割
+
 ## Version 1.3.2
 
 - コードフォーマッタによりプロジェクト全体をフォーマッティング
