@@ -54,6 +54,7 @@ jsFiles="$mainDir/dist/*.js"
 mjsFiles="$mainDir/dist/*.mjs"
 cssFiles="$mainDir/dist/*.css"
 jsonFiles="$mainDir/dist/*.json"
+cmapsFiles="$mainDir/dist/cmaps/*"
 movedDir="$mainDir/dist/assets/"
 
 
@@ -220,6 +221,7 @@ mv $jsFiles $mainDistAssetsDir
 mv $mjsFiles $mainDistAssetsDir
 mv $cssFiles $mainDistAssetsDir
 mv $jsonFiles $mainDistAssetsDir
+mv $cmapsFiles $mainDistAssetsDir
 
 # フロントエンド成果物配布用ディレクトリ作成
 cd $mainDistDir

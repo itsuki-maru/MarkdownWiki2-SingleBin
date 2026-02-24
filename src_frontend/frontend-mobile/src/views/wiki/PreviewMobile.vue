@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { marked, Renderer } from 'marked';
-import type { Tokens, MarkedOptions } from 'marked';
+import type { Tokens } from 'marked';
 import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import type { WikiData, TypeWikiOwner } from '@/interface';
 import { useWikiStore } from '@/stores/wikis';
-import { wikiOwnerGetUrl, generateOnetimeWikiUrl, invalidateOntimeWikiUrl } from '@/router/urls';
+import {
+  wikiOwnerGetUrl,
+  generateOnetimeWikiUrl,
+  invalidateOntimeWikiUrl,
+  patchWikiBodyUrl,
+} from '@/router/urls';
 import { assetsUrl } from '@/setting';
 import '@/assets/github.css';
-import { FilterXSS, getDefaultWhiteList } from 'xss';
-import type { IFilterXSSOptions } from 'xss';
 import {
   videoToken,
   detailsToken,
@@ -18,7 +21,14 @@ import {
   mathExtentionToken,
   renderIframe,
   youtubeToken,
+  escapeHtml,
+  isPDF,
+  createLinkRenderer,
+  createImageRenderer,
+  createXssFilter,
 } from '@/utils/markedSetup';
+import { useMessageModal } from '@/utils/useMessageModal';
+import { useProtocolDetection } from '@/utils/useProtocolDetection';
 import apiClient from '@/axiosClient';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-okaidia.css';
@@ -41,32 +51,25 @@ import 'katex/dist/katex.min.css';
 import FindBar from '@/components/FindBar.vue';
 
 // アプリケーションの通信プロトコル
-const isHttpsProtocol = ref(false);
-const isDevelopLocalhost = ref(false);
-// 現在のURLを取得
-const currentUrl = window.location.href;
-// URLを解析
-const url = new URL(currentUrl);
-// プロトコルとホスト名を取得
-const protocol = url.protocol;
-const hostname = url.hostname;
-const port = url.port;
-// HTTPSかlocalhost通信の場合の設定
-if (protocol === 'https:') {
-  isHttpsProtocol.value = true;
-}
-if (hostname === 'localhost') {
-  isHttpsProtocol.value = true;
-  // 開発環境の処理
-  if (port === '4080') {
-    isDevelopLocalhost.value = true;
-  }
-}
+const { isHttpsProtocol, isDevelopLocalhost } = useProtocolDetection();
+// URL構築用にローカルで保持
+const { protocol, hostname, port } = new URL(window.location.href);
+
+// メッセージ表示モーダル機能
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
 
 const mermaid: any = (window as any).mermaid;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
+
+// タスクチェックボックスのMarkdown内オフセット管理
+interface TaskOffset {
+  start: number; // '[' の位置
+  end: number; // ']' の次（3文字分）
+}
+let taskOffsets: TaskOffset[] = [];
+let taskOffsetIdx = 0;
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -77,33 +80,7 @@ renderer.heading = function (tokens: Tokens.Heading) {
 };
 
 // [テキスト](URL)で定義された外部リンクを別タブで開かせるカスタムレンダラ設定
-// 元のlink関数を保存
-const originalLinkRenderer = renderer.link.bind(renderer);
-
-// link関数をオーバーライド
-renderer.link = (tokens: Tokens.Link) => {
-  // 外部リンクかどうかをチェック
-  const isExternal = /^https?:\/\//.test(tokens.href!);
-  let isPDFHref = false;
-  if (tokens.href) {
-    isPDFHref = isPDF(tokens.href);
-  }
-  const html = originalLinkRenderer(tokens);
-  if (isExternal) {
-    // 外部リンクの場合、targetとrel属性を追加
-    return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
-  } else {
-    // 内部リンクかつPDFの場合
-    if (isPDFHref) {
-      return html.replace(
-        /^<a /,
-        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
-      );
-    }
-    // 内部リンクの場合、元の処理を使用
-    return originalLinkRenderer(tokens);
-  }
-};
+createLinkRenderer(renderer);
 
 // tableにclassを付する処理（div要素内にテーブルを含包させる）
 const originalTableRenderer = renderer.table.bind(renderer);
@@ -139,18 +116,19 @@ renderer.code = (tokens: Tokens.Code) => {
   }
 };
 
-const originalImageRenderer = renderer.image;
-renderer.image = (tokens: Tokens.Image) => {
-  let width = '';
-  let href = tokens.href;
-  let text = tokens.text;
-  const match = tokens.href.match(/\s*=(\d+)(x)?$/);
-  if (match) {
-    width = match[1]!;
-    href = href.replace(/\s*=.*$/, '');
+createImageRenderer(renderer);
+
+// タスクチェックボックスのレンダラをオーバーライド
+// data-start / data-end を付与し、disabled を外してインタラクティブにする
+renderer.checkbox = ({ checked }: Tokens.Checkbox) => {
+  const offset = taskOffsets[taskOffsetIdx];
+  if (offset) {
+    taskOffsetIdx++;
+    const checkedAttr = checked ? ' checked' : '';
+    return `<input type="checkbox"${checkedAttr} data-start="${offset.start}" data-end="${offset.end}"> `;
   }
-  const widthAttr = width ? ` width="${width}px"` : '';
-  return `<img src="${href}" alt="${text}" ${widthAttr}>`;
+  // オフセットが取得できなかった場合はデフォルトと同等（disabled）にフォールバック
+  return `<input type="checkbox"${checked ? ' checked' : ''} disabled> `;
 };
 
 // codeタグにコピー機能を実装
@@ -190,60 +168,56 @@ marked.use({
   extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
 });
 
-// HTMLエスケープ関数
-function escapeHtml(html: string) {
-  return html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 // markedの設定をカスタマイズ
 marked.setOptions({
   renderer,
   async: false,
 });
 
-// XSSフィルタの設定をカスタマイズする
-let xssOptions: IFilterXSSOptions = {
-  whiteList: {
-    ...getDefaultWhiteList(), // デフォルトの許可リストを維持
-    h1: ['id', 'class'], // h1タグのid属性を許可 class属性を許可
-    h2: ['id', 'class'], // h2タグのid属性を許可 class属性を許可
-    h3: ['id'], // h3タグのid属性を許可
-    h4: ['id'], // h4タグのid属性を許可
-    h5: ['id'], // h5タグのid属性を許可
-    h6: ['id'], // h6タグのid属性を許可
-    pre: ['class'],
-    table: ['id', 'class'],
-    button: ['class', 'data-target'],
-    code: ['id', 'class'],
-    div: ['class'],
-    p: ['class'],
-    span: ['class', 'aria-hidden', 'style'],
-    'app-youtube': ['video-id', 'data-src'],
-  },
-  // iframeの確認（念のため、iframeはここで不許可）
-  onTag(tag, html) {
-    if (tag === 'iframe') return 'Not Allow iframe ';
-  },
-  // Katexでサニタイズされてしまうスタイルを再定義
-  css: {
-    whiteList: {
-      height: true,
-      'margin-right': true,
-      top: true,
-      width: true,
-      'margin-left': true,
-      left: true,
-      right: true,
-      bottom: true,
-    },
-  },
-};
-const myXss = new FilterXSS(xssOptions);
+const myXss = createXssFilter();
+
+/**
+ * Markdown文字列からタスクチェックボックスの位置（start, end）を順番に収集する。
+ * コードブロック（```）内のチェックボックス記法は除外する。
+ * start: '[' の絶対オフセット、end: start + 3（'[ ]' または '[x]' の末尾）
+ */
+function buildTaskOffsets(markdown: string): TaskOffset[] {
+  const offsets: TaskOffset[] = [];
+
+  // フェンスコードブロックの範囲を収集して除外対象にする
+  const codeRanges: Array<[number, number]> = [];
+  const codeRegex = /^```[\s\S]*?^```[ \t]*$/gm;
+  let cm: RegExpExecArray | null;
+  while ((cm = codeRegex.exec(markdown)) !== null) {
+    codeRanges.push([cm.index, cm.index + cm[0].length]);
+  }
+
+  // タスクリスト行を検出: 行頭の任意インデント + リストマーカー + [ ] or [x]
+  const taskRegex = /^[ \t]*[-*+] \[([ x])\] /gm;
+  let tm: RegExpExecArray | null;
+  while ((tm = taskRegex.exec(markdown)) !== null) {
+    const openBracket = tm.index + tm[0].indexOf('[');
+    const inCode = codeRanges.some(([s, e]) => openBracket >= s && openBracket < e);
+    if (!inCode) {
+      offsets.push({ start: openBracket, end: openBracket + 3 });
+    }
+  }
+
+  return offsets;
+}
+
+/**
+ * Markdownをパースして表示用HTMLを生成する。
+ * 毎回 headingIndex / taskOffsets / taskOffsetIdx をリセットして一貫性を保つ。
+ */
+function renderMarkdown(markdown: string): string {
+  headingIndex = -1;
+  taskOffsets = buildTaskOffsets(markdown);
+  taskOffsetIdx = 0;
+  const parsed = marked.parse(markdown, { async: false }) as string;
+  const clean = myXss.process(parsed);
+  return renderIframe(clean);
+}
 
 // Login.vueへのリダイレクト
 const router = useRouter();
@@ -294,11 +268,9 @@ const wiki = computed((): WikiData => {
 const textTitleData = '# ' + wiki.value.title + '\n\n';
 const textBodyData = wiki.value.body;
 const markdownData = textTitleData + textBodyData;
-const options: MarkedOptions = { async: false };
-const htmlStr = marked.parse(markdownData, options);
-const cleanHtml = myXss.process(htmlStr as string);
-const renderHtml = renderIframe(cleanHtml);
-const bindHtml = ref(renderHtml);
+// チェックボックス更新の正（ソース・オブ・トゥルース）: Markdown全文
+const currentMarkdown = ref(markdownData);
+const bindHtml = ref(renderMarkdown(markdownData));
 Prism.highlightAll();
 
 // Wikiデータのオーナー取得
@@ -507,24 +479,6 @@ const onOpenDeleteViewModal = (): void => {
 onMounted(() => {
   mermaid.init();
 });
-
-// 拡張子でPDFファイルか判定する関数
-function isPDF(filename: string) {
-  return /\.pdf$/i.test(filename);
-}
-
-// メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string): void => {
-  if (!isMessageModal.value) {
-    messageText.value = message;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
-  }
-};
 
 // ワンタイム設定モーダル
 const isOnetimeSettingModal = ref(false);
@@ -753,6 +707,67 @@ const openCloseSearchBar = (): void => {
   }
 };
 
+// ── タスクチェックボックス機能 ────────────────────────────
+
+/**
+ * Markdown本文（タイトル行を除く）をバックエンドにPATCHで送信する。
+ * エンドポイント: PUT /wiki/modify/{id}  payload: { title: string, body: string, is_public: boolean }
+ */
+const patchMarkdownBody = async (markdown: string): Promise<void> => {
+  try {
+    const bodyToSend = markdown.slice(textTitleData.length);
+    const updateData = {
+      id: props.id,
+      title: wiki.value.title,
+      body: bodyToSend,
+      is_public: wiki.value.is_public,
+    };
+    await apiClient.put(patchWikiBodyUrl + `/${props.id}`, updateData);
+    wikiStore.updateWiki(updateData);
+  } catch (error) {
+    console.error('Checkbox update error:', error);
+  }
+};
+
+/**
+ * チェックボックスのchangeイベントをデリゲーションで受け取る。
+ * data-start / data-end を使って currentMarkdown 内の [ ] / [x] をトグルし、
+ * 再レンダリングとバックエンド同期を行う。
+ */
+const onCheckboxChange = async (event: Event): Promise<void> => {
+  const target = event.target as HTMLInputElement;
+  if (target.tagName !== 'INPUT' || target.type !== 'checkbox') return;
+
+  const startStr = target.dataset.start;
+  const endStr = target.dataset.end;
+  if (startStr === undefined || endStr === undefined) return;
+
+  const start = parseInt(startStr, 10);
+  const end = parseInt(endStr, 10);
+
+  // オフセット検証
+  if (isNaN(start) || isNaN(end) || start < 0 || end > currentMarkdown.value.length || start >= end)
+    return;
+
+  const before = currentMarkdown.value.slice(0, start);
+  const targetStr = currentMarkdown.value.slice(start, end);
+  const after = currentMarkdown.value.slice(end);
+
+  // target が正しいチェックボックス記法でなければ何もしない
+  if (!/^\[[ x]\]$/.test(targetStr)) return;
+
+  const newCheckbox = target.checked ? '[x]' : '[ ]';
+  const newMarkdown = before + newCheckbox + after;
+
+  currentMarkdown.value = newMarkdown;
+  bindHtml.value = renderMarkdown(newMarkdown);
+
+  await nextTick();
+  Prism.highlightAll();
+
+  await patchMarkdownBody(newMarkdown);
+};
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });
@@ -814,7 +829,7 @@ onUnmounted(() => {
   <div class="contants-area">
     <div class="notoc">
       <div class="markdown-isprint">
-        <section v-html="bindHtml" ref="contentEl"></section>
+        <section v-html="bindHtml" ref="contentEl" @change="onCheckboxChange"></section>
       </div>
       <div class="footer-zone" v-if="checkIsOwner()">
         <button v-on:click="onOpenDeleteViewModal()" class="btn-delete">削除</button>

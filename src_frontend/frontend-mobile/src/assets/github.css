@@ -392,11 +392,28 @@ pre {
 }
 pre code,
 pre tt {
-  white-space: pre-wrap;
   background-color: transparent;
   border: none;
 }
 pre a {
   color: black;
   text-decoration: none;
+}
+
+p code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+ul code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+li code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }

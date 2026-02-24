@@ -8,8 +8,6 @@ import { deleteWikiUrl, wikiOwnerGetUrl, getUserUrl } from '@/router/urls';
 import { assetsUrl } from '@/setting';
 import { AxiosError } from 'axios';
 import { useWikiStore } from '@/stores/wikis';
-import { FilterXSS, getDefaultWhiteList } from 'xss';
-import type { IFilterXSSOptions } from 'xss';
 import {
   videoToken,
   detailsToken,
@@ -18,7 +16,13 @@ import {
   mathExtentionToken,
   youtubeToken,
   renderIframe,
+  escapeHtml,
+  isPDF,
+  createLinkRenderer,
+  createImageRenderer,
+  createXssFilter,
 } from '@/utils/markedSetup';
+import { useMessageModal } from '@/utils/useMessageModal';
 import apiClient from '@/axiosClient';
 import 'katex/dist/katex.min.css';
 
@@ -26,6 +30,9 @@ const mermaid: any = (window as any).mermaid;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
+
+// メッセージ表示モーダル機能
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -35,61 +42,11 @@ renderer.heading = function (tokens: Tokens.Heading) {
   return `<h${tokens.depth} class="head${tokens.depth}">${tokens.text}</h${tokens.depth}>\n`; // class属性のCSSはトップレベル（App.vue）で定義
 };
 
-// [テキスト](URL)で定義された外部リンクを別タブで開かせるカスタムレンダラ設定
-// 元のlink関数を保存
-const originalLinkRenderer = renderer.link.bind(renderer);
-
-// ローカルホスト判定
-function isLocalhost(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-    return (
-      parsedUrl.hostname === 'localhost' ||
-      parsedUrl.hostname === '127.0.0.1' ||
-      parsedUrl.hostname === '[::1]'
-    );
-  } catch (e) {
-    return false;
-  }
-}
-
-// link関数をオーバーライド
-renderer.link = (tokens: Tokens.Link) => {
-  // 外部リンクかどうかをチェック
-  const isExternal = /^https?:\/\//.test(tokens.href!);
-  let isLocal = false;
-  let isPDFHref = false;
-  if (tokens.href) {
-    isLocal = isLocalhost(tokens.href);
-    isPDFHref = isPDF(tokens.href);
-  }
-  const html = originalLinkRenderer(tokens);
-  if (isExternal) {
-    if (isLocal && isPDFHref) {
-      return html.replace(
-        /^<a /,
-        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
-      );
-    }
-    // 外部リンクの場合、targetとrel属性を追加
-    return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
-  } else {
-    // 内部リンクかつPDFの場合
-    if (isPDFHref) {
-      return html.replace(
-        /^<a /,
-        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
-      );
-    }
-    // 内部リンクの場合、元の処理を使用
-    return originalLinkRenderer(tokens);
-  }
-};
+createLinkRenderer(renderer);
 
 // mermaidの処理
 const originalCodeRenderer = renderer.code.bind(renderer);
 renderer.code = (tokens: Tokens.Code) => {
-  let html = originalCodeRenderer(tokens);
   if (tokens.lang == 'mermaid') {
     return '<pre class="mermaid">' + escapeHtml(tokens.text) + '\n</pre>';
   } else {
@@ -97,29 +54,7 @@ renderer.code = (tokens: Tokens.Code) => {
   }
 };
 
-const originalImageRenderer = renderer.image;
-renderer.image = (tokens: Tokens.Image) => {
-  let width = '';
-  let href = tokens.href;
-  let text = tokens.text;
-  const match = tokens.href.match(/\s*=(\d+)(x)?$/);
-  if (match) {
-    width = match[1]!;
-    href = href.replace(/\s*=.*$/, '');
-  }
-  const widthAttr = width ? ` width="${width}px"` : '';
-  return `<img src="${href}" alt="${text}" ${widthAttr}>`;
-};
-
-// HTMLエスケープ関数
-function escapeHtml(html: string) {
-  return html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+createImageRenderer(renderer);
 
 // Markedにカスタムトークンを追加
 marked.use({
@@ -132,41 +67,7 @@ marked.setOptions({
   async: false,
 });
 
-// XSSフィルタの設定をカスタマイズする
-let xssOptions: IFilterXSSOptions = {
-  whiteList: {
-    ...getDefaultWhiteList(), // デフォルトの許可リストを維持
-    h1: ['id', 'class'], // h1-h6タグのid属性を許可 h1-h2のclass属性を許可
-    h2: ['id', 'class'],
-    h3: ['id'],
-    h4: ['id'],
-    h5: ['id'],
-    h6: ['id'],
-    pre: ['class'],
-    a: ['target', 'rel', 'href', 'title'],
-    div: ['class'],
-    span: ['class', 'aria-hidden', 'style'],
-    'app-youtube': ['video-id', 'data-src'],
-  },
-  // iframeの確認（念のため、iframeはここで不許可）
-  onTag(tag, html) {
-    if (tag === 'iframe') return 'Not Allow iframe ';
-  },
-  // Katexでサニタイズされてしまうスタイルを再定義
-  css: {
-    whiteList: {
-      height: true,
-      'margin-right': true,
-      top: true,
-      width: true,
-      'margin-left': true,
-      left: true,
-      right: true,
-      bottom: true,
-    },
-  },
-};
-const myXss = new FilterXSS(xssOptions);
+const myXss = createXssFilter();
 
 // List.vueへリダイレクト
 const router = useRouter();
@@ -306,18 +207,6 @@ const getWikiOwner = async (id: string): Promise<void> => {
 };
 getWikiOwner(props.id);
 
-// メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string): void => {
-  if (!isMessageModal.value) {
-    messageText.value = message;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
-  }
-};
 
 // ショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
@@ -343,10 +232,6 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
 
-// 拡張子でPDFファイルか判定する関数
-function isPDF(filename: string) {
-  return /\.pdf$/i.test(filename);
-}
 </script>
 
 <template>

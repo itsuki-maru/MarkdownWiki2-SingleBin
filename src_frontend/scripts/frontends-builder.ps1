@@ -5,13 +5,16 @@ Param(
 
 $dependsDeleteFlag = $false
 
-if ($d) {
+if ($d)
+{
     $dependsDeleteFlag = $true
 }
 
 # パスを確認して存在すれば削除する関数
-Function CheckExistsPath($checkPath) {
-    if (Test-Path $checkPath) {
+Function CheckExistsPath($checkPath)
+{
+    if (Test-Path $checkPath)
+    {
         Remove-Item -Recurse -Force $checkPath
     }
 }
@@ -50,10 +53,13 @@ $jsFiles = Join-Path -Path $mainDir -ChildPath "dist/*.js"
 $mjsFiles = Join-Path -Path $mainDir -ChildPath "dist/*.mjs"
 $cssFiles = Join-Path -Path $mainDir -ChildPath "dist/*.css"
 $jsonFiles = Join-Path -Path $mainDir -ChildPath "dist/*.json"
+$cmapsDir = Join-Path -Path $mainDir -ChildPath "dist/cmaps/*"
 $movedDir = Join-Path -Path $mainDir -ChildPath "dist/assets/"
 
+
 # 前回のビルドファイルが存在する場合は削除
-foreach ($checkPath in $mainDistDir, $frontendDistDir, $frontendMobileDistDir, $frontendAdminDistDir, $distributionDir) {
+foreach ($checkPath in $mainDistDir, $frontendDistDir, $frontendMobileDistDir, $frontendAdminDistDir, $distributionDir)
+{
     CheckExistsPath $checkPath
 }
 
@@ -63,12 +69,14 @@ Set-Location $frontendDir
 $nodeModules = Join-Path -Path $frontendDir -ChildPath  "node_modules"
 
 # 依存関係を更新する場合の処理
-if ($dependsDeleteFlag) {
+if ($dependsDeleteFlag)
+{
     CheckExistsPath $nodeModules
 }
 
 # node_modulesが存在しなければnpm installを実行
-if (-Not (Test-Path $nodeModules)) {
+if (-Not (Test-Path $nodeModules))
+{
     npm install
 }
 
@@ -115,12 +123,14 @@ Set-Location $frontendMobileDir
 $nodeModules = Join-Path -Path $frontendMobileDir -ChildPath  "node_modules"
 
 # 依存関係を更新する場合の処理
-if ($dependsDeleteFlag) {
+if ($dependsDeleteFlag)
+{
     CheckExistsPath $nodeModules
 }
 
 # node_modulesが存在しなければnpm installを実行
-if (-Not (Test-Path $nodeModules)) {
+if (-Not (Test-Path $nodeModules))
+{
     npm install
 }
 
@@ -169,12 +179,14 @@ Set-Location $frontendAdminDir
 $nodeModules = Join-Path -Path $frontendAdminDir -ChildPath  "node_modules"
 
 # 依存関係を更新する場合の処理
-if ($dependsDeleteFlag) {
+if ($dependsDeleteFlag)
+{
     CheckExistsPath $nodeModules
 }
 
 # node_modulesが存在しなければnpm installを実行
-if (-Not (Test-Path $nodeModules)) {
+if (-Not (Test-Path $nodeModules))
+{
     npm install
 }
 
@@ -206,6 +218,7 @@ Move-Item -Path $jsFiles -Destination $movedDir
 Move-Item -Path $mjsFiles -Destination $movedDir
 Move-Item -Path $cssFiles -Destination $movedDir
 Move-Item -Path $jsonFiles -Destination $movedDir
+Move-Item -Path $cmapsDir -Destination $movedDir
 
 # 最終的なフロントエンド成果物の配置ディレクトリを作成
 New-Item -Type Directory $distributionDir

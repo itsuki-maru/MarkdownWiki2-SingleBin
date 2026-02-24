@@ -9,8 +9,7 @@ import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
 import { AxiosError } from 'axios';
 import { postOwnerResultUrl, disableEditWikiUrl, getUserUrl } from '@/router/urls';
 import { useEditRequestWikiStore } from '@/stores/editWikis';
-import { FilterXSS, getDefaultWhiteList } from 'xss';
-import type { IFilterXSSOptions } from 'xss';
+import { useMessageModal } from '@/utils/useMessageModal';
 import apiClient from '@/axiosClient';
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
@@ -350,29 +349,8 @@ function onSort() {
   wikiStore.sortWiki();
 }
 
-// XSSフィルタの設定をカスタマイズする
-let xssOptions: IFilterXSSOptions = {
-  whiteList: {
-    ...getDefaultWhiteList(),
-  },
-};
-const myXss = new FilterXSS(xssOptions);
-
 // メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string | null): void => {
-  if (!message) return;
-  const cleanMessage = myXss.process(message);
-
-  if (!isMessageModal.value) {
-    messageText.value = cleanMessage;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
-  }
-};
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
 
 const userSettingModalRef = ref<{
   openCloseUserSettingModal: () => void;

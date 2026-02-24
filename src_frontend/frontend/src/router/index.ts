@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useWikiStore } from '@/stores/wikis';
 import { useImageStore } from '@/stores/images';
+import { useEditRequestWikiStore } from '@/stores/editWikis';
 import type { RouteRecordRaw } from 'vue-router';
 import { getUserUrl } from '@/router/urls';
 import apiClient from '@/axiosClient';
@@ -66,6 +67,9 @@ const routeSettings: RouteRecordRaw[] = [
       // ログイン画面遷移時に情報を残さないためにwiki情報を初期化
       const wikiStore = useWikiStore();
       wikiStore.clearWiki();
+
+      const editRequestWikiStore = useEditRequestWikiStore();
+      editRequestWikiStore.clearEditRequestWiki();
       next();
     },
   },

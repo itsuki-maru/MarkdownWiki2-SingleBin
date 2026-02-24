@@ -32,3 +32,4 @@ export const postEditWikiRequestUrl = baseUrl + '/wiki-edit/request/';
 export const getEditWikiRequestsUrl = baseUrl + '/wiki-edit/lists';
 export const postOwnerResultUrl = baseUrl + '/wiki-edit/result';
 export const disableEditWikiUrl = baseUrl + '/wiki-edit/disable/';
+export const patchWikiBodyUrl = baseUrl + '/wiki/modify';

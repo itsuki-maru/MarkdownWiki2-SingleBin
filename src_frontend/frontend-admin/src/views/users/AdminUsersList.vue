@@ -187,7 +187,7 @@ const signupPost = async (): Promise<void> => {
       if (axiosError.response) {
         const errorStatus = axiosError.response.data['error'];
 
-        if (errorStatus === 'unauthorized error: Conflict') {
+        if (errorStatus === 'Conflict') {
           messageModalOpenClose('既に使用されているユーザー名です。');
         } else {
           messageModalOpenClose('ユーザーの作成に失敗しました。');

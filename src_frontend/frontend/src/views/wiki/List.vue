@@ -9,29 +9,16 @@ import { useWikiStore } from '@/stores/wikis';
 import { useOnetimeWikiStore } from '@/stores/onetimeWikis';
 import { useEditRequestWikiStore } from '@/stores/editWikis';
 import apiClient from '@/axiosClient';
-import { FilterXSS, getDefaultWhiteList } from 'xss';
-import type { IFilterXSSOptions } from 'xss';
 import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
+import { useMessageModal } from '@/utils/useMessageModal';
+import { useProtocolDetection } from '@/utils/useProtocolDetection';
 
 // アプリケーションの通信プロトコル
-const isHttpsProtocol = ref(false);
-// 現在のURLを取得
-const currentUrl = window.location.href;
-// URLを解析
-const url = new URL(currentUrl);
-// プロトコルとホスト名を取得
-const protocol = url.protocol;
-const hostname = url.hostname;
-// HTTPSかlocalhost通信の場合の設定
-if (protocol === 'https:') {
-  isHttpsProtocol.value = true;
-}
-if (hostname === 'localhost') {
-  isHttpsProtocol.value = true;
-}
+const { isHttpsProtocol } = useProtocolDetection();
 
 // ホスト名
-const hostName = `${protocol}//${hostname}:${url.port}`;
+const { protocol, hostname, port: urlPort } = new URL(window.location.href);
+const hostName = `${protocol}//${hostname}:${urlPort}`;
 
 // Login.vueへのリダイレクト
 const router = useRouter();
@@ -457,29 +444,8 @@ function selectTextOrClipboardCopy(elementId: string) {
   }
 }
 
-// XSSフィルタの設定をカスタマイズする
-let xssOptions: IFilterXSSOptions = {
-  whiteList: {
-    ...getDefaultWhiteList(), // デフォルトの許可リスト
-  },
-};
-const myXss = new FilterXSS(xssOptions);
-
 // メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string | null): void => {
-  if (!message) return;
-  const cleanMessage = myXss.process(message);
-
-  if (!isMessageModal.value) {
-    messageText.value = cleanMessage;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
-  }
-};
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
 
 const userSettingModalRef = ref<{
   openCloseUserSettingModal: () => void;

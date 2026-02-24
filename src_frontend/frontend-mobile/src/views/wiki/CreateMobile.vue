@@ -5,16 +5,13 @@ import { useRouter } from 'vue-router';
 import { useWikiStore } from '@/stores/wikis';
 import { useImageStore } from '@/stores/images';
 import { AxiosError } from 'axios';
-import {
-  createWikiUrl,
-  disableTokenUrl,
-  imageUploadUrl,
-  imageDeleteUrl,
-  getUserUrl,
-} from '@/router/urls';
+import { createWikiUrl, disableTokenUrl, imageDeleteUrl, getUserUrl } from '@/router/urls';
 import { baseUrl, assetsUrl } from '@/setting';
 import { marked, Renderer } from 'marked';
-import { videoToken } from '@/utils/markedSetup';
+import { videoToken, isPDF, isMP4 } from '@/utils/markedSetup';
+import { useMessageModal } from '@/utils/useMessageModal';
+import { useProtocolDetection } from '@/utils/useProtocolDetection';
+import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
 
 // 現在ユーザーの取得
@@ -42,21 +39,10 @@ marked.use({
 });
 
 // アプリケーションの通信プロトコル
-const isHttpsProtocol = ref(false);
-// 現在のURLを取得
-const currentUrl = window.location.href;
-// URLを解析
-const url = new URL(currentUrl);
-// プロトコルとホスト名を取得
-const protocol = url.protocol;
-const hostname = url.hostname;
-// HTTPSかlocalhost通信の場合の設定
-if (protocol === 'https:') {
-  isHttpsProtocol.value = true;
-}
-if (hostname === 'localhost') {
-  isHttpsProtocol.value = true;
-}
+const { isHttpsProtocol } = useProtocolDetection();
+
+// メッセージ表示モーダル機能
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
 
 // storeの定義
 const wikiStore = useWikiStore();
@@ -100,6 +86,15 @@ watch(isNewWikiSendNow, (): void => {
     showProgressModal.value = false;
   }
 });
+
+const { onImageSelect, uploadImage, imageCrear } = useImageUpload(
+  showProgressModal,
+  messageModalOpenClose,
+  (markdownStr) => {
+    createWikiData.value.body = createWikiData.value.body + markdownStr + '\n\n';
+    messageModalOpenClose('アップロード完了。コンテンツを挿入しました。');
+  },
+);
 
 // 新規Wikiデータの初期化
 const crateWikiDataInit: CreateWikiData = {
@@ -204,230 +199,6 @@ const openCloseImageUpModal = (): void => {
   }
 };
 
-const isImageSendNow = ref(false); // クリック連打の抑制とプログレス表示
-watch(isImageSendNow, (): void => {
-  if (isImageSendNow.value) {
-    showProgressModal.value = true;
-  } else {
-    showProgressModal.value = false;
-  }
-});
-
-const selectedImageBlob = ref<Blob | null>(null); // リサイズ後のBlobを保持
-const selectedFileName = ref<string>('');
-
-// 画像選択時にリサイズ処理
-const onImageSelect = async (): Promise<void> => {
-  const element = document.getElementById('image1')! as HTMLInputElement;
-  if (element.value === '' || element.value === null) {
-    messageModalOpenClose('画像ファイルを選択してください。');
-    return;
-  }
-
-  // ファイルオブジェクトを取得してペイロードに追加
-  const file = element.files!;
-  const fileObj = file[0]!;
-  const fileName = fileObj.name;
-
-  // mime-typeで許可ファイルをフィルタリング
-  const arrowMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'video/mp4',
-    'application/pdf',
-  ];
-  if (!arrowMimeTypes.includes(fileObj.type)) {
-    messageModalOpenClose('許可されていない形式のファイルです。');
-    imageCrear();
-    return;
-  }
-
-  // 画像ファイルの場合
-  if (fileObj.type.startsWith('image/')) {
-    try {
-      showProgressModal.value = true;
-      // ブラウザネイティブでリサイズ
-      selectedImageBlob.value = await resizeImageWithCanvas(fileObj);
-    } catch (error) {
-      console.error('リサイズエラー: ', error);
-      selectedImageBlob.value = null;
-    } finally {
-      showProgressModal.value = false;
-    }
-    // 画像ファイル以外の場合
-  } else {
-    selectedImageBlob.value = fileObj;
-  }
-  selectedFileName.value = fileName;
-};
-
-// リサイズ処理機構
-const resizeImageWithCanvas = (file: File): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // リサイズ対象の画像の最大幅と高さを定義（2K）
-      const maxWidth = 1280;
-      const maxHeight = 720;
-
-      // リサイズ後のサイズを計算
-      const { width, height } = caluculateDimensions(img.width, img.height, maxWidth, maxHeight);
-
-      // Canvas作成
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-
-      // Canvasに描画
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas contextの取得に失敗しました。'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Blobとして出力
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Blobの生成に失敗しました。'));
-          }
-        },
-        file.type,
-        0.8,
-      ); // 画質80%
-    };
-    img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
-    img.src = URL.createObjectURL(file); // ローカルファイルのURL
-  });
-};
-
-// リサイズ後の幅と高さを計算
-const caluculateDimensions = (
-  width: number,
-  height: number,
-  maxWidth: number,
-  maxHeight: number,
-) => {
-  // 横長画像の場合
-  if (height < width) {
-    if (width > maxWidth || height > maxHeight) {
-      const widthRatio = maxWidth / width;
-      const heightRatio = maxHeight / height;
-      const ratio = Math.min(widthRatio, heightRatio);
-      return {
-        width: Math.floor(width * ratio),
-        height: Math.floor(height * ratio),
-      };
-    }
-    // サイズがすでに範囲内の場合
-    return { width, height };
-
-    // 縦長画像の場合
-  } else {
-    if (height > maxWidth || width > maxHeight) {
-      const widthRatio = maxWidth / height;
-      const heightRatio = maxHeight / width;
-      const ratio = Math.min(widthRatio, heightRatio);
-      return {
-        width: Math.floor(width * ratio),
-        height: Math.floor(height * ratio),
-      };
-    }
-    // サイズがすでに範囲内の場合
-    return { width, height };
-  }
-};
-
-// 画像アップロード処理
-const uploadImage = async (): Promise<void> => {
-  if (isImageSendNow.value === true) {
-    return;
-  } else {
-    isImageSendNow.value = true;
-  }
-
-  if (!selectedImageBlob.value) {
-    messageModalOpenClose('ファイルを選択してください。');
-    isImageSendNow.value = false;
-    return;
-  }
-
-  // FormDataを初期化作成
-  const payload = new FormData();
-  payload.append('upload_file', selectedImageBlob.value, selectedFileName.value);
-
-  // axiosによる送信処理
-  try {
-    const response = await apiClient.post(imageUploadUrl, payload);
-
-    const newImageData: ImageData = {
-      id: response.data['new_image_id'],
-      user_id: response.data['user_id'],
-      filename: response.data['filename'],
-      uuid_filename: response.data['uuid_filename'],
-    };
-    imageStore.addImage(newImageData);
-
-    const uniqueFileName = response.data['uuid_filename'];
-
-    let imageUrlMarkdown = '';
-    if (isMP4(uniqueFileName)) {
-      imageUrlMarkdown = `?[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-    } else {
-      if (isPDF(uniqueFileName)) {
-        imageUrlMarkdown = `[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-      } else {
-        imageUrlMarkdown = `![${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-      }
-    }
-
-    const textarea = document.getElementById('wiki-detail')! as HTMLTextAreaElement;
-    if (textarea) {
-      createWikiData.value.body = createWikiData.value.body + imageUrlMarkdown + '\n\n';
-      messageModalOpenClose('アップロード完了。コンテンツを挿入しました。');
-    }
-
-    imageStore.initList();
-    imageCrear();
-    return;
-  } catch (error) {
-    if (apiClient.isAxiosError(error)) {
-      // エラーオブジェクトがAxiosError型であることが保証
-      const axiosError = error as AxiosError;
-      if (axiosError.response) {
-        const status = axiosError.response.status;
-        // ステータスコード毎に処理の切り分け
-        switch (status) {
-          case 400:
-            messageModalOpenClose(`${axiosError.response.data}`);
-            console.error('Please remove spaces from the file name.', axiosError.response.data);
-            break;
-          case 401:
-            console.error('No token provided.', axiosError.response.data);
-            break;
-          case 500:
-            messageModalOpenClose(`${axiosError.response.data}`);
-            console.error('Server error, please try again later', axiosError.response.data);
-            break;
-          default:
-            messageModalOpenClose(`${axiosError.response.data}`);
-            console.error(`An error occurred: ${status}`, axiosError.response.data);
-            break;
-        }
-      }
-    }
-  } finally {
-    selectedImageBlob.value = null;
-    selectedFileName.value = '';
-    isImageSendNow.value = false;
-  }
-};
-
 // アップロード完了モーダル機能
 const isUploadedMessageModal = ref(false);
 const uploadedUrl = ref('');
@@ -441,18 +212,6 @@ const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void 
     isUploadedMessageModal.value = false;
     uploadedUrl.value = '';
     uploadedUniqueFileName.value = '';
-  }
-};
-
-/** 選択した画像ファイルをクリア */
-const imageCrear = (): void => {
-  selectedFileName.value = '';
-  selectedImageBlob.value = null;
-  let imageContent = document.getElementById('image1')! as HTMLInputElement;
-  if (imageContent.value === null) {
-    return;
-  } else {
-    imageContent.value = '';
   }
 };
 
@@ -570,19 +329,6 @@ const onSearch = (reset: boolean = false): void => {
     }
   } catch (error) {
     console.error(error);
-  }
-};
-
-// メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string): void => {
-  if (!isMessageModal.value) {
-    messageText.value = message;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
   }
 };
 
@@ -753,16 +499,6 @@ onMounted(() => {
     });
   }
 });
-
-// 拡張子で動画ファイルか判定する関数
-function isMP4(filename: string) {
-  return /\.mp4$/i.test(filename);
-}
-
-// 拡張子でPDFファイルか判定する関数
-function isPDF(filename: string) {
-  return /\.pdf$/i.test(filename);
-}
 
 // 与えられたelement idのテキストに次の処理
 // HTTPS（localhost）プロトコル下ではクリップボードコピー HTTPではテキスト選択（IEは非対応）
@@ -1066,6 +802,17 @@ function handleMarkdownInputButtons() {
       </button>
       <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')">
         <img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png" />
+      </button>
+      <button
+        class="btn-input-tools"
+        title="チェックボックスを挿入"
+        v-on:click="insertMarkdown('- [ ] ')"
+      >
+        <img
+          :src="`${assetsUrl}check_box_24.png`"
+          class="btn-input-tools-img"
+          alt="check_box_24.png"
+        />
       </button>
     </div>
   </div>

@@ -3,10 +3,6 @@ import { reactive, provide, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { LoginUser } from './interface';
 import { assetsUrl } from '@/setting';
 import { useRouter } from 'vue-router';
-import ace from 'ace-builds';
-import 'ace-builds/src-noconflict/ext-searchbox'; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
-import 'ace-builds/src-noconflict/mode-markdown'; // Aceでマークダウンを使用するためのモジュール
-import 'ace-builds/src-noconflict/theme-monokai'; // Aceのテーマのモジュール
 import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
 import { useApplicationInitStore } from './stores/appInits';
 
@@ -34,14 +30,36 @@ provide('isShowMemoIcon', isShowMemoIcon);
 
 // メモモーダルの描画
 const showMemoContent = ref(false);
-const onOpenCloseMemoModal = (): void => {
+const onOpenCloseMemoModal = async (): Promise<void> => {
   if (showMemoContent.value === true) {
     showMemoContent.value = false;
   } else {
     showMemoContent.value = true;
+    // 初回起動時のみ ace-builds を動的 import して初期化する
+    if (!editor && editorRef.value) {
+      const [{ default: ace }] = await Promise.all([
+        import('ace-builds'),
+        import('ace-builds/src-noconflict/ext-searchbox'),
+        import('ace-builds/src-noconflict/mode-markdown'),
+        import('ace-builds/src-noconflict/theme-monokai'),
+      ]);
+      editor = ace.edit(editorRef.value);
+      editor.getSession().setMode('ace/mode/markdown');
+      editor.getSession().setUseWrapMode(true);
+      editor.setFontSize(18);
+      // 80文字の縦ラインを消す
+      editor.setShowPrintMargin(false);
+      // editorの変更を監視
+      editor.on('change', () => {
+        const newValue = editor.getValue();
+        if (newValue !== content.value) {
+          content.value = newValue;
+        }
+      });
+    }
     // カーソルのフォーカスがエディタ描画完了後になるようにsetTimeoutで遅延させる
     setTimeout(() => {
-      editor.focus();
+      editor?.focus();
     }, 300);
   }
 };
@@ -56,26 +74,6 @@ watch(content, (newContent) => {
   if (editor && editor.getValue() !== newContent) {
     editor.setValue(newContent, 1);
   }
-});
-
-// HTML描画後にAceエディタを反映
-onMounted(() => {
-  // Aceの設定
-  if (editorRef.value) {
-    editor = ace.edit(editorRef.value);
-    editor.getSession().setMode('ace/mode/markdown');
-    editor.getSession().setUseWrapMode(true);
-    editor.setFontSize(18);
-    // 80文字の縦ラインを消す
-    editor.setShowPrintMargin(false);
-  }
-  // editorの変更を監視
-  editor.on('change', () => {
-    const newValue = editor.getValue();
-    if (newValue !== content.value) {
-      content.value = newValue;
-    }
-  });
 });
 
 onUnmounted(() => {

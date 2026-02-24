@@ -25,7 +25,7 @@ listRedirect();
 <template>
   <div class="container">
     <header class="parent-header">
-      <h1 class="app-header" id="application-title">{{ appTitle }} -管理者操作-</h1>
+      <h1 class="app-header" id="application-title">{{ appTitle }} -管理者画面-</h1>
     </header>
     <RouterView />
   </div>

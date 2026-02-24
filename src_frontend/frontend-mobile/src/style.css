@@ -223,13 +223,6 @@ h3#title_h3_1:after {
   align-items: center;
 }
 
-input[type='checkbox'] {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-}
-
 .base {
   width: 56px;
   border-radius: 16px;
@@ -263,6 +256,13 @@ input:checked ~ .circle {
   border-radius: 12px;
   background-color: white;
   transition: 0.5s;
+}
+
+.switch input[type='checkbox'] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
 }
 
 .switch {

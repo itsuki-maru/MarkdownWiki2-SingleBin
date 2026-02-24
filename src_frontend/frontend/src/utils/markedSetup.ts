@@ -1,6 +1,8 @@
-import { marked } from 'marked';
-import type { Token } from 'marked';
+import { marked, Renderer } from 'marked';
+import type { Token, Tokens } from 'marked';
 import katex from 'katex';
+import { FilterXSS, getDefaultWhiteList } from 'xss';
+import type { IFilterXSSOptions } from 'xss';
 
 // カスタムトークンの型定義
 interface CustomVideoToken {
@@ -247,6 +249,128 @@ function renderIframe(html: string): string {
             `.trim();
     },
   );
+}
+
+// HTMLエスケープ関数
+export function escapeHtml(html: string): string {
+  return html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ローカルホスト判定
+export function isLocalhost(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return (
+      parsedUrl.hostname === 'localhost' ||
+      parsedUrl.hostname === '127.0.0.1' ||
+      parsedUrl.hostname === '[::1]'
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+// 拡張子でPDFファイルか判定する関数
+export function isPDF(filename: string): boolean {
+  return /\.pdf$/i.test(filename);
+}
+
+// 拡張子で動画ファイルか判定する関数
+export function isMP4(filename: string): boolean {
+  return /\.mp4$/i.test(filename);
+}
+
+// [テキスト](URL)で定義された外部リンクを別タブで開かせるカスタムレンダラ設定
+export function createLinkRenderer(renderer: Renderer): void {
+  const originalLinkRenderer = renderer.link.bind(renderer);
+  renderer.link = (tokens: Tokens.Link) => {
+    const isExternal = /^https?:\/\//.test(tokens.href!);
+    let isLocal = false;
+    let isPDFHref = false;
+    if (tokens.href) {
+      isLocal = isLocalhost(tokens.href);
+      isPDFHref = isPDF(tokens.href);
+    }
+    const html = originalLinkRenderer(tokens);
+    if (isExternal) {
+      if (isLocal && isPDFHref) {
+        return html.replace(
+          /^<a /,
+          '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+        );
+      }
+      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
+    } else {
+      if (isPDFHref) {
+        return html.replace(
+          /^<a /,
+          '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
+        );
+      }
+      return originalLinkRenderer(tokens);
+    }
+  };
+}
+
+// 画像レンダラの設定（幅指定構文 =Npx に対応）
+export function createImageRenderer(renderer: Renderer): void {
+  renderer.image = (tokens: Tokens.Image) => {
+    let width = '';
+    let href = tokens.href;
+    const text = tokens.text;
+    const match = tokens.href.match(/\s*=(\d+)(x)?$/);
+    if (match) {
+      width = match[1]!;
+      href = href.replace(/\s*=.*$/, '');
+    }
+    const widthAttr = width ? ` width="${width}px"` : '';
+    return `<img src="${href}" alt="${text}" ${widthAttr}>`;
+  };
+}
+
+// XSSフィルタの生成
+export function createXssFilter(): FilterXSS {
+  const xssOptions: IFilterXSSOptions = {
+    whiteList: {
+      ...getDefaultWhiteList(),
+      h1: ['id', 'class'],
+      h2: ['id', 'class'],
+      h3: ['id'],
+      h4: ['id'],
+      h5: ['id'],
+      h6: ['id'],
+      pre: ['class'],
+      a: ['target', 'rel', 'href', 'title'],
+      button: ['class', 'data-target'],
+      code: ['id', 'class'],
+      div: ['class'],
+      p: ['class'],
+      span: ['class', 'aria-hidden', 'style'],
+      'app-youtube': ['video-id', 'data-src'],
+      input: ['type', 'checked', 'data-start', 'data-end'],
+    },
+    onTag(tag, html) {
+      if (tag === 'iframe') return 'Not Allow iframe ';
+    },
+    css: {
+      whiteList: {
+        height: true,
+        'margin-right': true,
+        top: true,
+        width: true,
+        'margin-left': true,
+        left: true,
+        right: true,
+        bottom: true,
+      },
+    },
+  };
+  return new FilterXSS(xssOptions);
 }
 
 export {

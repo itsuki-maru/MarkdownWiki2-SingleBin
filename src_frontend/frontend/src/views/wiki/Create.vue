@@ -3,15 +3,7 @@ import type { CreateWikiData, ImageData, WikiData, LocalStrageItem } from '@/int
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import type { Ref } from 'vue';
 import { useRouter } from 'vue-router';
-import {
-  createWikiUrl,
-  imageUploadUrl,
-  imageDeleteUrl,
-  getUserUrl,
-  disableTokenUrl,
-} from '@/router/urls';
-import { FilterXSS, getDefaultWhiteList } from 'xss';
-import type { IFilterXSSOptions } from 'xss';
+import { createWikiUrl, imageDeleteUrl, getUserUrl, disableTokenUrl } from '@/router/urls';
 import { marked, Renderer } from 'marked';
 import type { Tokens, MarkedOptions } from 'marked';
 import { useImageStore } from '@/stores/images';
@@ -21,7 +13,6 @@ import ace from 'ace-builds';
 import 'ace-builds/src-noconflict/ext-searchbox'; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
 import 'ace-builds/src-noconflict/mode-markdown'; // Aceでマークダウンを使用するためのモジュール
 import 'ace-builds/src-noconflict/theme-monokai'; // Aceのテーマのモジュール
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import {
   videoToken,
   detailsToken,
@@ -30,11 +21,19 @@ import {
   mathExtentionToken,
   youtubeToken,
   renderIframe,
+  escapeHtml,
+  isPDF,
+  isMP4,
+  createLinkRenderer,
+  createImageRenderer,
+  createXssFilter,
 } from '@/utils/markedSetup';
+import { useMessageModal } from '@/utils/useMessageModal';
+import { useProtocolDetection } from '@/utils/useProtocolDetection';
+import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import html2canvas from 'html2canvas';
 import Help from '@/components/Help.vue';
 
 // KaTeXによる数式描画機能
@@ -69,6 +68,7 @@ const insertMathImage = async () => {
     const originalStyle = mathContainer.value.style.transform;
     mathContainer.value.style.transform = 'scale(1)';
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(mathContainer.value, {
       scale: 1, // スケールを1に固定
       backgroundColor: null, // 背景を透明化
@@ -99,6 +99,7 @@ const saveMathImage = async () => {
     const originalStyle = mathContainer.value.style.transform;
     mathContainer.value.style.transform = 'scale(1)';
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(mathContainer.value, {
       scale: 1, // スケールを1に固定
       backgroundColor: null, // 背景を透明化
@@ -116,25 +117,9 @@ const saveMathImage = async () => {
 };
 
 // アプリケーションの通信プロトコル
-const isHttpsProtocol = ref(false);
-// 現在のURLを取得
-const currentUrl = window.location.href;
-// URLを解析
-const url = new URL(currentUrl);
-// プロトコルとホスト名を取得
-const protocol = url.protocol;
-const hostname = url.hostname;
-// HTTPSかlocalhost通信の場合の設定
-if (protocol === 'https:') {
-  isHttpsProtocol.value = true;
-}
-if (hostname === 'localhost') {
-  isHttpsProtocol.value = true;
-}
+const { isHttpsProtocol } = useProtocolDetection();
 
 const mermaid: any = (window as any).mermaid;
-GlobalWorkerOptions.workerSrc = `${assetsUrl}pdf.worker.mjs`;
-
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
 
@@ -147,55 +132,7 @@ renderer.heading = function (tokens: Tokens.Heading) {
 };
 
 // [テキスト](URL)で定義された外部リンクを別タブで開かせるカスタムレンダラ設定
-// 元のlink関数を保存
-const originalLinkRenderer = renderer.link.bind(renderer);
-
-// ローカルホスト判定
-function isLocalhost(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-    return (
-      parsedUrl.hostname === 'localhost' ||
-      parsedUrl.hostname === '127.0.0.1' ||
-      parsedUrl.hostname === '[::1]'
-    );
-  } catch (e) {
-    return false;
-  }
-}
-
-// link関数をオーバーライド
-renderer.link = (tokens: Tokens.Link) => {
-  // 外部リンクかどうかをチェック
-  const isExternal = /^https?:\/\//.test(tokens.href!);
-  let isLocal = false;
-  let isPDFHref = false;
-  if (tokens.href) {
-    isLocal = isLocalhost(tokens.href);
-    isPDFHref = isPDF(tokens.href);
-  }
-  const html = originalLinkRenderer(tokens);
-  if (isExternal) {
-    if (isLocal && isPDFHref) {
-      return html.replace(
-        /^<a /,
-        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
-      );
-    }
-    // 外部リンクの場合、targetとrel属性を追加
-    return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
-  } else {
-    // 内部リンクかつPDFの場合
-    if (isPDFHref) {
-      return html.replace(
-        /^<a /,
-        '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
-      );
-    }
-    // 内部リンクの場合、元の処理を使用
-    return originalLinkRenderer(tokens);
-  }
-};
+createLinkRenderer(renderer);
 
 // mermaidの処理
 const originalCodeRenderer = renderer.code.bind(renderer);
@@ -208,28 +145,7 @@ renderer.code = (tokens: Tokens.Code) => {
   }
 };
 
-renderer.image = (tokens: Tokens.Image) => {
-  let width = '';
-  let href = tokens.href;
-  let text = tokens.text;
-  const match = tokens.href.match(/\s*=(\d+)(x)?$/);
-  if (match) {
-    width = match[1]!;
-    href = href.replace(/\s*=.*$/, '');
-  }
-  const widthAttr = width ? ` width="${width}px"` : '';
-  return `<img src="${href}" alt="${text}" ${widthAttr}>`;
-};
-
-// HTMLエスケープ関数
-function escapeHtml(html: string) {
-  return html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+createImageRenderer(renderer);
 
 // markedの設定をカスタマイズ
 marked.setOptions({
@@ -242,41 +158,7 @@ marked.use({
   extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
 });
 
-// XSSフィルタの設定をカスタマイズする
-let xssOptions: IFilterXSSOptions = {
-  whiteList: {
-    ...getDefaultWhiteList(), // デフォルトの許可リストを維持
-    h1: ['id', 'class'], // h1-h6タグのid属性を許可 h1-h2のclass属性を許可
-    h2: ['id', 'class'],
-    h3: ['id'],
-    h4: ['id'],
-    h5: ['id'],
-    h6: ['id'],
-    pre: ['class'],
-    a: ['target', 'rel', 'href', 'title'],
-    div: ['class'],
-    span: ['class', 'aria-hidden', 'style'],
-    'app-youtube': ['video-id', 'data-src'],
-  },
-  // iframeの確認（念のため、iframeはここで不許可）
-  onTag(tag, html) {
-    if (tag === 'iframe') return 'Not Allow iframe ';
-  },
-  // Katexでサニタイズされてしまうスタイルを再定義
-  css: {
-    whiteList: {
-      height: true,
-      'margin-right': true,
-      top: true,
-      width: true,
-      'margin-left': true,
-      left: true,
-      right: true,
-      bottom: true,
-    },
-  },
-};
-const myXss = new FilterXSS(xssOptions);
+const myXss = createXssFilter();
 
 // Aceエディタを定義
 const editorRef = ref<HTMLDivElement | null>(null);
@@ -354,7 +236,6 @@ onMounted(() => {
     editor.setFontSize(16);
     // 80文字の縦ラインを消す
     editor.setShowPrintMargin(false);
-    console.log(localStrageTitle, localStrageBody);
 
     if (localStrageTitle !== null) {
       createWikiData.value.title = localStrageTitle;
@@ -544,6 +425,9 @@ const onLogout = (): void => {
   loginRedirect();
 };
 
+// メッセージ表示モーダル機能
+const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
+
 /** 画像送信のモーダル表示・非表示を管理 */
 const showFileUploadContent = ref(false);
 const openFileUpModal = (): void => {
@@ -555,203 +439,16 @@ const openFileUpModal = (): void => {
 };
 
 /** 画像の送信処理 */
-const isImageSendNow = ref(false); // クリック連打の抑制とプログレス表示
-watch(isImageSendNow, (): void => {
-  if (isImageSendNow.value) {
-    showProgressModal.value = true;
-  } else {
-    showProgressModal.value = false;
-  }
-});
-
-const selectedImageBlob = ref<Blob | null>(null); // リサイズ後のBlobを保持
-const selectedFileName = ref<string>('');
-
-// 画像選択時にリサイズ処理
-const onImageSelect = async (): Promise<void> => {
-  const element = document.getElementById('image1')! as HTMLInputElement;
-  if (element.value === '' || element.value === null) {
-    messageModalOpenClose('画像ファイルを選択してください。');
-    return;
-  }
-
-  // ファイルオブジェクトを取得してペイロードに追加
-  const file = element.files!;
-  const fileObj = file[0]!;
-  const fileName = fileObj.name;
-
-  // mime-typeで許可ファイルをフィルタリング
-  const arrowMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'video/mp4',
-    'application/pdf',
-  ];
-  if (!arrowMimeTypes.includes(fileObj.type)) {
-    messageModalOpenClose('許可されていない形式のファイルです。');
-    imageCrear();
-    return;
-  }
-
-  // 画像ファイルの場合
-  if (fileObj.type.startsWith('image/')) {
-    try {
-      showProgressModal.value = true;
-      // ブラウザネイティブでリサイズ
-      selectedImageBlob.value = await resizeImageWithCanvas(fileObj);
-    } catch (error) {
-      console.error('リサイズエラー: ', error);
-      selectedImageBlob.value = null;
-    } finally {
-      showProgressModal.value = false;
-    }
-    // 画像ファイル以外の場合
-  } else {
-    selectedImageBlob.value = fileObj;
-  }
-  selectedFileName.value = fileName;
-};
-
-// リサイズ処理機構
-const resizeImageWithCanvas = (file: File): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // リサイズ対象の画像の最大幅と高さを定義（2K）
-      const maxWidth = 1280;
-      const maxHeight = 720;
-
-      // リサイズ後のサイズを計算
-      const { width, height } = caluculateDimensions(img.width, img.height, maxWidth, maxHeight);
-
-      // Canvas作成
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-
-      // Canvasに描画
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas contextの取得に失敗しました。'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Blobとして出力
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Blobの生成に失敗しました。'));
-          }
-        },
-        file.type,
-        0.8,
-      ); // 画質80%
-    };
-    img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
-    img.src = URL.createObjectURL(file); // ローカルファイルのURL
-  });
-};
-
-// リサイズ後の幅と高さを計算
-const caluculateDimensions = (
-  width: number,
-  height: number,
-  maxWidth: number,
-  maxHeight: number,
-) => {
-  // 横長画像の場合
-  if (height < width) {
-    if (width > maxWidth || height > maxHeight) {
-      const widthRatio = maxWidth / width;
-      const heightRatio = maxHeight / height;
-      const ratio = Math.min(widthRatio, heightRatio);
-      return {
-        width: Math.floor(width * ratio),
-        height: Math.floor(height * ratio),
-      };
-    }
-    // サイズがすでに範囲内の場合
-    return { width, height };
-
-    // 縦長画像の場合
-  } else {
-    if (height > maxWidth || width > maxHeight) {
-      const widthRatio = maxWidth / height;
-      const heightRatio = maxHeight / width;
-      const ratio = Math.min(widthRatio, heightRatio);
-      return {
-        width: Math.floor(width * ratio),
-        height: Math.floor(height * ratio),
-      };
-    }
-    // サイズがすでに範囲内の場合
-    return { width, height };
-  }
-};
-
-const imageFileSend = async (): Promise<void> => {
-  if (isImageSendNow.value === true) {
-    return;
-  } else {
-    isImageSendNow.value = true;
-  }
-
-  if (!selectedImageBlob.value) {
-    messageModalOpenClose('ファイルを選択してください。');
-    isImageSendNow.value = false;
-    return;
-  }
-
-  // FormDataを初期化作成
-  const payload = new FormData();
-  payload.append('upload_file', selectedImageBlob.value, selectedFileName.value);
-
-  try {
-    const response = await apiClient.post(imageUploadUrl, payload);
-
-    const newImageData: ImageData = {
-      id: response.data['new_image_id'],
-      user_id: response.data['user_id'],
-      filename: response.data['filename'],
-      uuid_filename: response.data['uuid_filename'],
-    };
-    imageStore.addImage(newImageData);
-
-    const uniqueFileName = response.data['uuid_filename'];
-
-    let imageUrlMarkdown = '';
-    if (isMP4(uniqueFileName)) {
-      imageUrlMarkdown = `?[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-    } else {
-      if (isPDF(uniqueFileName)) {
-        imageUrlMarkdown = `[${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-      } else {
-        imageUrlMarkdown = `![${selectedFileName.value}](${baseUrl}/static/images/${uniqueFileName})`;
-      }
-    }
-
-    messageModalOpenClose('アップロード完了。コンテンツを挿入しました。');
-    insertMarkdown(imageUrlMarkdown);
-
-    imageStore.initList();
-    imageCrear();
-    return;
-  } catch (error) {
-    console.error(error);
-    messageModalOpenClose(
-      'アップロードに失敗しました。ファイルサイズやファイルの種類を確認してください。',
-    );
-  } finally {
-    selectedImageBlob.value = null;
-    selectedFileName.value = '';
-    isImageSendNow.value = false;
-  }
-};
+const {
+  selectedImageBlob,
+  selectedFileName,
+  isImageSendNow,
+  onImageSelect,
+  imageFileSend,
+  imageCrear,
+} = useImageUpload(showProgressModal, messageModalOpenClose, (markdownStr) =>
+  insertMarkdown(markdownStr),
+);
 
 // アップロード完了モーダル機能
 const isUploadedMessageModal = ref(false);
@@ -766,18 +463,6 @@ const uploadMessageModalOpenClose = (url: string, uniqueFileName: string): void 
     isUploadedMessageModal.value = false;
     uploadedUrl.value = '';
     uploadedUniqueFileName.value = '';
-  }
-};
-
-/** 選択した画像ファイルをクリア */
-const imageCrear = (): void => {
-  selectedFileName.value = '';
-  selectedImageBlob.value = null;
-  let imageContent = document.getElementById('image1')! as HTMLInputElement;
-  if (imageContent.value === null) {
-    return;
-  } else {
-    imageContent.value = '';
   }
 };
 
@@ -847,9 +532,11 @@ const pdfPreviewModal = ref(false);
 const pdfCanvases: Ref<{ ref: string }[]> = ref([]);
 const loadPdf = async (url: string) => {
   clearCanvas();
+  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
+  GlobalWorkerOptions.workerSrc = `${assetsUrl}pdf.worker.mjs`;
   const pdf = await getDocument({
     url,
-    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/cmaps/',
+    cMapUrl: assetsUrl,
     cMapPacked: true,
   }).promise;
   const numPages = pdf.numPages;
@@ -1157,19 +844,6 @@ const getCurrentUser = async (): Promise<void> => {
 };
 getCurrentUser();
 
-// メッセージ表示モーダル機能
-const isMessageModal = ref(false);
-const messageText = ref('');
-const messageModalOpenClose = (message: string): void => {
-  if (!isMessageModal.value) {
-    messageText.value = message;
-    isMessageModal.value = true;
-  } else {
-    isMessageModal.value = false;
-    messageText.value = '';
-  }
-};
-
 // プライベート・パブリックが変更された際にメッセージボックスを出現
 const isPublicWatch = ref(false);
 watch(isPublicWatch, (): void => {
@@ -1382,16 +1056,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
-
-// 拡張子で動画ファイルか判定する関数
-function isMP4(filename: string) {
-  return /\.mp4$/i.test(filename);
-}
-
-// 拡張子でPDFファイルか判定する関数
-function isPDF(filename: string) {
-  return /\.pdf$/i.test(filename);
-}
 
 // マークダウン記号をエディタに挿入
 function insertMarkdown(text: string) {
@@ -1659,6 +1323,18 @@ function insertMarkdown(text: string) {
     <button class="btn-input-tools" title="$$を挿入" v-on:click="insertMarkdown('$$\n数式\n$$')">
       <img :src="`${assetsUrl}math24.png`" class="btn-input-tools-img" alt="math24.png" />
     </button>
+
+    <button
+      class="btn-input-tools"
+      title="チェックボックスを挿入"
+      v-on:click="insertMarkdown('- [ ] ')"
+    >
+      <img
+        :src="`${assetsUrl}check_box_24.png`"
+        class="btn-input-tools-img"
+        alt="check_box_24.png"
+      />
+    </button>
   </div>
 
   <!-- 画像アップロードモーダル -->
@@ -1701,9 +1377,9 @@ function insertMarkdown(text: string) {
 
   <!-- 画像一覧モーダル（http）-->
   <div id="overlay-imagelist" v-show="showImageListContent">
-    <div id="content-image">
+    <div id="content-image" :style="{ width: imageList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">画像・PDF・動画</h2>
-      <div class="search-form">
+      <div v-if="imageList.size !== 0" class="search-form">
         <div class="form-text">
           <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData" />
         </div>
@@ -1716,7 +1392,9 @@ function insertMarkdown(text: string) {
           </button>
         </div>
       </div>
-      <div v-if="imageList.size === 0"><p>画像コンテンツがありません。</p></div>
+      <div v-if="imageList.size === 0" style="text-align: center">
+        <p>画像コンテンツがありません。</p>
+      </div>
       <div v-else class="table_sticky">
         <table>
           <thead>
@@ -1778,9 +1456,9 @@ function insertMarkdown(text: string) {
 
   <!-- 画像一覧モーダル（https or localhost） -->
   <div id="overlay-image-https-list" v-show="showImageListHttpsModal">
-    <div id="content-image-https-list">
+    <div id="content-image-https-list" :style="{ width: imageList.size === 0 ? '40%' : '73%' }">
       <h2 class="modal-h2">画像・PDF・動画</h2>
-      <div class="search-form">
+      <div v-if="imageList.size !== 0" class="search-form">
         <div class="form-text">
           <input type="text" class="query1" placeholder="検索ワード" v-model="queryFormData" />
         </div>
@@ -2318,7 +1996,6 @@ h3#title_h3_2:after {
 #content-image,
 #content-image-https-list {
   z-index: 2;
-  width: 70%;
   padding: 1em;
   background: #fff;
   border-radius: 10px;
