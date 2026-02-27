@@ -1,5 +1,45 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.4.0
+
+### 各種JSファイルのnpm管理への移行
+
+**直接保存していた各種JavaScriptファイルをnpmに完全移行**
+
+`scripts/frontends-builder.sh`（または `.ps1`）を実行すると、以下の順で処理される。
+
+```
+frontend/        npm run build  ─┐
+frontend-mobile/ npm run build  ─┼─→ main/dist/ に集約 ─→ プロジェクトルート dist/ にコピー
+frontend-admin/  npm run build  ─┘
+```
+
+最終的にプロジェクトルートの `dist/assets/` に全静的ファイルが集まり、Rust の `rust-embed` によってバイナリに埋め込まれる。
+
+**src/templates/ との関係**
+
+`src/templates/` 配下の HTML ファイル（Rust バックエンドのサーバーサイドテンプレート）は、
+`/assets/` パス経由で以下のライブラリを参照している。
+
+| テンプレート          | 参照する主なアセット                                           |
+| --------------------- | -------------------------------------------------------------- |
+| `preview.html`        | marked, xss, mermaid, prismjs（コア＋言語）, katex, github.css |
+| `preview-mobile.html` | 同上                                                           |
+| `notfound.html`       | github.css                                                     |
+
+- これらのファイルは Vite の `public/` で管理していたが、**npm に移行済み**。
+- `frontend/package.json` の dependencies として宣言し、
+- `frontend/scripts/copy-preview-assets.js` が `npm run build` 後に `node_modules/` から `dist/assets/` へコピーする。
+
+### その他の変更
+
+- 目次UIを更新
+- フロントエンドをリファクタリング
+- CDN依存であった pdfjs の .bmapsをローカルに移動
+- チェックボックスを独立して使用できるようにアップデート
+  - チェックボックスの入力支援ボタンを追加
+- frontend のビルドファイルのチャンクサイズを縮小
+
 ## Version 1.3.4
 
 - フロントエンドをリファクタリング
