@@ -91,21 +91,6 @@ $targetHtml = Join-Path -Path $frontendDir -ChildPath "dist/index.html"
     $_ -replace 'href="./favicon.ico"', 'href="/assets/favicon.ico"'
 } | Set-Content -Path $targetHtml
 
-# qrcode.min.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./qrcode.min.js"', 'src="/assets/qrcode.min.js"'
-} | Set-Content -Path $targetHtml
-
-# diff_match_patch.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./diff_match_patch.js"', 'src="/assets/diff_match_patch.js"'
-} | Set-Content -Path $targetHtml
-
-# mermaid.min.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./mermaid.min.js"', 'src="/assets/mermaid.min.js"'
-} | Set-Content -Path $targetHtml
-
 # manifest-tab.jsonのパス変更
 (Get-Content -Path $targetHtml) | ForEach-Object {
     $_ -replace 'href="./manifest-tab.json"', 'href="/assets/manifest-tab.json"'
@@ -143,26 +128,6 @@ $targetHtml = Join-Path -Path $frontendMobileDir -ChildPath "dist/index.html"
 # favicon.icoのパス変更
 (Get-Content -Path $targetHtml) | ForEach-Object {
     $_ -replace 'href="./favicon.ico"', 'href="/assets/favicon.ico"'
-} | Set-Content -Path $targetHtml
-
-# qrcode.min.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./qrcode.min.js"', 'src="/assets/qrcode.min.js"'
-} | Set-Content -Path $targetHtml
-
-# mermaid.min.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./mermaid.min.js"', 'src="/assets/mermaid.min.js"'
-} | Set-Content -Path $targetHtml
-
-# diff_match_patch.jsのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'src="./diff_match_patch.js"', 'src="/assets/diff_match_patch.js"'
-} | Set-Content -Path $targetHtml
-
-# manifest.jsonのパス変更
-(Get-Content -Path $targetHtml) | ForEach-Object {
-    $_ -replace 'href="./manifest.json"', 'href="/assets/manifest.json"'
 } | Set-Content -Path $targetHtml
 
 # apple-touch-icon.pngのパス変更

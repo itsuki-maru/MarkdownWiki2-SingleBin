@@ -120,12 +120,6 @@ targetHtml="$frontendDir/dist/index.html"
 
 # favicon.icoのパス変更
 sed -i 's|href="./favicon.ico"|href="/assets/favicon.ico"|g' "$targetHtml"
-# qrcode.min.jsのパス変更
-sed -i 's|src="./qrcode.min.js"|src="/assets/qrcode.min.js"|g' "$targetHtml"
-# diff_match_patch.jsのパス変更
-sed -i 's|src="./diff_match_patch.js"|src="/assets/diff_match_patch.js"|g' "$targetHtml"
-# mermaid.min.jsのパス変更
-sed -i 's|src="./mermaid.min.js"|src="/assets/mermaid.min.js"|g' "$targetHtml"
 # manifest-tab.jsonのパス変更
 sed -i 's|href="./manifest-tab.json"|href="/assets/manifest-tab.json"|g' "$targetHtml"
 # apple-touch-icon.pngのパス変更
@@ -159,14 +153,6 @@ targetHtml="$frontendMobileDir/dist/index.html"
 
 # favicon.icoのパス変更
 sed -i 's|href="./favicon.ico"|href="/assets/favicon.ico"|g' "$targetHtml"
-# qrcode.min.jsのパス変更
-sed -i 's|src="./qrcode.min.js"|src="/assets/qrcode.min.js"|g' "$targetHtml"
-# diff_match_patch.jsのパス変更
-sed -i 's|src="./diff_match_patch.js"|src="/assets/diff_match_patch.js"|g' "$targetHtml"
-# mermaid.min.jsのパス変更
-sed -i 's|src="./mermaid.min.js"|src="/assets/mermaid.min.js"|g' "$targetHtml"
-# manifest.jsonのパス変更
-sed -i 's|href="./manifest.json"|href="/assets/manifest.json"|g' "$targetHtml"
 # apple-touch-icon.pngのパス変更
 sed -i 's|href="./apple-touch-icon.png"|href="/assets/apple-touch-icon.png"|g' "$targetHtml"
 
