@@ -48,6 +48,8 @@ import 'prismjs/components/prism-uri.js';
 import 'prismjs/components/prism-c.js';
 import 'prismjs/components/prism-docker.js';
 import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
+import QRCode from 'qrcodejs2-fix';
 import FindBar from '@/components/FindBar.vue';
 
 // アプリケーションの通信プロトコル
@@ -57,8 +59,6 @@ const { protocol, hostname, port } = new URL(window.location.href);
 
 // メッセージ表示モーダル機能
 const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal();
-
-const mermaid: any = (window as any).mermaid;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
@@ -582,10 +582,6 @@ function selectTextOrClipboardCopy(elementId: string) {
 const showQRContent = ref(false);
 const qrCodeText = ref('');
 const isGenerateOk = ref(false);
-// TypeScript でグローバル変数を使用する場合、型アサーションが必要
-// QRCodeはindex.htmlでCDN経由で読み込み、既にページにグローバルとして存在するため、これを明示
-const QRCode: any = (window as any).QRCode;
-
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;
 onMounted(() => {
@@ -843,8 +839,7 @@ onUnmounted(() => {
   <transition>
     <div id="overlay-toc" v-show="showTocContent">
       <div id="content-toc">
-        <h2 class="toc-title">目次</h2>
-        <div class="toc toc-content" v-html="tocToHtml"></div>
+        <div class="toc" v-html="tocToHtml"></div>
         <img
           id="toc-close"
           v-on:click="openCloseTocModal()"
@@ -1032,20 +1027,11 @@ onUnmounted(() => {
 #content-toc {
   z-index: 4;
   height: 100%;
-  width: 70%;
+  width: 80%;
   padding: 1em;
-  margin-left: 30%;
+  margin-left: 15%;
   background: #fff;
   overflow-y: scroll;
-}
-
-.toc-title {
-  font-size: 17px;
-}
-
-.toc {
-  color: white;
-  margin-left: -5%;
 }
 
 .scrolled-btn-zone {

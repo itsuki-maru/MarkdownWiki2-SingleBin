@@ -11,6 +11,7 @@ import { postOwnerResultUrl, disableEditWikiUrl, getUserUrl } from '@/router/url
 import { useEditRequestWikiStore } from '@/stores/editWikis';
 import { useMessageModal } from '@/utils/useMessageModal';
 import apiClient from '@/axiosClient';
+import DiffMatchPatch from 'diff-match-patch';
 
 // App.vueで定義したメモアイコンの表示非表示管理変数をinject
 const isShowMemoIcon = inject('isShowMemoIcon') as Ref<boolean>;
@@ -133,8 +134,7 @@ const onOpenCloseDiffModal = async (
   displayDiffs(text1, text2);
 };
 
-const diff_match_patch: any = (window as any).diff_match_patch;
-const dmp = new diff_match_patch();
+const dmp = new DiffMatchPatch();
 
 function displayDiffs(text1: string, text2: string) {
   const diffs = dmp.diff_main(text1, text2);

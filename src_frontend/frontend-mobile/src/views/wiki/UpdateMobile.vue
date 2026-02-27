@@ -15,6 +15,7 @@ import { useMessageModal } from '@/utils/useMessageModal';
 import { useProtocolDetection } from '@/utils/useProtocolDetection';
 import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
+import QRCode from 'qrcodejs2-fix';
 
 // markedのスラッグ化機能をカスタマイズ
 const renderer = new Renderer();
@@ -494,10 +495,6 @@ const onSearch = (reset: boolean = false): void => {
 const showQRContent = ref(false);
 const qrCodeText = ref('');
 const isGenerateOk = ref(false);
-// TypeScript でグローバル変数を使用する場合、型アサーションが必要
-// QRCodeはindex.htmlでCDN経由で読み込み、既にページにグローバルとして存在するため、これを明示
-const QRCode: any = (window as any).QRCode;
-
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;
 onMounted(() => {
@@ -910,6 +907,17 @@ function handleMarkdownInputButtons() {
           :src="`${assetsUrl}format_bold_24.png`"
           class="btn-input-tools-img"
           alt="format_bold_24.png"
+        />
+      </button>
+      <button
+        class="btn-input-tools"
+        title="チェックボックスを挿入"
+        v-on:click="insertMarkdown('- [ ] \n- [ ] \n- [ ] ')"
+      >
+        <img
+          :src="`${assetsUrl}check_box_24.png`"
+          class="btn-input-tools-img"
+          alt="check_box_24.png"
         />
       </button>
       <button class="btn-input-tools" title="- を挿入" v-on:click="insertMarkdown('- ')">

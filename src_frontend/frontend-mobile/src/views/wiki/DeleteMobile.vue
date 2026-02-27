@@ -25,8 +25,7 @@ import {
 import { useMessageModal } from '@/utils/useMessageModal';
 import apiClient from '@/axiosClient';
 import 'katex/dist/katex.min.css';
-
-const mermaid: any = (window as any).mermaid;
+import mermaid from 'mermaid';
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
@@ -211,8 +210,6 @@ const { isMessageModal, messageText, messageModalOpenClose } = useMessageModal()
 onMounted(() => {
   mermaid.init();
 });
-
-
 </script>
 
 <template>

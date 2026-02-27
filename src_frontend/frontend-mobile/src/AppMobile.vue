@@ -93,10 +93,11 @@ a {
   font-size: 18px;
   color: black;
   margin-top: 2%;
-  padding: 0.1em 0.3em;
+  padding: 0.2em 0.3em;
   background: #ebe8e8;
   border-left: solid 5px #426f9c;
   border-bottom: solid 3px #d7d7d7;
+  border-radius: 8px;
 }
 
 #splash-screen {
