@@ -25,6 +25,7 @@ export default defineConfig({
           if (id.includes('node_modules/katex'))     return 'vendor-katex';
           if (id.includes('node_modules/prismjs'))   return 'vendor-prism';
           if (id.includes('node_modules/marked'))    return 'vendor-marked';
+          if (id.includes('node_modules/mermaid'))   return 'vendor-mermaid';
         },
       },
     },

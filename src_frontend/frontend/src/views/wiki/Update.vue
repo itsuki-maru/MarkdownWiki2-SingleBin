@@ -42,6 +42,8 @@ import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
+import DiffMatchPatch from 'diff-match-patch';
 
 // データIDを管理するProps
 interface Props {
@@ -153,7 +155,6 @@ const saveMathImage = async () => {
   }
 };
 
-const mermaid: any = (window as any).mermaid;
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
 
@@ -192,7 +193,7 @@ marked.use({
   extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
 });
 
-const myXss = createXssFilter();
+const myXss = createXssFilter(false);
 
 // Aceエディタを定義
 const editorRef = ref<HTMLDivElement | null>(null);
@@ -839,8 +840,7 @@ const onOpenCloseDiffModal = async (isClose: boolean = false) => {
   displayDiffs(text1, text2);
 };
 
-const diff_match_patch: any = (window as any).diff_match_patch;
-const dmp = new diff_match_patch();
+const dmp = new DiffMatchPatch();
 
 function displayDiffs(text1: string, text2: string) {
   const diffs = dmp.diff_main(text1, text2);

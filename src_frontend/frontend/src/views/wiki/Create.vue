@@ -34,6 +34,7 @@ import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
 import Help from '@/components/Help.vue';
 
 // KaTeXによる数式描画機能
@@ -119,7 +120,6 @@ const saveMathImage = async () => {
 // アプリケーションの通信プロトコル
 const { isHttpsProtocol } = useProtocolDetection();
 
-const mermaid: any = (window as any).mermaid;
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
 
@@ -158,7 +158,7 @@ marked.use({
   extensions: [videoToken, detailsToken, noteToken, warningToken, mathExtentionToken, youtubeToken],
 });
 
-const myXss = createXssFilter();
+const myXss = createXssFilter(false);
 
 // Aceエディタを定義
 const editorRef = ref<HTMLDivElement | null>(null);

@@ -12,6 +12,7 @@ import apiClient from '@/axiosClient';
 import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
 import { useMessageModal } from '@/utils/useMessageModal';
 import { useProtocolDetection } from '@/utils/useProtocolDetection';
+import DiffMatchPatch from 'diff-match-patch';
 
 // アプリケーションの通信プロトコル
 const { isHttpsProtocol } = useProtocolDetection();
@@ -178,8 +179,7 @@ const onOpenCloseDiffModal = async (
   displayDiffs(text1, text2);
 };
 
-const diff_match_patch: any = (window as any).diff_match_patch;
-const dmp = new diff_match_patch();
+const dmp = new DiffMatchPatch();
 
 function displayDiffs(text1: string, text2: string) {
   const diffs = dmp.diff_main(text1, text2);

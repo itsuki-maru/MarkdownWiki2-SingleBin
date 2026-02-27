@@ -281,3 +281,109 @@ details[open] > summary::before {
     animation: none;
   }
 }
+
+.toc :deep(a.active) {
+  color: #3b82f6;
+  font-weight: bold;
+}
+
+.toc {
+  width: 22%;
+  max-height: calc(100vh - 80px);
+  position: fixed;
+  top: 150px;
+  margin-left: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background-color: whitesmoke;
+  padding: 14px 14px 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.07);
+}
+
+.toc::before {
+  content: '目次';
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #9ca3af;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toc::-webkit-scrollbar {
+  width: 4px;
+}
+.toc::-webkit-scrollbar-track {
+  background: transparent;
+}
+.toc::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+a {
+  color: #1431af;
+  text-decoration: underline;
+}
+
+/* 目次のリンク */
+.toc a {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  text-decoration: none;
+  color: #323740;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+  word-break: break-word;
+}
+
+.toc a.active {
+  color: #3b82f6;
+  font-weight: 600;
+  background-color: #eff6ff;
+}
+
+.toc ul {
+  margin: 0;
+  padding: 0;
+}
+
+.toc ul ul {
+  padding-left: 10px;
+  border-left: 2px solid #e5e7eb;
+  margin-left: 18px;
+  margin-top: 2px;
+}
+
+.toc li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ホバー */
+a:hover {
+  background-color: #c1d1d6;
+  display: inline-block;
+  /* transform を適用するために必要 */
+}
+
+.toc a:hover {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  display: block;
+}
+
+/*チェックボックスのリストにのみ適用*/
+ul:has(li > input) {
+  list-style: none;
+  font-size: 1.1em;
+}

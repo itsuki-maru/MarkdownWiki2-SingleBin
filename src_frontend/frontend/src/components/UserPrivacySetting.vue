@@ -8,6 +8,7 @@ import {
   userTotpDisableUrl,
 } from '@/router/urls';
 import apiClient from '@/axiosClient';
+import QRCode from 'qrcodejs2-fix';
 
 const isUserPrivate = ref(false); // ユーザープライバシー設定ハンドリング
 const isTotpAuth = ref(false); // ユーザー2段階認証設定ハンドリング
@@ -89,7 +90,6 @@ defineExpose({
 
 // QRコードモーダルの描画
 const qrCodeText = ref('');
-const QRCode: any = (window as any).QRCode;
 
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;

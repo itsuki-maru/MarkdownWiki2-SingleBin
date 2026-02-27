@@ -25,8 +25,7 @@ import {
 import { useMessageModal } from '@/utils/useMessageModal';
 import apiClient from '@/axiosClient';
 import 'katex/dist/katex.min.css';
-
-const mermaid: any = (window as any).mermaid;
+import mermaid from 'mermaid';
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
@@ -67,7 +66,7 @@ marked.setOptions({
   async: false,
 });
 
-const myXss = createXssFilter();
+const myXss = createXssFilter(false);
 
 // List.vueへリダイレクト
 const router = useRouter();
@@ -207,7 +206,6 @@ const getWikiOwner = async (id: string): Promise<void> => {
 };
 getWikiOwner(props.id);
 
-
 // ショートカットキーを追加
 const handleKeyDown = (event: KeyboardEvent) => {
   // List.vueへ移動
@@ -231,7 +229,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
-
 </script>
 
 <template>

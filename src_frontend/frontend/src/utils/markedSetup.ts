@@ -304,7 +304,10 @@ export function createLinkRenderer(renderer: Renderer): void {
           '<a target="_blank" rel="noopener noreferrer" title="PDFリンク" ',
         );
       }
-      return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ');
+      return html.replace(
+        /^<a /,
+        '<a target="_blank" rel="noopener noreferrer" title="外部リンク" ',
+      );
     } else {
       if (isPDFHref) {
         return html.replace(
@@ -334,7 +337,7 @@ export function createImageRenderer(renderer: Renderer): void {
 }
 
 // XSSフィルタの生成
-export function createXssFilter(): FilterXSS {
+export function createXssFilter(isCodeClassAllowed: boolean = true): FilterXSS {
   const xssOptions: IFilterXSSOptions = {
     whiteList: {
       ...getDefaultWhiteList(),
@@ -347,7 +350,7 @@ export function createXssFilter(): FilterXSS {
       pre: ['class'],
       a: ['target', 'rel', 'href', 'title'],
       button: ['class', 'data-target'],
-      code: ['id', 'class'],
+      code: ['id', ...(isCodeClassAllowed ? ['class'] : [])], // Create.vue と Update.vue では class="language-*" を不許可
       div: ['class'],
       p: ['class'],
       span: ['class', 'aria-hidden', 'style'],

@@ -49,14 +49,13 @@ import 'prismjs/components/prism-uri.js';
 import 'prismjs/components/prism-c.js';
 import 'prismjs/components/prism-docker.js';
 import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
 import FindBar from '@/components/FindBar.vue';
 
 // アプリケーションの通信プロトコル
 const { isHttpsProtocol, isDevelopLocalhost } = useProtocolDetection();
 // protocol, hostname, port はワンタイムURL生成に使用
 const { protocol, hostname, port } = new URL(window.location.href);
-
-const mermaid: any = (window as any).mermaid;
 
 // Mermaidの初期読み込みを阻止（MarkedによるHTMLレンダリング後にinitで読み込み）
 mermaid.initialize({ startOnLoad: false });
@@ -650,6 +649,11 @@ onMounted(() => {
 // コンポーネントがアンマウントされた際にイベントリスナーを削除
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  tocObserver?.disconnect();
+  if (tocContentEl && tocClickHandlerRef) {
+    tocContentEl.removeEventListener('click', tocClickHandlerRef);
+  }
+  if (tocClickTimer) clearTimeout(tocClickTimer);
 });
 
 // ウィンドウサイズで目次の表示非表示を変更
@@ -702,6 +706,107 @@ const openCloseSearchBar = (): void => {
     isShowSearchBar.value = false;
   }
 };
+
+// ── TOC アクティブリンク追跡 ────────────────────────────
+let tocObserver: IntersectionObserver | null = null;
+let tocClickScrolling = false;
+let tocClickTimer: ReturnType<typeof setTimeout> | null = null;
+let activeTocLink: Element | null = null;
+let tocContentEl: Element | null = null;
+let tocClickHandlerRef: ((e: Event) => void) | null = null;
+
+const setTocActive = (link: Element | null) => {
+  if (activeTocLink) activeTocLink.classList.remove('active');
+  activeTocLink = link;
+  if (activeTocLink) activeTocLink.classList.add('active');
+};
+
+const setupTocObserver = async () => {
+  // 既存のオブザーバーとクリックハンドラを破棄
+  tocObserver?.disconnect();
+  tocObserver = null;
+  if (tocContentEl && tocClickHandlerRef) {
+    tocContentEl.removeEventListener('click', tocClickHandlerRef);
+  }
+  tocContentEl = null;
+  tocClickHandlerRef = null;
+  activeTocLink = null;
+
+  await nextTick();
+  if (!showTocContent.value) return;
+
+  const printMode = isPrintMode.value;
+  const contentSection = document.querySelector<HTMLElement>(
+    printMode ? '.markdown-isprint' : '.markdown-isnomal',
+  );
+  const tocContent = document.querySelector('.toc');
+  if (!contentSection || !tocContent) return;
+
+  const headings = contentSection.querySelectorAll('h2, h3, h4, h5, h6');
+  const tocLinks = tocContent.querySelectorAll('a');
+  if (headings.length === 0 || tocLinks.length === 0) return;
+
+  // 印刷モードはページ全体スクロール、通常モードはコンテナスクロール
+  const scrollRoot: HTMLElement | null = printMode ? null : contentSection;
+  const scrollTarget: EventTarget = printMode ? window : contentSection;
+
+  // クリック時: 対象リンクを即時アクティブ化し、スクロール完了まで Observer を抑制
+  const handler = (e: Event) => {
+    const link = (e.target as Element).closest('a');
+    if (!link) return;
+
+    setTocActive(link);
+    tocClickScrolling = true;
+    if (tocClickTimer) clearTimeout(tocClickTimer);
+
+    const resume = () => {
+      if (tocClickTimer) clearTimeout(tocClickTimer);
+      tocClickScrolling = false;
+    };
+
+    if ('onscrollend' in window) {
+      // scrollend: スクロール停止を正確に検知 (Chrome 114+, Firefox 109+)
+      scrollTarget.addEventListener('scrollend', resume, { once: true });
+    } else {
+      // scroll + デバウンスでスクロール停止を検知
+      const onScroll = () => {
+        if (tocClickTimer) clearTimeout(tocClickTimer);
+        tocClickTimer = setTimeout(() => {
+          scrollTarget.removeEventListener('scroll', onScroll);
+          resume();
+        }, 200);
+      };
+      scrollTarget.addEventListener('scroll', onScroll);
+    }
+    // フォールバック: scrollend 未発火（スクロール不要なクリックなど）に備える
+    tocClickTimer = setTimeout(resume, 2000);
+  };
+
+  tocClickHandlerRef = handler;
+  tocContentEl = tocContent;
+  tocContent.addEventListener('click', handler);
+
+  tocObserver = new IntersectionObserver(
+    (entries) => {
+      if (tocClickScrolling) return;
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const link = tocContent.querySelector(`a[href="#${id}"]`);
+          if (link) setTocActive(link);
+          break;
+        }
+      }
+    },
+    { root: scrollRoot, rootMargin: '-10% 0px -80% 0px', threshold: 0 },
+  );
+
+  headings.forEach((h) => tocObserver!.observe(h));
+};
+
+onMounted(setupTocObserver);
+
+watch([isPrintMode, showTocContent], setupTocObserver);
 
 // ── タスクチェックボックス機能 ────────────────────────────
 
@@ -891,9 +996,8 @@ const onCheckboxChange = async (event: Event): Promise<void> => {
         <p class="wiki-owner">Wikiオーナー：{{ wikiOwner.publicName }}</p>
       </div>
     </div>
-    <div v-if="showTocContent" class="toc">
-      <h3 class="toc-title">目次</h3>
-      <div class="toc-content" v-html="tocToHtml"></div>
+    <div v-if="showTocContent">
+      <div class="toc" v-html="tocToHtml"></div>
     </div>
   </div>
 
@@ -1000,24 +1104,7 @@ const onCheckboxChange = async (event: Event): Promise<void> => {
 }
 
 .istoc {
-  width: 70%;
-}
-
-.toc-title {
-  color: black;
-  text-align: center;
-  font-size: 20px;
-  margin-top: -1%;
-}
-
-.toc {
-  width: 25%;
-  height: 70%;
-  margin-left: 70%;
-  position: fixed;
-  overflow: auto;
-  color: whitesmoke;
-  font-size: 14px;
+  width: 72%;
 }
 
 .markdown-isnomal {

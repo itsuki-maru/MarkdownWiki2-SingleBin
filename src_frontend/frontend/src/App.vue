@@ -5,6 +5,7 @@ import { assetsUrl } from '@/setting';
 import { useRouter } from 'vue-router';
 import UserPrivacySetting from '@/components/UserPrivacySetting.vue';
 import { useApplicationInitStore } from './stores/appInits';
+import QRCode from 'qrcodejs2-fix';
 
 const appInitStore = useApplicationInitStore();
 const appTitle = ref(appInitStore.appInitData.appTitle);
@@ -86,9 +87,6 @@ onUnmounted(() => {
 const showQRContent = ref(false);
 const qrCodeText = ref('');
 const isGenerateOk = ref(false);
-// TypeScript でグローバル変数を使用する場合、型アサーションが必要
-// QRCodeはindex.htmlでCDN経由で読み込み、既にページにグローバルとして存在するため、これを明示
-const QRCode: any = (window as any).QRCode;
 
 // HTMLの描画後にqrcodeを設定
 let qrcode: any;
@@ -384,20 +382,6 @@ a {
   text-decoration: none;
 }
 
-/* 目次のリンク（github.cssを上書き） */
-.toc-content a {
-  text-decoration: none;
-  color: black;
-}
-
-/* ホバー */
-.toc-content a:hover {
-  background-color: #c1d1d6;
-  display: inline-block;
-  text-decoration: underline;
-  /* transform を適用するために必要 */
-}
-
 .app-header a:hover {
   transform: scale(1.03);
   display: inline-block;
@@ -418,10 +402,11 @@ a {
   font-size: 20px;
   color: black;
   margin-top: 2%;
-  padding: 0.1em 0.3em;
+  padding: 0.3em 0.4em;
   background: #ebe8e8;
   border-left: solid 5px #426f9c;
   border-bottom: solid 3px #d7d7d7;
+  border-radius: 6px;
 }
 
 /* メモモーダル */
