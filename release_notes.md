@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.4.1
+
+- 目次のスタイルを修正
+
 ## Version 1.4.0
 
 ### 各種JSファイルのnpm管理への移行
