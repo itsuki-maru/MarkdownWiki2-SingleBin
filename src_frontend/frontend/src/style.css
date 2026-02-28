@@ -289,7 +289,7 @@ details[open] > summary::before {
 
 .toc {
   width: 22%;
-  max-height: calc(100vh - 80px);
+  max-height: calc(75vh - 80px);
   position: fixed;
   top: 150px;
   margin-left: 20px;
