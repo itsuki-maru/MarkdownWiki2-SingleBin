@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 1.4.2
+
+- codeタグのスタイリングを修正
+
 ## Version 1.4.1
 
 - 目次のスタイルを修正
