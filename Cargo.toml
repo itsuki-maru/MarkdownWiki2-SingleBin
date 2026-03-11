@@ -22,7 +22,7 @@ futures-util = "0.3.30"
 tokio-util = { version = "0.7.10", features=["full"] }
 uuid = { version = "1.8", features = ["v4", "v7", "serde"] }
 http-body-util = "0.1.0"
-clap = "4.5.18"
+tauri = { version = "2", features = [] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 image = "0.25"
@@ -36,8 +36,8 @@ rust-embed = "8.5.0"
 anyhow = "1.0"
 rexif = "0.7.5"
 dirs = "5.0"
-webbrowser = "1.0.6"
+open = "5"
 windows = { version = "0.60", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Console"] }
 
 [build-dependencies]
-embed-resource = "3.0"
+tauri-build = { version = "2", features = [] }
