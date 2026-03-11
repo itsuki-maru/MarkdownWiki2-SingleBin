@@ -1,5 +1,12 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.0.0
+
+### デスクトップアプリ環境を実装
+
+- Tauri を導入し、デスクトップアプリとして起動実行可能とした。
+- サーバモードも引き続きサポート `markdown_wiki2_single -s <IPアドレス>`
+
 ## Version 1.4.2
 
 - codeタグのスタイリングを修正
