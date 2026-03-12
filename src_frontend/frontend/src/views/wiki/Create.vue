@@ -13,6 +13,7 @@ import ace from 'ace-builds';
 import 'ace-builds/src-noconflict/ext-searchbox'; // Ctrl+Fで検索ボックスを使用するために必要なモジュール
 import 'ace-builds/src-noconflict/mode-markdown'; // Aceでマークダウンを使用するためのモジュール
 import 'ace-builds/src-noconflict/theme-monokai'; // Aceのテーマのモジュール
+import 'ace-builds/src-noconflict/keybinding-vim'; // VimキーバインディングのAceモジュール
 import {
   videoToken,
   detailsToken,
@@ -176,6 +177,7 @@ watch(content, (newContent) => {
 const localStorageItems = getLocalStrageInfo();
 const isShowTools = ref(false); // マークダウン入力ツール表示コントロール
 const isPreview = ref(true); // プレビューの表示非表示
+const isVimMode = ref(false); // Vimモードの表示コントロール
 const localStrageTitle = localStorage.getItem('wikiTitle');
 const localStrageBody = localStorage.getItem('wikiBody');
 
@@ -195,11 +197,16 @@ if (localStorageItems.isPreviewFromLocalStrage === 'false') {
   isPreview.value = false;
 }
 
+if (localStorageItems.isVimModeFromLocalStrage === 'true') {
+  isVimMode.value = true;
+}
+
 // ローカルストレージから前回起動時の状況を取得
 function getLocalStrageInfo(): LocalStrageItem {
   const localstrageItem = {
     isShowToolsFromLocalStrage: localStorage.getItem('isShowTools'),
     isPreviewFromLocalStrage: localStorage.getItem('isPreview'),
+    isVimModeFromLocalStrage: localStorage.getItem('isVimMode'),
   };
   return localstrageItem;
 }
@@ -226,6 +233,25 @@ const handlePreview = (): void => {
   }
 };
 
+// VimモードのON/OFF切替
+const handleVimMode = (): void => {
+  if (isVimMode.value) {
+    isVimMode.value = false;
+    localStorage.setItem('isVimMode', 'false');
+    if (editor) {
+      editor.setKeyboardHandler(null);
+    }
+    messageModalOpenClose('Vimモードの終了');
+  } else {
+    isVimMode.value = true;
+    localStorage.setItem('isVimMode', 'true');
+    if (editor) {
+      editor.setKeyboardHandler('ace/keyboard/vim');
+      messageModalOpenClose('Vimモードを開始');
+    }
+  }
+};
+
 // HTML描画後にAceエディタを反映
 onMounted(() => {
   // Aceの設定
@@ -236,6 +262,23 @@ onMounted(() => {
     editor.setFontSize(16);
     // 80文字の縦ラインを消す
     editor.setShowPrintMargin(false);
+
+    // Vimモードの適用
+    if (isVimMode.value) {
+      editor.setKeyboardHandler('ace/keyboard/vim');
+    }
+
+    // Vim の :wq / :w コマンドをカスタマイズ
+    const vimApi = ace.require('ace/keyboard/vim');
+    vimApi.CodeMirror.Vim.defineEx('wq', 'wq', () => {
+      createWiki();
+    });
+    vimApi.CodeMirror.Vim.defineEx('write', 'w', () => {
+      createWiki();
+    });
+    vimApi.CodeMirror.Vim.defineEx('quit', 'q', () => {
+      listRedirect();
+    });
 
     if (localStrageTitle !== null) {
       createWikiData.value.title = localStrageTitle;
@@ -1003,6 +1046,11 @@ const handleKeyDown = (event: KeyboardEvent) => {
   } else if (event.ctrlKey && event.key === '6') {
     event.preventDefault();
     handleInputTool();
+
+    // Vimモード切り替え
+  } else if (event.ctrlKey && event.key === ',') {
+    event.preventDefault();
+    handleVimMode();
 
     // 書き方モーダル
   } else if (event.ctrlKey && event.key === '7') {

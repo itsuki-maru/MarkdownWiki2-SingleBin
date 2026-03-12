@@ -59,6 +59,7 @@ interface OneTimeWikis {
 interface LocalStrageItem {
   isShowToolsFromLocalStrage: string | null;
   isPreviewFromLocalStrage: string | null;
+  isVimModeFromLocalStrage?: string | null;
 }
 
 // アプリケーションの起動時情報
