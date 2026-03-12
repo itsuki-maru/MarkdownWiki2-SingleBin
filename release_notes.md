@@ -1,5 +1,13 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.0
+
+### Vimモードを追加
+
+- Vimキーバインディングをサポート
+- `Ctrl + ,` で Vimモードを切り替え
+- `:wq` / `:q` コマンドをカスタマイズ
+
 ## Version 2.0.0
 
 ### デスクトップアプリ環境を実装
