@@ -274,13 +274,11 @@ const handleVimMode = (): void => {
     if (editor) {
       editor.setKeyboardHandler(null);
     }
-    messageModalOpenClose('Vimモードの終了');
   } else {
     isVimMode.value = true;
     localStorage.setItem('isVimMode', 'true');
     if (editor) {
       editor.setKeyboardHandler('ace/keyboard/vim');
-      messageModalOpenClose('Vimモードを開始');
     }
   }
 };
@@ -312,6 +310,10 @@ onMounted(() => {
     vimApi.CodeMirror.Vim.defineEx('quit', 'q', () => {
       previewRedirect(updateWikiData.value.id);
     });
+    vimApi.CodeMirror.Vim.defineAction('focusTitle', () => {
+      focusTitle();
+    });
+    vimApi.CodeMirror.Vim.mapCommand('<C-i>', 'action', 'focusTitle', {}, { context: 'normal' });
 
     editor.getSession().setValue(wiki.value.body);
   }
@@ -1260,10 +1262,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
     // title入力欄にフォーカス
   } else if (event.ctrlKey && event.key === 'i') {
     event.preventDefault();
-    const inputTitleElement = document.getElementById('title-input-text');
-    if (inputTitleElement) {
-      inputTitleElement.focus();
-    }
+    focusTitle();
 
     // 作成
   } else if (event.ctrlKey && event.key === 'm') {
@@ -1304,6 +1303,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
     }
   }
 };
+
+// タイトルにフォーカス
+function focusTitle() {
+  const inputTitleElement = document.getElementById('title-input-text');
+  if (inputTitleElement) {
+    inputTitleElement.focus();
+  }
+}
 
 // コンポーネントマウント時にイベントリスナーを追加
 onMounted(() => {
@@ -1482,6 +1489,17 @@ function insertMarkdown(text: string) {
         v-on:click.prevent="handleOpenCloseRequestMessageModal"
       >
         + 変更をリクエスト
+      </button>
+    </div>
+    <div class="toggle-vim-switch">
+      <button
+        type="button"
+        title="Vimモードを切り替え&#10;ショートカット: Ctrl + ,"
+        class="btn-toggle-vim"
+        :class="{ 'toggle-vim-switch-active': isVimMode }"
+        v-on:click.prevent="handleVimMode"
+      >
+        Vim
       </button>
     </div>
 
@@ -2927,5 +2945,53 @@ canvas {
   font-size: 14px;
   font-weight: bold;
   text-shadow: 1px 1px 2px rgb(202, 202, 202);
+}
+
+.btn-toggle-vim {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+  background: transparent;
+  color: grey;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.btn-toggle-vim:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.toggle-vim-switch {
+  position: fixed;
+  bottom: 17px;
+  left: 1%;
+  text-align: left;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgb(202, 202, 202);
+}
+
+.toggle-vim-switch-active {
+  background: linear-gradient(135deg, #116956, #2c8f77);
+  color: #ffffff;
+  border-color: #2c8f77;
+}
+
+.toggle-vim-switch-active:hover {
+  background: linear-gradient(135deg, #0e5a49, #247a65);
+  color: #ffffff;
 }
 </style>
