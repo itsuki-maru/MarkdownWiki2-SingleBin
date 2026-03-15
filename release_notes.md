@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.1
+
+- Vimモードを切り替えるボタンを設置
+
 ## Version 2.1.0
 
 ### Vimモードを追加
