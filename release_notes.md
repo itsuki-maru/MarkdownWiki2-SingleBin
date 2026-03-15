@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.2
+
+- Vimモード切替のトグルボタンの配置を変更
+
 ## Version 2.1.1
 
 - Vimモードを切り替えるボタンを設置
