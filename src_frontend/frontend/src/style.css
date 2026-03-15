@@ -234,6 +234,8 @@ details[open] > summary::before {
 }
 
 .btn-head-left {
+  display: flex;
+  align-items: center;
   white-space: nowrap;
   overflow: scroll;
   width: 80%;

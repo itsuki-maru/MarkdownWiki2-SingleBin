@@ -1409,6 +1409,14 @@ function insertMarkdown(text: string) {
       >
         <img :src="`${assetsUrl}markdown_24.png`" class="btn-img" alt="markdown_24.png" />
       </button>
+      <button
+        title="Vimモードを切り替え&#10;ショートカット: Ctrl + ,"
+        class="btn-head-image btn-toggle-vim"
+        :class="{ 'toggle-vim-switch-active': isVimMode }"
+        v-on:click.prevent="handleVimMode"
+      >
+        Vim
+      </button>
     </div>
     <div id="btn-head-right">
       <button
@@ -1491,18 +1499,6 @@ function insertMarkdown(text: string) {
         + 変更をリクエスト
       </button>
     </div>
-    <div class="toggle-vim-switch">
-      <button
-        type="button"
-        title="Vimモードを切り替え&#10;ショートカット: Ctrl + ,"
-        class="btn-toggle-vim"
-        :class="{ 'toggle-vim-switch-active': isVimMode }"
-        v-on:click.prevent="handleVimMode"
-      >
-        Vim
-      </button>
-    </div>
-
     <div class="right-area-preview" v-if="isPreview">
       <div class="right-h3">
         <h3 v-show="isOwner" class="editor-and-preview-title" id="title_h3_2">Preview</h3>
@@ -2948,40 +2944,14 @@ canvas {
 }
 
 .btn-toggle-vim {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 5px;
-  background: transparent;
-  color: grey;
-  font-size: 0.67rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  color: black;
+  font-weight: bold;
+  font-size: 0.72rem;
   cursor: pointer;
   transition:
     background 0.15s,
     color 0.15s,
     border-color 0.15s;
-}
-
-.btn-toggle-vim:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.45);
-}
-
-.toggle-vim-switch {
-  position: fixed;
-  bottom: 17px;
-  left: 1%;
-  text-align: left;
-  font-size: 14px;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgb(202, 202, 202);
 }
 
 .toggle-vim-switch-active {
