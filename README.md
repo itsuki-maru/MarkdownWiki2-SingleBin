@@ -53,3 +53,9 @@ docker run --name proxy-nginx --network=host -p 80:80 -v $(pwd)/utils/nginx/ngin
 - "secure_cookie": "true",
 + "secure_cookie": "false",
 ```
+
+## tauri でインストーラを作成
+
+```bash
+cargo tauri build
+```

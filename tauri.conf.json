@@ -7,8 +7,18 @@
     "frontendDist": "dist"
   },
   "bundle": {
-    "active": false,
-    "icon": ["res/icon.ico"]
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["res/icon.ico"],
+    "windows": {
+      "nsis": {
+        "languages": ["Japanese"],
+        "installerIcon": "res/icon.ico"
+      },
+      "wix": {
+        "language": "ja-JP"
+      }
+    }
   },
   "app": {
     "windows": [],
