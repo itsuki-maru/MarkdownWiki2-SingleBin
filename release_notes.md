@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.4
+
+- zoom を有効化
+
 ## Version 2.1.3
 
 -配布用にWindowsインストーラを作成する設定を`tauri.conf.json` に追記
