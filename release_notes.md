@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.3
+
+-配布用にWindowsインストーラを作成する設定を`tauri.conf.json` に追記
+    - `cargo tauri build` でインストーラを作成
+    - インストーラをを適切に作成することで、WebView2Loader.dll などの依存DLLをバンドル
+
 ## Version 2.1.2
 
 - Vimモード切替のトグルボタンの配置を変更
