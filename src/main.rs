@@ -181,6 +181,7 @@ async fn complete_setup(
     .title(&CONFIG.app_title)
     .inner_size(1920.0, 1080.0)
     .maximized(true)
+    .zoom_hotkeys_enabled(true)
     .initialization_script(OPEN_EXTERNAL_SCRIPT)
     .build()
     .map_err(|e| e.to_string())?;
@@ -395,8 +396,9 @@ fn main() {
                     tauri::WebviewUrl::External(WINDOW_URL.parse().unwrap()),
                 )
                 .title(&CONFIG.app_title)
-                .inner_size(1280.0, 800.0)
+                .inner_size(1920.0, 1080.0)
                 .maximized(true)
+                .zoom_hotkeys_enabled(true)
                 .initialization_script(OPEN_EXTERNAL_SCRIPT)
                 .build()?;
             }
