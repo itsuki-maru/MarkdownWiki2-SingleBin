@@ -79,6 +79,20 @@ cargo sqlx prepare
 cargo tauri build
 ```
 
+## GitHub Release ワークフロー
+
+GitHub Actions では [.github/workflows/release.yml](.github/workflows/release.yml) により、Windows 向けリリースビルドを行う。
+
+- トリガーは `v*` タグ push、または `workflow_dispatch`
+- 実行環境は `windows-latest`
+- ルートに CI 用の `.env` を生成してビルドに必要な `DATABASE_URL`、`CREATEDATABASE_PATH`、`VITE_IP_ADDRESS`、`VITE_ASSET_PATH` を設定する
+- `sqlx-cli` を導入し、`sqlx database create` と `sqlx migrate run` を実行して、`sqlx` の query macros が参照できる SQLite スキーマを用意する
+- `src_frontend/scripts/frontends-builder.ps1` で 3 系統のフロントエンド成果物を `dist/` に集約する
+- `cargo tauri build` で Windows NSIS インストーラを生成する
+- 生成した `.exe` / `.msi` を収集し、チェックサム付きで GitHub Release の draft に添付する
+
+ローカル開発時と異なり、GitHub Actions ではビルド専用の SQLite DB をその場で作成する。アプリケーション本番利用用の DB を配布物に同梱するわけではない。
+
 ## Docker によるバイナリビルド（サーバー単体モード用）
 
 Linux バイナリをクロスビルドする場合に使用する。

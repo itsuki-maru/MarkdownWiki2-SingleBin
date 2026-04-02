@@ -426,4 +426,37 @@ API エラーは原則 JSON で返る。
 - 組み込み静的ファイル: `dist/`
 - 組み込みテンプレート: `dist/templates/`
 
+## 15. GitHub Release Workflow
+
+本リポジトリには Windows 向けリリースビルド用の GitHub Actions workflow として `.github/workflows/release.yml` を持つ。
+
+### 15.1 トリガー
+
+- `v*` タグ push
+- `workflow_dispatch`
+
+### 15.2 ビルド時前提
+
+- 実行環境は `windows-latest`
+- ビルド前に workflow がルートへ CI 用 `.env` を生成する
+- `.env` には少なくとも次の値を設定する
+  - `DATABASE_URL`
+  - `CREATEDATABASE_PATH`
+  - `VITE_IP_ADDRESS`
+  - `VITE_ASSET_PATH`
+- `sqlx` のコンパイル時クエリ検証を通すため、workflow 内で `sqlx-cli` を導入し、`sqlx database create` と `sqlx migrate run` を実行して CI 用 SQLite DB を作成する
+
+### 15.3 ビルド処理
+
+- `npm ci` を `frontend`、`frontend-mobile`、`frontend-admin` で実行する
+- `src_frontend/scripts/frontends-builder.ps1` でフロントエンド成果物を `dist/` に集約する
+- `cargo tauri build` で Windows インストーラを生成する
+- `target/release/bundle` 配下の `.exe` / `.msi` を成果物として収集する
+
+### 15.4 リリース処理
+
+- 収集済み成果物をまとめてダウンロードする
+- SHA-256 チェックサム `checksums.txt` を生成する
+- GitHub Release を draft で作成し、成果物とチェックサムを添付する
+
 以上が、現行実装に基づく MarkdownWiki2-SingleBin の仕様である。
