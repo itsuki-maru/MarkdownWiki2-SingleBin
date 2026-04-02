@@ -2,6 +2,8 @@
 
 Rust/Axum 製 API サーバーと Vue 3 製フロントエンドを 1 つの配布物にまとめた Markdown Wiki アプリケーション。Tauri 2 によるデスクトップアプリとして動作し、SQLite をデータベースとして使用する。
 
+> このプロジェクトはPostgreSQLをデータベースに使用したフル構成の [MarkdownWiki2](https://www.marudev.org/) をWindows環境でオフライン動作させることを目的に再構築したもの。ゆえに **SingleBin**　。
+
 ## サポートプラットフォーム
 
 **現時点では Windows のみサポートしています。**
