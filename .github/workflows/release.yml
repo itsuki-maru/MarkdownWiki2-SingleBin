@@ -15,6 +15,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SQLX_OFFLINE: "true"
   VITE_IP_ADDRESS: ""
   VITE_ASSET_PATH: "/assets/"
 
@@ -50,6 +51,23 @@ jobs:
           npm ci --prefix src_frontend/frontend
           npm ci --prefix src_frontend/frontend-mobile
           npm ci --prefix src_frontend/frontend-admin
+
+      - name: Generate CI .env
+        shell: pwsh
+        run: |
+          @"
+          DATABASE_URL=sqlite:./ci-build.sqlite
+          CREATEDATABASE_PATH=./ci-build.sqlite
+          VITE_IP_ADDRESS=
+          VITE_ASSET_PATH=/assets/
+          "@ | Set-Content -Path .env -Encoding UTF8
+
+      - name: Verify SQLx offline metadata
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .sqlx)) {
+            throw ".sqlx directory is required for SQLX_OFFLINE builds."
+          }
 
       - name: Install NSIS
         shell: pwsh
