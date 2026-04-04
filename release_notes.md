@@ -1,5 +1,11 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.6
+
+- ノートPCの精密タッチパッド使用時に画面が上下にラバーバンドしてしまう問題を修正
+  - 原因: `overscroll-behavior` が未設定のため、WebView2（Chromium）のデフォルトのオーバースクロール弾性アニメーションが有効になっていた
+  - 修正: 各フロントエンドの `index.html` および一時共有URL用サーバーサイドテンプレートに `overscroll-behavior: none` を追加
+
 ## Version 2.1.5
 
 - Github Actions を用いたリリースワークフローを追加
