@@ -1,5 +1,9 @@
 # MarkdownWiki2-SingleBin Release Note
 
+## Version 2.1.7
+
+- ファイルアップロードモーダルを更新（進捗の確認ができるようにアップデート）
+
 ## Version 2.1.6
 
 - ノートPCの精密タッチパッド使用時に画面が上下にラバーバンドしてしまう問題を修正
