@@ -1,143 +1,169 @@
-import { ref } from 'vue';
-import type { Ref } from 'vue';
+import { computed, ref } from 'vue';
+import type { AxiosProgressEvent } from 'axios';
 import { AxiosError } from 'axios';
 import { imageUploadUrl } from '@/router/urls';
 import { baseUrl } from '@/setting';
 import { useImageStore } from '@/stores/images';
-import type { ImageData } from '@/interface';
+import { useImageResize } from '@/utils/useImageResize';
+import type { ImageData, UploadProgressState } from '@/interface';
 import apiClient from '@/axiosClient';
 import { isPDF, isMP4 } from '@/utils/markedSetup';
 
+type AssetKind = 'image' | 'video' | 'pdf' | '';
+
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'application/pdf',
+];
+const MAX_UPLOAD_FILE_SIZE = 30 * 1024 * 1024;
+
+type ImageUploadOptions = {
+  showSuccessMessage?: boolean;
+  successMessage?: string;
+};
+
 export function useImageUpload(
-  showProgressModal: Ref<boolean>,
   onMessage: (msg: string) => void,
-  onUploadSuccess: (markdownStr: string) => void,
+  onUploadSuccess: (markdownStr: string, uniqueFileName?: string) => void,
+  onUploadProgressChange: (progress: UploadProgressState) => void = () => {},
+  options: ImageUploadOptions = {},
 ) {
+  const imageStore = useImageStore();
+  const { resizeImageWithCanvas } = useImageResize();
   const selectedImageBlob = ref<Blob | null>(null);
   const selectedFileName = ref<string>('');
+  const selectedFileSize = ref<number | null>(null);
+  const selectedMimeType = ref<string>('');
+  const selectedAssetKind = ref<AssetKind>('');
   const isImageSendNow = ref(false);
+  const fileInputRef = ref<HTMLInputElement | null>(null);
+
+  const acceptedFileTypes = 'JPEG, PNG, WebP, GIF, MP4, PDF';
+
+  const emptyProgressState = (): UploadProgressState => ({
+    isOpen: false,
+    phase: 'preparing',
+    percent: null,
+    fileName: '',
+    message: '',
+  });
+
+  const emitProgress = (progress: UploadProgressState): void => {
+    onUploadProgressChange(progress);
+  };
+
+  const handleUploadProgress = (progressEvent: AxiosProgressEvent): void => {
+    const loaded = progressEvent.loaded ?? 0;
+    const total = progressEvent.total ?? undefined;
+    const percent = total && total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null;
+
+    emitProgress({
+      isOpen: true,
+      phase: percent === 100 ? 'finalizing' : 'uploading',
+      percent: percent === 100 ? null : percent,
+      fileName: selectedFileName.value,
+      message:
+        percent === 100
+          ? 'アップロード完了。サーバーで保存処理中です。'
+          : 'ファイルをアップロードしています。',
+      loadedBytes: loaded,
+      totalBytes: total,
+    });
+  };
+
+  const selectedFileTypeLabel = computed(() => {
+    switch (selectedAssetKind.value) {
+      case 'image':
+        return '画像';
+      case 'video':
+        return '動画';
+      case 'pdf':
+        return 'PDF';
+      default:
+        return '未選択';
+    }
+  });
+
+  const isUploadReady = computed(() => selectedImageBlob.value !== null && !isImageSendNow.value);
+
+  const formatFileSize = (size: number | null): string => {
+    if (size === null) return '-';
+    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const resolveAssetKind = (file: File): AssetKind => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type === 'video/mp4') return 'video';
+    if (file.type === 'application/pdf') return 'pdf';
+    return '';
+  };
 
   const onImageSelect = async (): Promise<void> => {
-    const element = document.getElementById('image1')! as HTMLInputElement;
-    if (element.value === '' || element.value === null) {
+    const element = fileInputRef.value;
+    if (!element || element.value === '' || element.value === null) {
       onMessage('画像ファイルを選択してください。');
       return;
     }
 
-    const file = element.files!;
-    const fileObj = file[0]!;
-    const fileName = fileObj.name;
+    const fileObj = element.files?.[0];
+    if (!fileObj) {
+      return;
+    }
 
-    const arrowMimeTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'image/gif',
-      'video/mp4',
-      'application/pdf',
-    ];
-    if (!arrowMimeTypes.includes(fileObj.type)) {
+    selectedFileName.value = fileObj.name;
+    selectedFileSize.value = fileObj.size;
+    selectedMimeType.value = fileObj.type;
+    selectedAssetKind.value = resolveAssetKind(fileObj);
+
+    if (!ALLOWED_MIME_TYPES.includes(fileObj.type)) {
       onMessage('許可されていない形式のファイルです。');
-      imageCrear();
+      imageClear();
+      return;
+    }
+
+    if (fileObj.size > MAX_UPLOAD_FILE_SIZE) {
+      onMessage('30MBを超えるファイルはアップロードできません。');
+      imageClear();
       return;
     }
 
     if (fileObj.type.startsWith('image/')) {
       try {
-        showProgressModal.value = true;
+        emitProgress({
+          isOpen: true,
+          phase: 'preparing',
+          percent: null,
+          fileName: fileObj.name,
+          message: '画像をアップロード用に最適化しています。',
+        });
         selectedImageBlob.value = await resizeImageWithCanvas(fileObj);
       } catch (error) {
         console.error('リサイズエラー: ', error);
         selectedImageBlob.value = null;
       } finally {
-        showProgressModal.value = false;
+        emitProgress(emptyProgressState());
       }
     } else {
       selectedImageBlob.value = fileObj;
     }
-    selectedFileName.value = fileName;
   };
 
-  const resizeImageWithCanvas = (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxWidth = 1280;
-        const maxHeight = 720;
-
-        const { width, height } = caluculateDimensions(img.width, img.height, maxWidth, maxHeight);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas contextの取得に失敗しました。'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Blobの生成に失敗しました。'));
-            }
-          },
-          file.type,
-          0.8,
-        );
-      };
-      img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const caluculateDimensions = (
-    width: number,
-    height: number,
-    maxWidth: number,
-    maxHeight: number,
-  ) => {
-    if (height < width) {
-      if (width > maxWidth || height > maxHeight) {
-        const widthRatio = maxWidth / width;
-        const heightRatio = maxHeight / height;
-        const ratio = Math.min(widthRatio, heightRatio);
-        return {
-          width: Math.floor(width * ratio),
-          height: Math.floor(height * ratio),
-        };
-      }
-      return { width, height };
-    } else {
-      if (height > maxWidth || width > maxHeight) {
-        const widthRatio = maxWidth / height;
-        const heightRatio = maxHeight / width;
-        const ratio = Math.min(widthRatio, heightRatio);
-        return {
-          width: Math.floor(width * ratio),
-          height: Math.floor(height * ratio),
-        };
-      }
-      return { width, height };
-    }
-  };
-
-  const uploadImage = async (): Promise<void> => {
+  const imageFileSend = async (): Promise<void> => {
     if (isImageSendNow.value === true) {
       return;
     } else {
       isImageSendNow.value = true;
     }
-    showProgressModal.value = true;
 
     if (!selectedImageBlob.value) {
       onMessage('ファイルを選択してください。');
       isImageSendNow.value = false;
-      showProgressModal.value = false;
+      emitProgress(emptyProgressState());
       return;
     }
 
@@ -145,7 +171,17 @@ export function useImageUpload(
     payload.append('upload_file', selectedImageBlob.value, selectedFileName.value);
 
     try {
-      const response = await apiClient.post(imageUploadUrl, payload);
+      emitProgress({
+        isOpen: true,
+        phase: 'uploading',
+        percent: 0,
+        fileName: selectedFileName.value,
+        message: 'ファイルをアップロードしています。',
+        loadedBytes: 0,
+      });
+      const response = await apiClient.post(imageUploadUrl, payload, {
+        onUploadProgress: handleUploadProgress,
+      });
 
       const newImageData: ImageData = {
         id: response.data['new_image_id'],
@@ -153,7 +189,6 @@ export function useImageUpload(
         filename: response.data['filename'],
         uuid_filename: response.data['uuid_filename'],
       };
-      const imageStore = useImageStore();
       imageStore.addImage(newImageData);
 
       const uniqueFileName = response.data['uuid_filename'];
@@ -170,8 +205,11 @@ export function useImageUpload(
       }
 
       imageStore.initList();
-      onUploadSuccess(imageUrlMarkdown);
-      imageCrear();
+      if (options.showSuccessMessage !== false) {
+        onMessage(options.successMessage ?? 'アップロード完了。コンテンツを挿入しました。');
+      }
+      onUploadSuccess(imageUrlMarkdown, uniqueFileName);
+      imageClear();
     } catch (error) {
       if (apiClient.isAxiosError(error)) {
         const axiosError = error as AxiosError;
@@ -199,28 +237,43 @@ export function useImageUpload(
     } finally {
       selectedImageBlob.value = null;
       selectedFileName.value = '';
+      selectedFileSize.value = null;
+      selectedMimeType.value = '';
+      selectedAssetKind.value = '';
       isImageSendNow.value = false;
-      showProgressModal.value = false;
+      emitProgress(emptyProgressState());
     }
   };
 
-  const imageCrear = (): void => {
+  const imageClear = (): void => {
     selectedFileName.value = '';
+    selectedFileSize.value = null;
+    selectedMimeType.value = '';
     selectedImageBlob.value = null;
-    let imageContent = document.getElementById('image1')! as HTMLInputElement;
-    if (imageContent.value === null) {
-      return;
-    } else {
-      imageContent.value = '';
-    }
+    selectedAssetKind.value = '';
+    if (!fileInputRef.value || fileInputRef.value.value === null) return;
+    fileInputRef.value.value = '';
   };
+
+  const uploadImage = imageFileSend;
+  const imageCrear = imageClear;
 
   return {
+    fileInputRef,
     selectedImageBlob,
     selectedFileName,
+    selectedFileSize,
+    selectedMimeType,
+    selectedAssetKind,
+    selectedFileTypeLabel,
+    acceptedFileTypes,
+    isUploadReady,
     isImageSendNow,
+    formatFileSize,
     onImageSelect,
+    imageFileSend,
     uploadImage,
+    imageClear,
     imageCrear,
   };
 }
