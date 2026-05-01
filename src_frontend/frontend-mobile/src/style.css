@@ -384,54 +384,6 @@ input:checked ~ .circle {
   border-radius: 10px;
 }
 
-#overlay-fileup {
-  z-index: 1;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#content-fileup {
-  z-index: 2;
-  width: 80%;
-  padding: 1em;
-  background: whitesmoke;
-  border-radius: 10px;
-}
-
-.btn-file-upload {
-  width: 100%;
-  height: 40px;
-  font-size: 15px;
-  background: rgb(77, 103, 218);
-  box-shadow: 3px 3px 5px 0 rgba(75, 75, 75, 0.5);
-  color: #fff;
-  padding: 10px 7px;
-  text-decoration: none;
-  border: 1px;
-  border-radius: 12px;
-  transition-property: opacity;
-  -webkit-transition-property: opacity;
-  transition-duration: 0.5s;
-  -webkit-transition-duration: 0.5s;
-  margin: 0px 5px 10px 0px;
-  transition: background-color 0.3s;
-}
-
-.btn-file-upload:hover {
-  background: rgb(22, 42, 129);
-}
-
-.file-select-table {
-  width: 100%;
-}
-
 /* 画像一覧モーダル */
 #overlay-imagelist {
   z-index: 1;
@@ -621,40 +573,6 @@ input:checked ~ .circle {
   background: whitesmoke;
   border-radius: 10px;
   text-align: center;
-}
-
-#overlay-progress-bar {
-  z-index: 3;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  transform-origin: 50% 50%;
-  transform-box: fill-box;
-  /* Firefox対策 */
-  animation: spin 1s linear infinite;
-  will-change: transform;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* アクセシビリティ配慮：モーション削減 */
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
 }
 
 /* 画像アップロードメッセージモーダル（HTTP通信時） */

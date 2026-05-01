@@ -45,6 +45,18 @@ interface ImageData {
   uuid_filename: string;
 }
 
+type UploadProgressPhase = 'preparing' | 'uploading' | 'finalizing';
+
+interface UploadProgressState {
+  isOpen: boolean;
+  phase: UploadProgressPhase;
+  percent: number | null;
+  fileName: string;
+  message: string;
+  loadedBytes?: number;
+  totalBytes?: number;
+}
+
 // アプリケーションの起動時情報
 interface ApplicationInit {
   appTitle: string;
@@ -93,6 +105,8 @@ export type {
   deleteWikiData,
   QueryForm,
   ImageData,
+  UploadProgressPhase,
+  UploadProgressState,
   ApplicationInit,
   TypeWikiOwner,
   EditRequestWiki,

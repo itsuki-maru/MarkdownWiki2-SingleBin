@@ -46,6 +46,18 @@ interface ImageData {
   uuid_filename: string;
 }
 
+type UploadProgressPhase = 'preparing' | 'uploading' | 'finalizing';
+
+interface UploadProgressState {
+  isOpen: boolean;
+  phase: UploadProgressPhase;
+  percent: number | null;
+  fileName: string;
+  message: string;
+  loadedBytes?: number;
+  totalBytes?: number;
+}
+
 interface OneTimeWikis {
   id: string;
   user_id: string;
@@ -110,6 +122,8 @@ export type {
   deleteWikiData,
   QueryForm,
   ImageData,
+  UploadProgressPhase,
+  UploadProgressState,
   OneTimeWikis,
   LocalStrageItem,
   ApplicationInit,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WikiData, CreateWikiData, ImageData } from '@/interface';
+import type { WikiData, CreateWikiData, ImageData, UploadProgressState } from '@/interface';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useWikiStore } from '@/stores/wikis';
@@ -11,9 +11,11 @@ import { marked, Renderer } from 'marked';
 import { videoToken, isPDF, isMP4 } from '@/utils/markedSetup';
 import { useMessageModal } from '@/utils/useMessageModal';
 import { useProtocolDetection } from '@/utils/useProtocolDetection';
-import { useImageUpload } from '@/utils/useImageUpload';
 import apiClient from '@/axiosClient';
 import QRCode from 'qrcodejs2-fix';
+import ImageUploadModal from '@/components/ImageUploadModal.vue';
+import ProgressSpinner from '@/components/ProgressSpinner.vue';
+import UploadProgressModal from '@/components/UploadProgressModal.vue';
 
 // 現在ユーザーの取得
 const getCurrentUser = async (): Promise<void> => {
@@ -88,14 +90,18 @@ watch(isNewWikiSendNow, (): void => {
   }
 });
 
-const { onImageSelect, uploadImage, imageCrear } = useImageUpload(
-  showProgressModal,
-  messageModalOpenClose,
-  (markdownStr) => {
-    createWikiData.value.body = createWikiData.value.body + markdownStr + '\n\n';
-    messageModalOpenClose('アップロード完了。コンテンツを挿入しました。');
-  },
-);
+const emptyUploadProgressState = (): UploadProgressState => ({
+  isOpen: false,
+  phase: 'preparing',
+  percent: null,
+  fileName: '',
+  message: '',
+});
+const uploadProgress = ref<UploadProgressState>(emptyUploadProgressState());
+
+const handleImageUploaded = (markdownStr: string): void => {
+  createWikiData.value.body = createWikiData.value.body + markdownStr + '\n\n';
+};
 
 // 新規Wikiデータの初期化
 const crateWikiDataInit: CreateWikiData = {
@@ -400,32 +406,6 @@ function saveQRCode(): void {
     link.click();
   }
 }
-
-// メッセージモーダル表示時に灰色の部分のクリック時にもメッセージモーダルを閉じる処理
-// HTMLが描画後に組み込む（onmoutedを利用）
-onMounted(() => {
-  // オーバレイとヘルプの内容を取得
-  const imgUploadModal = document.getElementById('overlay-fileup');
-  const imgUploadModalContent = document.getElementById('content-fileup');
-
-  // 灰色部分クリック時にクローズ処理がなされるようにイベント設定
-  if (imgUploadModal) {
-    imgUploadModal.addEventListener('click', function (event) {
-      if (showImageUploadModal.value === true) {
-        showImageUploadModal.value = false;
-      } else {
-        return;
-      }
-    });
-  }
-
-  // 灰色の部分以外（content-fileup）をクリックした時にはイベント伝搬を止め、クローズさせない
-  if (imgUploadModalContent) {
-    imgUploadModalContent.addEventListener('click', function (event) {
-      event.stopPropagation();
-    });
-  }
-});
 
 // 画像一覧モーダル表示時に灰色の部分のクリック時にも画像一覧モーダルを閉じる処理
 // HTMLが描画後に組み込む（onmoutedを利用）
@@ -828,40 +808,16 @@ function handleMarkdownInputButtons() {
     </div>
   </transition>
 
-  <!-- 画像ファイルのアップロードモーダル -->
-  <div id="overlay-fileup" v-show="showImageUploadModal">
-    <div id="content-fileup">
-      <h2 style="text-align: center">画像アップロード</h2>
-      <div>
-        <table class="file-select-table">
-          <thead>
-            <tr>
-              <th>File</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,application/pdf"
-                  id="image1"
-                  v-on:change="onImageSelect"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <button type="submit" class="btn-file-upload" v-on:click.prevent="uploadImage()">
-          アップロード
-        </button>
-      </div>
-      <div class="btn-zone">
-        <button v-on:click.prevent="openCloseImageUpModal()">閉じる</button>
-        <button v-on:click.prevent="imageCrear()">解除</button>
-      </div>
-    </div>
-  </div>
+  <ImageUploadModal
+    :is-open="showImageUploadModal"
+    :is-editing-marker="true"
+    :is-https-protocol="isHttpsProtocol"
+    @close="showImageUploadModal = false"
+    @uploaded="handleImageUploaded"
+    @message="messageModalOpenClose"
+    @show-uploaded-url="uploadMessageModalOpenClose"
+    @upload-progress-change="uploadProgress = $event"
+  />
 
   <!-- アップロード完了モーダル -->
   <div id="overlay-uploaded-message" v-show="isUploadedMessageModal">
@@ -1093,23 +1049,8 @@ function handleMarkdownInputButtons() {
     </div>
   </div>
 
-  <!-- プログレスモーダル -->
-  <div id="overlay-progress-bar" v-show="showProgressModal">
-    <svg class="spinner" width="50" height="50" view-box="0 0 50 50" aria-hidden="true">
-      <g transform="rotate(-90 25 25)">
-        <circle
-          cx="25"
-          cy="25"
-          r="20"
-          fill="none"
-          stroke="#76c7c0"
-          stroke-width="5"
-          stroke-linecap="round"
-          stroke-dasharray="31.4 31.4"
-        />
-      </g>
-    </svg>
-  </div>
+  <ProgressSpinner :is-open="showProgressModal" />
+  <UploadProgressModal :is-open="uploadProgress.isOpen" :progress="uploadProgress" />
 </template>
 
 <style scoped></style>

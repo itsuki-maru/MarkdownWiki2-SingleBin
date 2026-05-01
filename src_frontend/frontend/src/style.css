@@ -250,39 +250,6 @@ details[open] > summary::before {
   /* Firefox */
 }
 
-#overlay-progress-bar {
-  z-index: 3;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  transform-origin: 50% 50%;
-  transform-box: fill-box;
-  /* Firefox対策 */
-  animation: spin 1s linear infinite;
-  will-change: transform;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* アクセシビリティ配慮：モーション削減 */
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
-}
 
 .toc :deep(a.active) {
   color: #3b82f6;
